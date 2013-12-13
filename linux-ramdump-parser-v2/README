@@ -1,0 +1,72 @@
+Python Linux Ramdump Parser
+
+What does this tool do?
+----------------------------------
+This tool takes as its input a vmlinux symbol file, and files representing
+memory from devices that run Linux. It proceeds to dump useful information
+such as process stacks, IRQ and workqueue information.
+
+What does this tool need?
+----------------------------------
+1) Python. This tool has been tested with Python 2.6.5 on both Linux and Windows
+1) a set of RAM dumps. Ideally, the load location of each dump as well.
+2) The corresponding vmlinux file
+
+How is this tool invoked?
+----------------------------------
+python ramparse.py invokes the parser. Options:
+
+--ram-file <file path> <start> <end> : Add this ram file to be parsed.
+At least one of --ram-file and --auto-dump required
+
+--vmlinux <path> : path for vmlinux to use. This is required
+
+--auto-dump <path to folder> : Automatically find files for a RAM dump and
+detect useful informaton.
+
+--gdb-path <path> : path for the GNU gdb debugger. If no path is given, the
+path will be used from local_settings.py
+
+--gdb-path <path> : path for the nm tool. If no path is given, the
+path will be used from local_settings.py
+
+--outdir <path> : Output directory to store any files written. If no path is
+given, the ramfile directory will be used if given, else the current directory
+will be used.
+
+--out-file <path> : File to write all output to. If no path is given,
+linux-parser-output.txt is used
+
+--stdout : Write to stdout instead of the out-file. This overrides any
+--out-file given.
+
+The list of features parsed is constantly growing. Please use --help option
+to see the full list of features that can be parsed.
+
+Setting up the toolchains
+-------------------------------
+The parser relies on having access to gdb and nm to work. You will need to
+specify the paths to these tools. This can be done in three ways
+
+1) Using --gdb-path and --nm-path to specify the absolute path
+2) Using CROSS_COMPILE to specify the prefix
+3) Using local_settings.py as described below
+
+Just having gdb/nm on the path is not supported as there are too many
+variations on names to invoke.
+
+local_settings.py
+-------------------------------
+The parser attempts to figure out most of the settings automatically but there
+are some settings that are unique to the environment of the running system.
+These must be specified in local_settings.py. The current format for the file
+is
+
+<setting name> = <string identifying the feaure>
+
+Currently supported features:
+gdb_path - absolute path to the gdb tool for the ramdumps
+nm_path - absolute path to the gdb tool for the ramdumps
+
+Note that local_settings.py is just a python file so the file may take advantage
+of python features.
