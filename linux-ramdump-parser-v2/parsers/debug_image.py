@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -15,6 +15,7 @@ from parser_util import register_parser, RamParser
 from print_out import print_out_str
 from qdss import QDSSDump
 from cachedump import save_l1_dump, parse_cache_dump
+from watchdog import TZRegDump
 
 QDSS_MAGIC = 0x5D1DB1Bf
 
