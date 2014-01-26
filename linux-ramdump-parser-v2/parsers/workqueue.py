@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -493,7 +493,7 @@ class Workqueues(RamParser):
                     if idle_list_offset is None:
                         self.print_workqueue_state_3_7(self.ramdump)
                     else:
-                        self.print_workqueue_state_3_4(self.ramdump)
+                        self.print_workqueue_state_3_0(self.ramdump)
             if re.search('3.7.\d', ver) is not None:
                     self.print_workqueue_state_3_7(self.ramdump)
             if re.search('3.10.\d', ver) is not None:
