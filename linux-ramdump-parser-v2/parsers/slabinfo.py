@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -11,7 +11,7 @@
 
 import re
 
-from mm import page_address
+from mm import page_address, pfn_to_page
 from print_out import print_out_str
 from parser_util import register_parser, RamParser
 
@@ -39,13 +39,15 @@ class Slabinfo(RamParser):
         freelist = self.ramdump.read_word(page + freelist_offset)
         p = freelist
         addr = page_address(self.ramdump, page)
+        seen = []
         if addr is None:
             return
-        while p != 0 and p is not None:
+        while p != 0 and p is not None and p not in seen:
             idx = self.slab_index(self.ramdump, p, addr, slab)
             if idx >= len(bitarray) or idx < 0:
                 return
             bitarray[idx] = 1
+            seen.append(p)
             p = self.get_free_pointer(self.ramdump, slab, p)
 
     def get_track(self, ramdump, slab, obj, track_type):
@@ -136,15 +138,24 @@ class Slabinfo(RamParser):
 
     def print_slab_page_info(self, ramdump, slab, slab_node, start, out_file):
         page = self.ramdump.read_word(start)
+        seen = []
         if page == 0:
             return
         slab_lru_offset = self.ramdump.field_offset('struct page', 'lru')
         page_flags_offset = self.ramdump.field_offset('struct page', 'flags')
         slab_node_offset = self.ramdump.field_offset(
             'struct kmem_cache', 'size')
+        max_pfn_addr = self.ramdump.addr_lookup('max_pfn')
+        max_pfn = self.ramdump.read_word(max_pfn_addr)
+        max_page = pfn_to_page(ramdump, max_pfn)
         while page != start:
             if page is None:
                 return
+            if page in seen:
+               return
+            if page > max_page:
+               return
+            seen.append(page)
             page = page - slab_lru_offset
             page_flags = self.ramdump.read_word(page + page_flags_offset)
             page_addr = page_address(self.ramdump, page)

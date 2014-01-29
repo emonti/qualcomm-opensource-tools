@@ -1,4 +1,4 @@
-# Copyright (c) 2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -170,7 +170,11 @@ def sparsemem_lowmem_page_address(ramdump, page):
 def dont_map_hole_lowmem_page_address(ramdump, page):
     phys = page_to_pfn(ramdump, page) << 12
     hole_end_addr = ramdump.addr_lookup('memory_hole_end')
+    if hole_end_addr is None:
+        hole_end_addr = ramdump.addr_lookup('membank1_start')
     hole_offset_addr = ramdump.addr_lookup('memory_hole_offset')
+    if hole_offset_addr is None:
+        hole_offset_addr = ramdump.addr_lookup('membank0_size')
     hole_end = ramdump.read_word(hole_end_addr)
     hole_offset = ramdump.read_word(hole_offset_addr)
     if hole_end != 0 and phys >= hole_end:
