@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -160,7 +160,7 @@ if __name__ == '__main__':
 
     if gdb_path is None or nm_path is None:
         print_out_str("!!! Incorrect path for toolchain specified.")
-        print_out_str("!!! Please see the README for instructions on setting up local_settings.pyi or CROSS_COMPILE")
+        print_out_str("!!! Please see the README for instructions on setting up local_settings.py or CROSS_COMPILE")
         sys.exit(1)
 
     print_out_str("Using gdb path {0}".format(gdb_path))
@@ -177,11 +177,11 @@ if __name__ == '__main__':
         sys.exit(1)
 
     if not os.path.exists(nm_path):
-        print_out_str("!!! nm_path {0} does not exist! Check your settings!".format(gdb_path))
+        print_out_str("!!! nm_path {0} does not exist! Check your settings!".format(nm_path))
         sys.exit(1)
 
     if not os.access(nm_path, os.X_OK):
-        print_out_str("!!! No execute permissions on nm path {0}".format(gdb_path))
+        print_out_str("!!! No execute permissions on nm path {0}".format(nm_path))
         print_out_str("!!! Please check the path settings")
         print_out_str("!!! If this tool is being run from a shared location, contact the maintainer")
         sys.exit(1)
