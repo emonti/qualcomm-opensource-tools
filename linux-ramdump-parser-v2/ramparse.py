@@ -145,18 +145,18 @@ if __name__ == '__main__':
                 'Path {0} does not exist for Ram dumps. Exiting...'.format(options.autodump))
             sys.exit(1)
 
-    gdb_path = None
-    nm_path = None
+    gdb_path = options.gdb
+    nm_path = options.nm
 
     try:
         import local_settings
-        gdb_path = local_settings.gdb_path
-        nm_path = local_settings.nm_path
+        gdb_path = gdb_path or local_settings.gdb_path
+        nm_path = nm_path or local_settings.nm_path
     except ImportError:
         cross_compile = os.environ.get('CROSS_COMPILE')
         if cross_compile is not None:
-            gdb_path = cross_compile+"gdb"
-            nm_path = cross_compile+"nm"
+            gdb_path = gdb_path or cross_compile+"gdb"
+            nm_path = nm_path or cross_compile+"nm"
 
     if gdb_path is None or nm_path is None:
         print_out_str("!!! Incorrect path for toolchain specified.")
