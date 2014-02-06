@@ -269,6 +269,7 @@ class Workqueues(RamParser):
                             break
 
             worker_pool = workqueue_i + pools_offset
+            seen = []
             # Need better way to ge the number of pools...
             for k in range(0, 2):
                 worker_pool_i = worker_pool + k * worker_pool_size
@@ -279,8 +280,10 @@ class Workqueues(RamParser):
                     worker_addr = next_entry - worker_entry_offset
                     worker_task_addr = ram_dump.read_word(
                         next_entry - worker_entry_offset + worker_task_offset)
-                    if worker_task_addr is None or worker_task_addr == 0:
+                    if worker_task_addr is None or worker_task_addr == 0 or worker_task_addr in seen:
                         break
+
+                    seen.append(worker_task_addr)
 
                     taskname = ram_dump.read_cstring(
                         (worker_task_addr + offset_comm), 16)
@@ -420,12 +423,15 @@ class Workqueues(RamParser):
 
                 idle_list_addr = worker_pool_i + pool_idle_offset
                 next_entry = ram_dump.read_word(idle_list_addr)
+                seen = []
                 while True:
                     worker_addr = next_entry - worker_entry_offset
                     worker_task_addr = ram_dump.read_word(
                         next_entry - worker_entry_offset + worker_task_offset)
-                    if worker_task_addr is None or worker_task_addr == 0:
+                    if worker_task_addr is None or worker_task_addr == 0 or worker_task_addr in seen:
                         break
+
+                    seen.append(worker_task_addr)
 
                     taskname = ram_dump.read_cstring(
                         (worker_task_addr + offset_comm), 16)
