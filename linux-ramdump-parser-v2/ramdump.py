@@ -15,6 +15,7 @@ import os
 import struct
 import gzip
 import functools
+from boards import get_supported_boards, get_supported_ids
 from tempfile import NamedTemporaryFile
 
 import gdbmi
@@ -26,323 +27,6 @@ SP = 13
 LR = 14
 PC = 15
 THREAD_SIZE = 8192
-
-HARDWARE_ID_IDX = 0
-MEMORY_START_IDX = 1
-PHYS_OFFSET_IDX = 2
-WATCHDOG_BARK_OFFSET_IDX = 3
-IMEM_START_IDX = 4
-CPU_TYPE = 5
-IMEM_FILENAME = 6
-VERSION_COMPARE = 7
-
-smem_offsets = [
-    0,  # 8960/9x15 family and earlier
-    0x0FA00000,  # 8974
-    0x00100000,
-    0x0D900000,  # 8610
-    0x01100000,  # 9635
-]
-
-hw_ids = [
-    (8660, 0x40000000, 0x40200000, 0x2a05f658,
-     0x2a05f000, 'SCORPION', 'IMEM_C.BIN', None),
-    (8960, 0x80000000, 0x80200000, 0x2a03f658,
-     0x2a03f000, 'KRAIT',    'IMEM_C.BIN', None),
-    (8064, 0x80000000, 0x80200000, 0x2a03f658,
-     0x2a03f000, 'KRAIT',    'IMEM_C.BIN', None),
-    (9615, 0x40000000, 0x40800000, 0x0,
-     0x0,        'CORTEXA5', None,         None),
-    (8974, 0x0,        0x0,        0xfe805658,
-     0xfe800000, 'KRAIT',    'OCIMEM.BIN', None),
-    (9625, 0x0,        0x00200000, 0xfc42b658,
-     0xfc428000, 'CORTEXA5', 'MSGRAM.BIN', 1),
-    (9625, 0x0,        0x00200000, 0xfe805658,
-     0xfe800000, 'CORTEXA5', 'OCIMEM.BIN', 2),
-    (8625, 0x0,        0x00200000, 0x0,
-     0x0,        'SCORPION',  None,        None),
-    (8226, 0x0,        0x00000000, 0xfe805658,
-     0xfe800000, 'CORTEXA7', 'OCIMEM.BIN', None),
-    (8610, 0x0,        0x00000000, 0xfe805658,
-     0xfe800000, 'CORTEXA7', 'OCIMEM.BIN', None),
-    (8084, 0x0,        0x0,        0xfe805658,
-     0xfe800000, 'KRAIT',    'OCIMEM.BIN', None),
-    (9635, 0x0,        0x00000000, 0xfe805658,
-     0xfe800000, 'CORTEXA7', 'OCIMEM.BIN', None),
-    (8092, 0x0,        0x0,        0xfe805658,
-     0xfe800000, 'KRAIT',    'OCIMEM.BIN', None),
-]
-
-MSM_CPU_UNKNOWN = 0
-MSM_CPU_7X01 = -1
-MSM_CPU_7X25 = -1
-MSM_CPU_7X27 = -1
-MSM_CPU_8X50 = -1
-MSM_CPU_8X50A = -1
-MSM_CPU_7X30 = -1
-MSM_CPU_8X55 = -1
-MSM_CPU_8X60 = 8660
-MSM_CPU_8960 = 8960
-MSM_CPU_8960AB = 8960
-MSM_CPU_7X27A = 8625
-FSM_CPU_9XXX = -1
-MSM_CPU_7X25A = 8625
-MSM_CPU_7X25AA = 8625
-MSM_CPU_7X25AB = 8625
-MSM_CPU_8064 = 8064
-MSM_CPU_8064AB = 8064
-MSM_CPU_8930 = 8960
-MSM_CPU_8930AA = 8960
-MSM_CPU_8930AB = 8960
-MSM_CPU_7X27AA = -1
-MSM_CPU_9615 = 9615
-MSM_CPU_8974 = 8974
-MSM_CPU_8974PRO_AA = 8974
-MSM_CPU_8974PRO_AB = 8974
-MSM_CPU_8974PRO_AC = 8974
-MSM_CPU_8627 = 8960
-MSM_CPU_8625 = 9615
-MSM_CPU_9625 = 9625
-MSM_CPU_8226 = 8226
-MSM_CPU_8610 = 8610
-MSM_CPU_8084 = 8084
-MSM_CPU_KRYPTON = 9635
-MSM_CPU_8092 = 8092
-
-    # id, cpu, cpuname
-cpu_of_id = [
-    # 7x01 IDs
-    (1,  MSM_CPU_7X01, 'MSM_CPU_7X01'),
-    (16, MSM_CPU_7X01, 'MSM_CPU_7X01'),
-    (17, MSM_CPU_7X01, 'MSM_CPU_7X01'),
-    (18, MSM_CPU_7X01, 'MSM_CPU_7X01'),
-    (19, MSM_CPU_7X01, 'MSM_CPU_7X01'),
-    (23, MSM_CPU_7X01, 'MSM_CPU_7X01'),
-    (25, MSM_CPU_7X01, 'MSM_CPU_7X01'),
-    (26, MSM_CPU_7X01, 'MSM_CPU_7X01'),
-    (32, MSM_CPU_7X01, 'MSM_CPU_7X01'),
-    (33, MSM_CPU_7X01, 'MSM_CPU_7X01'),
-    (34, MSM_CPU_7X01, 'MSM_CPU_7X01'),
-    (35, MSM_CPU_7X01, 'MSM_CPU_7X01'),
-
-    # 7x25 IDs
-    (20, MSM_CPU_7X25, 'MSM_CPU_7X25'),
-    (21, MSM_CPU_7X25, 'MSM_CPU_7X25'),  # 7225
-    (24, MSM_CPU_7X25, 'MSM_CPU_7X25'),  # 7525
-    (27, MSM_CPU_7X25, 'MSM_CPU_7X25'),  # 7625
-    (39, MSM_CPU_7X25, 'MSM_CPU_7X25'),
-    (40, MSM_CPU_7X25, 'MSM_CPU_7X25'),
-    (41, MSM_CPU_7X25, 'MSM_CPU_7X25'),
-    (42, MSM_CPU_7X25, 'MSM_CPU_7X25'),
-    (62, MSM_CPU_7X25, 'MSM_CPU_7X25'),  # 7625-1
-    (63, MSM_CPU_7X25, 'MSM_CPU_7X25'),  # 7225-1
-    (66, MSM_CPU_7X25, 'MSM_CPU_7X25'),  # 7225-2
-
-
-    # 7x27 IDs
-    (43, MSM_CPU_7X27, 'MSM_CPU_7X27'),
-    (44, MSM_CPU_7X27, 'MSM_CPU_7X27'),
-    (61, MSM_CPU_7X27, 'MSM_CPU_7X27'),
-    (67, MSM_CPU_7X27, 'MSM_CPU_7X27'),  # 7227-1
-    (68, MSM_CPU_7X27, 'MSM_CPU_7X27'),  # 7627-1
-    (69, MSM_CPU_7X27, 'MSM_CPU_7X27'),  # 7627-2
-
-
-    # 8x50 IDs
-    (30, MSM_CPU_8X50, 'MSM_CPU_8X50'),
-    (36, MSM_CPU_8X50, 'MSM_CPU_8X50'),
-    (37, MSM_CPU_8X50, 'MSM_CPU_8X50'),
-    (38, MSM_CPU_8X50, 'MSM_CPU_8X50'),
-
-    # 7x30 IDs
-    (59, MSM_CPU_7X30, 'MSM_CPU_7X30'),
-    (60, MSM_CPU_7X30, 'MSM_CPU_7X30'),
-
-    # 8x55 IDs
-    (74, MSM_CPU_8X55, 'MSM_CPU_8X55'),
-    (75, MSM_CPU_8X55, 'MSM_CPU_8X55'),
-    (85, MSM_CPU_8X55, 'MSM_CPU_8X55'),
-
-    # 8x60 IDs
-    (70, MSM_CPU_8X60, 'MSM_CPU_8X60'),
-    (71, MSM_CPU_8X60, 'MSM_CPU_8X60'),
-    (86, MSM_CPU_8X60, 'MSM_CPU_8X60'),
-
-    # 8960 IDs
-    (87, MSM_CPU_8960, 'MSM_CPU_8960'),
-
-    # 7x25A IDs
-    (88, MSM_CPU_7X25A, 'MSM_CPU_7X25A'),
-    (89, MSM_CPU_7X25A, 'MSM_CPU_7X25A'),
-    (96, MSM_CPU_7X25A, 'MSM_CPU_7X25A'),
-
-    # 7x27A IDs
-    (90, MSM_CPU_7X27A, 'MSM_CPU_7X27A'),
-    (91, MSM_CPU_7X27A, 'MSM_CPU_7X27A'),
-    (92, MSM_CPU_7X27A, 'MSM_CPU_7X27A'),
-    (97, MSM_CPU_7X27A, 'MSM_CPU_7X27A'),
-
-    # FSM9xxx ID
-    (94, FSM_CPU_9XXX, 'FSM_CPU_9XXX'),
-    (95, FSM_CPU_9XXX, 'FSM_CPU_9XXX'),
-
-    #  7x25AA ID
-    (98, MSM_CPU_7X25AA, 'MSM_CPU_7X25AA'),
-    (99, MSM_CPU_7X25AA, 'MSM_CPU_7X25AA'),
-    (100, MSM_CPU_7X25AA, 'MSM_CPU_7X25AA'),
-
-    #  7x27AA ID
-    (101, MSM_CPU_7X27AA, 'MSM_CPU_7X27AA'),
-    (102, MSM_CPU_7X27AA, 'MSM_CPU_7X27AA'),
-    (103, MSM_CPU_7X27AA, 'MSM_CPU_7X27AA'),
-
-    # 9x15 ID
-    (104, MSM_CPU_9615, 'MSM_CPU_9615'),
-    (105, MSM_CPU_9615, 'MSM_CPU_9615'),
-    (106, MSM_CPU_9615, 'MSM_CPU_9615'),
-    (107, MSM_CPU_9615, 'MSM_CPU_9615'),
-
-    # 8064 IDs
-    (109, MSM_CPU_8064, 'MSM_CPU_8064'),
-    (130, MSM_CPU_8064, 'MSM_CPU_8064'),
-
-    # 8930 IDs
-    (116, MSM_CPU_8930, 'MSM_CPU_8930'),
-    (117, MSM_CPU_8930, 'MSM_CPU_8930'),
-    (118, MSM_CPU_8930, 'MSM_CPU_8930'),
-    (119, MSM_CPU_8930, 'MSM_CPU_8930'),
-
-    # 8627 IDs
-    (120, MSM_CPU_8627, 'MSM_CPU_8627'),
-    (121, MSM_CPU_8627, 'MSM_CPU_8627'),
-
-    # 8660A ID
-    (122, MSM_CPU_8960, 'MSM_CPU_8960'),
-
-    # 8260A ID
-    (123, MSM_CPU_8960, '8260A'),
-
-    # 8060A ID
-    (124, MSM_CPU_8960, '8060A'),
-
-    # Copper IDs
-    (126, MSM_CPU_8974, 'MSM_CPU_8974'),
-    (184, MSM_CPU_8974, 'MSM_CPU_8974'),
-    (185, MSM_CPU_8974, 'MSM_CPU_8974'),
-    (186, MSM_CPU_8974, 'MSM_CPU_8974'),
-
-    # 8974 PRO AA IDs
-    (208, MSM_CPU_8974PRO_AA, 'MSM_CPU_8974PRO_AA'),
-    (211, MSM_CPU_8974PRO_AA, 'MSM_CPU_8974PRO_AA'),
-    (214, MSM_CPU_8974PRO_AA, 'MSM_CPU_8974PRO_AA'),
-    (217, MSM_CPU_8974PRO_AA, 'MSM_CPU_8974PRO_AA'),
-
-    # 8974 PRO AB IDs
-    (209, MSM_CPU_8974PRO_AB, 'MSM_CPU_8974PRO_AB'),
-    (212, MSM_CPU_8974PRO_AB, 'MSM_CPU_8974PRO_AB'),
-    (215, MSM_CPU_8974PRO_AB, 'MSM_CPU_8974PRO_AB'),
-    (218, MSM_CPU_8974PRO_AB, 'MSM_CPU_8974PRO_AB'),
-
-    # 8974 PRO AC IDs
-    (194, MSM_CPU_8974PRO_AC, 'MSM_CPU_8974PRO_AC'),
-    (210, MSM_CPU_8974PRO_AC, 'MSM_CPU_8974PRO_AC'),
-    (213, MSM_CPU_8974PRO_AC, 'MSM_CPU_8974PRO_AC'),
-    (216, MSM_CPU_8974PRO_AC, 'MSM_CPU_8974PRO_AC'),
-
-    # 8625 IDs
-    (127, MSM_CPU_8625, 'MSM_CPU_8625'),
-    (128, MSM_CPU_8625, 'MSM_CPU_8625'),
-    (129, MSM_CPU_8625, 'MSM_CPU_8625'),
-
-    # 8064 MPQ ID */
-    (130, MSM_CPU_8064, 'MSM_CPU_8064'),
-
-    # 7x25AB IDs
-    (131, MSM_CPU_7X25AB, 'MSM_CPU_7X25AB'),
-    (132, MSM_CPU_7X25AB, 'MSM_CPU_7X25AB'),
-    (133, MSM_CPU_7X25AB, 'MSM_CPU_7X25AB'),
-    (135, MSM_CPU_7X25AB, 'MSM_CPU_7X25AB'),
-
-    # 9625 IDs
-    (134, MSM_CPU_9625, 'MSM_CPU_9625'),
-    (148, MSM_CPU_9625, 'MSM_CPU_9625'),
-    (149, MSM_CPU_9625, 'MSM_CPU_9625'),
-    (150, MSM_CPU_9625, 'MSM_CPU_9625'),
-    (151, MSM_CPU_9625, 'MSM_CPU_9625'),
-    (152, MSM_CPU_9625, 'MSM_CPU_9625'),
-    (173, MSM_CPU_9625, 'MSM_CPU_9625'),
-    (174, MSM_CPU_9625, 'MSM_CPU_9625'),
-    (175, MSM_CPU_9625, 'MSM_CPU_9625'),
-
-    # 8960AB IDs
-    (138, MSM_CPU_8960AB, 'MSM_CPU_8960AB'),
-    (139, MSM_CPU_8960AB, 'MSM_CPU_8960AB'),
-    (140, MSM_CPU_8960AB, 'MSM_CPU_8960AB'),
-    (141, MSM_CPU_8960AB, 'MSM_CPU_8960AB'),
-
-    # 8930AA IDs
-    (142, MSM_CPU_8930AA, 'MSM_CPU_8930AA'),
-    (143, MSM_CPU_8930AA, 'MSM_CPU_8930AA'),
-    (144, MSM_CPU_8930AA, 'MSM_CPU_8930AA'),
-
-    # 8226 IDx
-    (145, MSM_CPU_8226, 'MSM_CPU_8226'),
-    (158, MSM_CPU_8226, 'MSM_CPU_8226'),
-    (159, MSM_CPU_8226, 'MSM_CPU_8226'),
-    (198, MSM_CPU_8226, 'MSM_CPU_8226'),
-    (199, MSM_CPU_8226, 'MSM_CPU_8226'),
-    (200, MSM_CPU_8226, 'MSM_CPU_8226'),
-    (205, MSM_CPU_8226, 'MSM_CPU_8226'),
-    (219, MSM_CPU_8226, 'MSM_CPU_8226'),
-    (220, MSM_CPU_8226, 'MSM_CPU_8226'),
-    (221, MSM_CPU_8226, 'MSM_CPU_8226'),
-    (222, MSM_CPU_8226, 'MSM_CPU_8226'),
-    (223, MSM_CPU_8226, 'MSM_CPU_8226'),
-    (224, MSM_CPU_8226, 'MSM_CPU_8226'),
-
-    # 8610 IDx
-    (147, MSM_CPU_8610, 'MSM_CPU_8610'),
-    (161, MSM_CPU_8610, 'MSM_CPU_8610'),
-    (162, MSM_CPU_8610, 'MSM_CPU_8610'),
-    (163, MSM_CPU_8610, 'MSM_CPU_8610'),
-    (164, MSM_CPU_8610, 'MSM_CPU_8610'),
-    (165, MSM_CPU_8610, 'MSM_CPU_8610'),
-    (166, MSM_CPU_8610, 'MSM_CPU_8610'),
-
-    # 8064AB IDs
-    (153, MSM_CPU_8064AB, 'MSM_CPU_8064AB'),
-
-    # 8930AB IDs
-    (154, MSM_CPU_8930AB, 'MSM_CPU_8930AB'),
-    (155, MSM_CPU_8930AB, 'MSM_CPU_8930AB'),
-    (156, MSM_CPU_8930AB, 'MSM_CPU_8930AB'),
-    (157, MSM_CPU_8930AB, 'MSM_CPU_8930AB'),
-
-    (160, MSM_CPU_8930AA, 'MSM_CPU_8930AA'),
-
-    # 8084 IDs
-    (178, MSM_CPU_8084, 'MSM_CPU_8084'),
-
-    # 9635 IDs
-    (187, MSM_CPU_KRYPTON, 'MSM_CPU_KRYPTON'),
-    (227, MSM_CPU_KRYPTON, 'MSM_CPU_KRYPTON'),
-    (228, MSM_CPU_KRYPTON, 'MSM_CPU_KRYPTON'),
-    (229, MSM_CPU_KRYPTON, 'MSM_CPU_KRYPTON'),
-    (230, MSM_CPU_KRYPTON, 'MSM_CPU_KRYPTON'),
-    (231, MSM_CPU_KRYPTON, 'MSM_CPU_KRYPTON'),
-
-    (146, MSM_CPU_8092, 'MSM_CPU_8092'),
-
-    # Uninitialized IDs are not known to run Linux.
-    # MSM_CPU_UNKNOWN is set to 0 to ensure these IDs are
-    # considered as unknown CPU.
-]
-
-socinfo_v1 = functools.reduce(lambda x, y: x + y, [
-    'I',  # format
-    'I',  # id
-    'I',  # version
-])
 
 launch_config_str = 'OS=\nID=T32_1000002\nTMP=C:\\TEMP\nSYS=C:\\T32\nHELP=C:\\T32\\pdf\n\nPBI=SIM\nSCREEN=\nFONT=SMALL\nHEADER=Trace32-ScorpionSimulator\nPRINTER=WINDOWS'
 
@@ -994,19 +678,6 @@ class RamDump():
         else:
             return self.read_word(self.tz_addr, False)
 
-    def find_hw_id(self, socinfo_id, version):
-        if self.hw_version is not None:
-            version = self.hw_version
-        for cpuid in cpu_of_id:
-            if socinfo_id == cpuid[0]:
-                for hwid in hw_ids:
-                    if cpuid[1] == hwid[HARDWARE_ID_IDX]:
-                        if hwid[VERSION_COMPARE] is not None and hwid[VERSION_COMPARE] != version:
-                            continue
-
-                        return hwid
-        return None
-
     def get_hw_id(self):
         heap_toc_offset = self.field_offset('struct smem_shared', 'heap_toc')
         if heap_toc_offset is None:
@@ -1024,29 +695,32 @@ class RamDump():
         socinfo_id = -1
         socinfo_version = 0
         socinfo_build_id = 'DUMMY'
-        hwid = None
+        chosen_board = None
+
+        boards = get_supported_boards()
 
         if (self.hw_id is None):
-            for smem_offset in smem_offsets:
-                socinfo_start_addr = self.ebi_files[0][
-                    1] + smem_offset + heap_toc_offset + smem_heap_entry_size * SMEM_HW_SW_BUILD_ID + offset_offset
+            for board in boards:
+                socinfo_start_addr = board.ram_start + board.smem_addr + heap_toc_offset + smem_heap_entry_size * SMEM_HW_SW_BUILD_ID + offset_offset
                 soc_start = self.read_word(socinfo_start_addr, False)
                 if soc_start is None:
                     continue
 
-                socinfo_start = self.ebi_files[0][1] + smem_offset + soc_start
+                socinfo_start = board.ram_start + board.smem_addr + soc_start
+
+                socinfo_id = self.read_word(socinfo_start + 4, False)
+                if socinfo_id != board.socid:
+                    continue
 
                 socinfo_format = self.read_word(socinfo_start, False)
-                socinfo_id = self.read_word(socinfo_start + 4, False)
                 socinfo_version = self.read_word(socinfo_start + 8, False)
                 socinfo_build_id = self.read_cstring(
                     socinfo_start + 12, BUILD_ID_LENGTH, False)
 
-                if socinfo_id is not None and socinfo_version is not None:
-                    hwid = self.find_hw_id(socinfo_id, socinfo_version >> 16)
-                if (hwid is not None):
-                    break
-            if (hwid is None):
+                chosen_board = board
+                break
+
+            if chosen_board is None:
                 print_out_str('!!!! Could not find hardware')
                 print_out_str("!!!! The SMEM didn't match anything")
                 print_out_str(
@@ -1054,45 +728,36 @@ class RamDump():
                 sys.exit(1)
 
         else:
-            hwid = None
-            for a in hw_ids:
-                if self.hw_id == a[HARDWARE_ID_IDX] and self.hw_version == a[VERSION_COMPARE]:
+            for board in boards:
+                if self.hw_id == board.board_num:
                     print_out_str(
                         '!!! Hardware id found! The socinfo values given are bogus')
                     print_out_str('!!! Proceed with caution!')
-                    hwid = a
+                    chosen_board = board
                     break
-            if hwid is None:
+            if chosen_board is None:
                 print_out_str(
                     '!!! A bogus hardware id was specified: {0}'.format(self.hw_id))
-                print_out_str(
-                    '!!! Try passing one of these to --force-hardware.')
-                print_out_str(
-                    '!!! If a version is specified, pass the version with --force-version')
-                for a in hw_ids:
-                    if a[VERSION_COMPARE] is not None:
-                        v = 'v{0}'.format(a[VERSION_COMPARE])
-                    else:
-                        v = ''
-                    print_out_str(
-                        '!!!    {0}{1}'.format(a[HARDWARE_ID_IDX], v))
+                print_out_str('!!! Supported ids:')
+                for b in get_supported_ids():
+                    print_out_str('    {0}'.format(b))
                 sys.exit(1)
 
-        print_out_str('\nHardware match: {0}'.format(hwid[HARDWARE_ID_IDX]))
+        print_out_str('\nHardware match: {0}'.format(board.board_num))
         print_out_str('Socinfo id = {0}, version {1:x}.{2:x}'.format(
             socinfo_id, socinfo_version >> 16, socinfo_version & 0xFFFF))
         print_out_str('Socinfo build = {0}'.format(socinfo_build_id))
         print_out_str(
-            'Now setting phys_offset to {0:x}'.format(hwid[PHYS_OFFSET_IDX]))
+            'Now setting phys_offset to {0:x}'.format(board.phys_offset))
         print_out_str(
-            'TZ address: {0:x}'.format(hwid[WATCHDOG_BARK_OFFSET_IDX]))
-        self.phys_offset = hwid[PHYS_OFFSET_IDX]
-        self.tz_addr = hwid[WATCHDOG_BARK_OFFSET_IDX]
-        self.ebi_start = hwid[MEMORY_START_IDX]
-        self.tz_start = hwid[IMEM_START_IDX]
-        self.hw_id = hwid[HARDWARE_ID_IDX]
-        self.cpu_type = hwid[CPU_TYPE]
-        self.imem_fname = hwid[IMEM_FILENAME]
+            'TZ address: {0:x}'.format(board.wdog_addr))
+        self.phys_offset = board.phys_offset
+        self.tz_addr = board.wdog_addr
+        self.ebi_start = board.ram_start
+        self.tz_start = board.imem_start
+        self.hw_id = board.board_num
+        self.cpu_type = board.cpu
+        self.imem_fname = board.imem_file_name
         return True
 
     def virt_to_phys(self, virt):
