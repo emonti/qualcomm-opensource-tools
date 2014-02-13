@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -30,14 +30,21 @@ class RbTreeWalker(object):
         self.left_offset = self.ram_dump.field_offset(
             'struct rb_node', 'rb_left')
 
-    def walk(self, node, func):
+    def _walk(self, node, func, seen):
         if node != 0:
             left_node_addr = node + self.left_offset
             left_node = self.ram_dump.read_word(left_node_addr)
-            self.walk(left_node, func)
+            if left_node not in seen:
+                seen.append(left_node)
+                self._walk(left_node, func, seen)
 
             func(node)
 
             right_node_addr = node + self.right_offset
             right_node = self.ram_dump.read_word(right_node_addr)
-            self.walk(right_node, func)
+            if right_node not in seen:
+                seen.append(right_node)
+                self._walk(right_node, func, seen)
+
+    def walk(self, node, func):
+        self._walk(node, func, [])
