@@ -392,7 +392,10 @@ class RamDump():
             self.ramdump = ramdump
             i = 0
             for addr in range(start, end, 8):
-                (a, b) = ramdump.read_string(addr, '<II')
+                r = ramdump.read_string(addr, '<II')
+                if r is None:
+                    break
+                (a, b) = r
                 self.unwind_table.append((a, b, start + 8 * i))
                 i += 1
 

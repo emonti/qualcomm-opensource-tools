@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -92,6 +92,9 @@ class IrqParse(RamParser):
         node_addr = ram_dump.read_word(root_addr + rnode_offset) & 0xfffffffe
         height = ram_dump.read_word(node_addr + rnode_height_offset)
 
+        if height > len(height_to_maxindex):
+            return None
+
         if index > height_to_maxindex[height]:
             return None
 
@@ -126,6 +129,10 @@ class IrqParse(RamParser):
 
         print_out_str(
             '{0:4} {1} {2:30} {3:10}'.format('IRQ', cpu_str, 'Name', 'Chip'))
+
+        if nr_irqs > 50000:
+            return
+
         for i in range(0, nr_irqs):
             irq_desc = self.radix_tree_lookup_element(
                 ram_dump, irq_desc_tree, i)
@@ -136,6 +143,9 @@ class IrqParse(RamParser):
             action = ram_dump.read_word(irq_desc + irq_action_offset)
             kstat_irqs_addr = ram_dump.read_word(irq_desc + kstat_irqs_offset)
             irq_stats_str = ''
+
+            if kstat_irqs_addr is None:
+                break
 
             for j in ram_dump.iter_cpus():
                 irq_statsn = ram_dump.read_word(kstat_irqs_addr, cpu=j)
