@@ -161,8 +161,4 @@ class IrqParse(RamParser):
         if irq_desc is None:
             return
 
-        ver = self.ramdump.version
-        if re.search('3.0.\d', ver) is not None:
-            self.print_irq_state_3_0(self.ramdump)
-        if re.search('3.4.\d', ver) is not None:
-            self.print_irq_state_3_0(self.ramdump)
+        self.print_irq_state_3_0(self.ramdump)
