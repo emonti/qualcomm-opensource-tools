@@ -156,7 +156,13 @@ class DebugImage(RamParser):
             mem_dump_data + dump_table_ptr_offset)
 
         version = self.ramdump.read_word(dump_table + version_offset)
+        if version is None:
+            print_out_str('Version is bogus! Can\'t parse debug image')
+            return
         num_entries = self.ramdump.read_word(dump_table + num_entries_offset)
+        if num_entries is None or num_entries > 100:
+            print_out_str('num_entries is bogus! Can\'t parse debug image')
+            return
 
         print_out_str('\nDebug image version: {0}.{1} Number of entries {2}'.format(
             version >> 20, version & 0xFFFFF, num_entries))
