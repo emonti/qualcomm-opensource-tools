@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -155,6 +155,8 @@ class RTB(RamParser):
             while True:
                 ptr = rtb_read_ptr + next_entry * rtb_entry_size
                 stamp = self.ramdump.read_word(ptr + rtb_idx_offset)
+                if stamp is None:
+                    break
                 rtb_out.write('{0:x} '.format(stamp).encode('ascii', 'ignore'))
                 item = self.ramdump.read_byte(ptr + rtb_logtype_offset)
                 item = item & 0x7F
