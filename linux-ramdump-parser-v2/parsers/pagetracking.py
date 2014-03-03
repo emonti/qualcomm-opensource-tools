@@ -1,4 +1,4 @@
-# Copyright (c) 2012, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012,2014 The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -11,7 +11,7 @@
 
 from print_out import print_out_str
 from parser_util import register_parser, RamParser
-
+from mm import pfn_to_page
 
 @register_parser('--print-pagetracking', 'print page tracking information (if available)')
 class PageTracking(RamParser):
