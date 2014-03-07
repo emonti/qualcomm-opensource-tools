@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -808,6 +808,10 @@ class RamDump():
         return True
 
     def virt_to_phys(self, virt):
+        if isinstance(virt, basestring):
+            virt = self.addr_lookup(virt)
+            if virt is None:
+                return
         return self.mmu.virt_to_phys(virt)
 
     def setup_symbol_tables(self):
