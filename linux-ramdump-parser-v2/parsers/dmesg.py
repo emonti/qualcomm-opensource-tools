@@ -1,4 +1,4 @@
-# Copyright (c) 2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -30,8 +30,8 @@ class Dmesg(RamParser):
             return ''.join([c for c in unclean_str if c in string.printable])
 
     def extract_dmesg_flat(self, ramdump):
-        addr = ramdump.addr_lookup('__log_buf')
-        size = ramdump.sizeof('__log_buf')
+        addr = ramdump.read_word(ramdump.addr_lookup('log_buf'))
+        size = ramdump.read_word(ramdump.addr_lookup('log_buf_len'))
         dmesg = ramdump.read_physical(ramdump.virt_to_phys(addr), size)
         print_out_str(self.cleanupString(dmesg.decode('ascii', 'ignore')))
 
@@ -59,7 +59,7 @@ class Dmesg(RamParser):
     def extract_dmesg_binary(self, ramdump):
         first_idx_addr = ramdump.addr_lookup('log_first_idx')
         last_idx_addr = ramdump.addr_lookup('log_next_idx')
-        logbuf_addr = ramdump.addr_lookup('__log_buf')
+        logbuf_addr = ramdump.addr_lookup('log_buf')
         time_offset = ramdump.field_offset('struct log', 'ts_nsec')
         len_offset = ramdump.field_offset('struct log', 'len')
         text_len_offset = ramdump.field_offset('struct log', 'text_len')
