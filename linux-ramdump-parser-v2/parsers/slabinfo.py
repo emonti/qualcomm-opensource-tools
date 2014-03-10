@@ -195,8 +195,6 @@ class Slabinfo(RamParser):
             'struct kmem_cache', 'cpu_slab')
         slab_partial_offset = self.ramdump.field_offset(
             'struct kmem_cache_node', 'partial')
-        slab_full_offset = self.ramdump.field_offset(
-            'struct kmem_cache_node', 'full')
         slab = self.ramdump.read_word(original_slab)
         while slab != original_slab:
             slab = slab - slab_list_offset
@@ -211,8 +209,11 @@ class Slabinfo(RamParser):
                 '{0:x} slab {1} {2:x}\n'.format(slab, slab_name, slab_node_addr))
             self.print_slab_page_info(
                 self.ramdump, slab, slab_node, slab_node_addr + slab_partial_offset, slab_out)
-            self.print_slab_page_info(
-                self.ramdump, slab, slab_node, slab_node_addr + slab_full_offset, slab_out)
+            if self.ramdump.is_config_defined('CONFIG_SLUB_DEBUG'):
+               slab_full_offset = self.ramdump.field_offset(
+                    'struct kmem_cache_node', 'full')
+               self.print_slab_page_info(
+                    self.ramdump, slab, slab_node, slab_node_addr + slab_full_offset, slab_out)
 
             for i in range(0, cpus):
                 cpu_slabn_addr = cpu_slab_addr + \
