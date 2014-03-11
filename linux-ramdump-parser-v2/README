@@ -67,6 +67,8 @@ is
 Currently supported features:
 gdb_path - absolute path to the gdb tool for the ramdumps
 nm_path - absolute path to the gdb tool for the ramdumps
+gdb64_path - absolute path to the 64-bit gdb tool for the ramdumps
+nm64_path - absolute path to the 64-bit nm tool for the ramdumps
 
 Note that local_settings.py is just a python file so the file may take advantage
 of python features.
