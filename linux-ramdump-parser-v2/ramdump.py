@@ -67,14 +67,15 @@ class RamDump():
         def __init__(self, ramdump):
             start = ramdump.addr_lookup('__start_unwind_idx')
             end = ramdump.addr_lookup('__stop_unwind_idx')
+            self.ramdump = ramdump
             if (start is None) or (end is None):
-                print_out_str('!!! Could not lookup unwinding information')
+                self.unwind_frame = self.unwind_frame_generic
                 return None
             # addresses
+            self.unwind_frame = self.unwind_frame_tables
             self.start_idx = start
             self.stop_idx = end
             self.unwind_table = []
-            self.ramdump = ramdump
             i = 0
             for addr in range(start, end, 8):
                 r = ramdump.read_string(addr, '<II')
@@ -325,7 +326,7 @@ class RamDump():
             temp = addr + offset
             return (temp & 0xffffffff) + ((temp >> 32) & 0xffffffff)
 
-        def unwind_frame(self, frame, trace=False):
+        def unwind_frame_tables(self, frame, trace=False):
             low = frame.sp
             high = ((low + (THREAD_SIZE - 1)) & ~(THREAD_SIZE - 1)) + \
                 THREAD_SIZE
