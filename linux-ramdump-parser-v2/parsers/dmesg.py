@@ -53,7 +53,7 @@ class Dmesg(RamParser):
     def extract_dmesg_binary(self, ramdump):
         first_idx_addr = ramdump.addr_lookup('log_first_idx')
         last_idx_addr = ramdump.addr_lookup('log_next_idx')
-        logbuf_addr = ramdump.addr_lookup('log_buf')
+        logbuf_addr = ramdump.read_word(ramdump.addr_lookup('log_buf'))
         time_offset = ramdump.field_offset('struct log', 'ts_nsec')
         len_offset = ramdump.field_offset('struct log', 'len')
         text_len_offset = ramdump.field_offset('struct log', 'text_len')
