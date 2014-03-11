@@ -432,6 +432,7 @@ class RamDump():
         self.imem_fname = None
         self.gdbmi = gdbmi.GdbMI(self.gdb_path, self.vmlinux)
         self.gdbmi.open()
+        self.page_offset = 0xc0000000
         if ebi is not None:
             # TODO sanity check to make sure the memory regions don't overlap
             for file_path, start, end in ebi:
@@ -543,7 +544,7 @@ class RamDump():
         banner_addr = self.addr_lookup('linux_banner')
         if banner_addr is not None:
             # Don't try virt to phys yet, compute manually
-            banner_addr = banner_addr - 0xc0000000 + self.phys_offset
+            banner_addr = banner_addr - self.page_offset + self.phys_offset
             b = self.read_cstring(banner_addr, 256, False)
             if b is None:
                 print_out_str('!!! Could not read banner address!')
