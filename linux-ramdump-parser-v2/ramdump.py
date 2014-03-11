@@ -709,7 +709,7 @@ class RamDump():
                     print_out_str('board_num = {0}'.format(board.board_num))
                     print_out_str('smem_addr = {0:x}'.format(board.smem_addr))
 
-                socinfo_start_addr = board.ram_start + board.smem_addr + heap_toc_offset + smem_heap_entry_size * SMEM_HW_SW_BUILD_ID + offset_offset
+                socinfo_start_addr = board.smem_addr + heap_toc_offset + smem_heap_entry_size * SMEM_HW_SW_BUILD_ID + offset_offset
                 soc_start = self.read_word(socinfo_start_addr, False)
                 if trace is True:
                     print_out_str('Read from {0:x}'.format(socinfo_start_addr))
@@ -720,7 +720,7 @@ class RamDump():
                 if soc_start is None:
                     continue
 
-                socinfo_start = board.ram_start + board.smem_addr + soc_start
+                socinfo_start = board.smem_addr + soc_start
                 if trace:
                     print_out_str('socinfo_start {0:x}'.format(socinfo_start))
 
