@@ -463,10 +463,9 @@ class RamDump():
         # extra 4k is needed for LPAE. If it's 0x5000 below
         # PAGE_OFFSET + TEXT_OFFSET then we know we're using LPAE. For
         # non-LPAE it should be 0x4000 below PAGE_OFFSET + TEXT_OFFSET
-        swapper_pg_dir_addr = self.addr_lookup('swapper_pg_dir')
-        kernel_text_offset = 0x8000
-        pg_dir_size = kernel_text_offset - \
-            (swapper_pg_dir_addr - self.page_offset)
+        self.swapper_pg_dir_addr = self.addr_lookup('swapper_pg_dir') - self.page_offset
+        self.kernel_text_offset = self.addr_lookup('stext') - self.page_offset
+        pg_dir_size = self.kernel_text_offset - self.swapper_pg_dir_addr
         if pg_dir_size == 0x4000:
             print_out_str('Using non-LPAE MMU')
             self.mmu = Armv7MMU(self)
