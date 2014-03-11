@@ -704,21 +704,36 @@ class RamDump():
 
         if (self.hw_id is None):
             for board in boards:
+                trace = board.trace_soc
+                if trace:
+                    print_out_str('board_num = {0}'.format(board.board_num))
+                    print_out_str('smem_addr = {0:x}'.format(board.smem_addr))
+
                 socinfo_start_addr = board.ram_start + board.smem_addr + heap_toc_offset + smem_heap_entry_size * SMEM_HW_SW_BUILD_ID + offset_offset
                 soc_start = self.read_word(socinfo_start_addr, False)
+                if trace is True:
+                    print_out_str('Read from {0:x}'.format(socinfo_start_addr))
+                    if soc_start is None:
+                        print_out_str('Result is None! Not this!')
+                    else:
+                        print_out_str('soc_start {0:x}'.format(soc_start))
                 if soc_start is None:
                     continue
 
                 socinfo_start = board.ram_start + board.smem_addr + soc_start
+                if trace:
+                    print_out_str('socinfo_start {0:x}'.format(socinfo_start))
 
                 socinfo_id = self.read_word(socinfo_start + 4, False)
+                if trace:
+                   print_out_str('socinfo_id = {0} check against {1}'.format(socinfo_id, board.socid))
                 if socinfo_id != board.socid:
                     continue
 
                 socinfo_format = self.read_word(socinfo_start, False)
                 socinfo_version = self.read_word(socinfo_start + 8, False)
                 socinfo_build_id = self.read_cstring(
-                    socinfo_start + 12, BUILD_ID_LENGTH, False)
+                    socinfo_start + 12, BUILD_ID_LENGTH, virtual=False)
 
                 chosen_board = board
                 break
@@ -866,6 +881,11 @@ class RamDump():
                 ebi = a
                 break
         if ebi[0] is -1:
+            if trace:
+                if addr is None:
+                    print_out_str('None was passed to read_physical')
+                else:
+                    print_out_str('addr {0:x} out of bounds'.format(addr))
             return None
         if trace:
             print_out_str('reading from {0}'.format(ebi[0]))
@@ -920,13 +940,20 @@ class RamDump():
         else:
             return s[0]
 
-    def read_cstring(self, address, max_length, virtual=True, cpu=None):
+    def read_cstring(self, address, max_length, virtual=True, cpu=None, trace=False):
         addr = address
         if virtual:
             if cpu is not None:
                 address += pcpu_offset + self.per_cpu_offset(cpu)
             addr = self.virt_to_phys(address)
-        s = self.read_physical(addr, max_length)
+            if trace:
+                if address is None:
+                    print_out_str('None was passed as address')
+                elif addr is None:
+                    print_out_str('virt to phys failed on {0:x}'.format(address))
+                else:
+                    print_out_str('addr {0:x} -> {1:x}'.format(address, addr))
+        s = self.read_physical(addr, max_length, trace)
         if s is not None:
             a = s.decode('ascii', 'ignore')
             return a.split('\0')[0]
@@ -945,11 +972,12 @@ class RamDump():
                 per_cpu_string = ' with per-cpu offset of ' + hex(pcpu_offset)
             addr = self.virt_to_phys(address)
         if trace:
-            print_out_str('reading from phys {0:x}{1}'.format(addr,
+            if addr is not None:
+                print_out_str('reading from phys {0:x}{1}'.format(addr,
                                                               per_cpu_string))
         s = self.read_physical(addr, struct.calcsize(format_string), trace)
         if (s is None) or (s == ''):
-            if trace:
+            if trace and addr is not None:
                 print_out_str(
                     'address {0:x} failed hard core (v {1} t{2})'.format(addr, virtual, trace))
             return None

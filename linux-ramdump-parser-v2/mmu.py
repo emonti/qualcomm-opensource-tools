@@ -113,6 +113,8 @@ class Armv7MMU(MMU):
     def page_table_walk(self, virt):
         global_offset = bvalsel(31, 20, virt)
         l1_pte = self.global_page_table[global_offset]
+        if l1_pte is None:
+            return None
         bit18 = (l1_pte & 0x40000) >> 18
         if (bvalsel(1, 0, l1_pte) == 1):
             l2_offset = bvalsel(19, 12, virt)
