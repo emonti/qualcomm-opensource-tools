@@ -11,14 +11,7 @@
 
 import string
 from print_out import print_out_str
-from parser_util import register_parser, RamParser
-
-
-def cleanupString(str):
-    if str is None:
-        return str
-    else:
-        return ''.join([c for c in str if c in string.printable])
+from parser_util import register_parser, RamParser, cleanupString
 
 cpu_context_save_str = ''.join([
     'I',  # __u32   r4

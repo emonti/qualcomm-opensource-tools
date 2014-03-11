@@ -13,7 +13,7 @@ import re
 import string
 
 from print_out import print_out_str
-from parser_util import register_parser, RamParser
+from parser_util import register_parser, RamParser, cleanupString
 
 
 @register_parser('--dmesg', 'Print the dmesg', shortopt='-d')
@@ -23,17 +23,11 @@ class Dmesg(RamParser):
         super(Dmesg, self).__init__(*args)
         self.wrap_cnt = 0
 
-    def cleanupString(self, unclean_str):
-        if unclean_str is None:
-            return str
-        else:
-            return ''.join([c for c in unclean_str if c in string.printable])
-
     def extract_dmesg_flat(self, ramdump):
         addr = ramdump.read_word(ramdump.addr_lookup('log_buf'))
         size = ramdump.read_word(ramdump.addr_lookup('log_buf_len'))
         dmesg = ramdump.read_physical(ramdump.virt_to_phys(addr), size)
-        print_out_str(self.cleanupString(dmesg.decode('ascii', 'ignore')))
+        print_out_str(cleanupString(dmesg.decode('ascii', 'ignore')))
 
     def log_from_idx(self, ramdump, idx, logbuf):
         len_offset = ramdump.field_offset('struct log', 'len')

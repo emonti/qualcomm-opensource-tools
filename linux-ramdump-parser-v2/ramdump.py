@@ -21,6 +21,7 @@ from tempfile import NamedTemporaryFile
 import gdbmi
 from print_out import print_out_str
 from mmu import Armv7MMU, Armv7LPAEMMU
+from parser_util import cleanupString
 
 FP = 11
 SP = 13
@@ -898,7 +899,7 @@ class RamDump():
         ebi[0].seek(offset)
         a = ebi[0].read(length)
         if trace:
-            print_out_str('result = {0}'.format(a))
+            print_out_str('result = {0}'.format(cleanupString(a)))
             print_out_str('lenght = {0}'.format(len(a)))
         return a
 
