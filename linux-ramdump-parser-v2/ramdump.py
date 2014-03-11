@@ -940,6 +940,29 @@ class RamDump():
         else:
             return s[0]
 
+    # returns a value guaranteed to be 32 bits
+    def read_u32(self, address, virtual=True, trace=False, cpu=None):
+        if trace:
+            print_out_str('reading {0:x}'.format(address))
+        s = self.read_string(address, '<I', virtual, trace, cpu)
+        if s is None:
+            return None
+        else:
+            return s[0]
+
+    def read_int(self, address, virtual=True, trace=False,  cpu=None):
+        return self.read_u32(address, virtual, trace, cpu)
+
+    # returns a value guaranteed to be 16 bits
+    def read_u16(self, address, virtual=True, trace=False, cpu=None):
+        if trace:
+            print_out_str('reading {0:x}'.format(address))
+        s = self.read_string(address, '<H', virtual, trace, cpu)
+        if s is None:
+            return None
+        else:
+            return s[0]
+
     def read_cstring(self, address, max_length, virtual=True, cpu=None, trace=False):
         addr = address
         if virtual:
