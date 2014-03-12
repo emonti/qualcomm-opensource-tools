@@ -1,4 +1,4 @@
-# Copyright (c) 2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -66,3 +66,4 @@ class ZoneInfo(RamParser):
         for i in xrange(0, max_zone_stats):
             print_out_str('{0:30}: {1:8}'.format(vmstat_names[i], self.ramdump.read_word(
                 self.ramdump.array_index(vmstats_addr, 'atomic_long_t', i))))
+        print_out_str('Total system pages: {0}'.format(self.ramdump.read_word(self.ramdump.addr_lookup('totalram_pages'))))
