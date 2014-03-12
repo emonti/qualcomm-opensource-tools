@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -28,6 +28,9 @@ class Pagetypeinfo(RamParser):
         zname = ramdump.read_cstring(zname_addr, 12)
         is_corrupt = False
         total_bytes = 0
+        total_pages = 0
+        total_orders = [0]*11
+        total_orders_str = 'Total pages:                    '
 
         for mtype in range(0, migrate_types):
             mname_addr = ramdump.read_word(migratetype_names + mtype * 4)
@@ -35,6 +38,7 @@ class Pagetypeinfo(RamParser):
             pageinfo = ('zone {0:8} type {1:12} '.format(zname, mname))
             nums = ''
             total_type_bytes = 0
+            total_type_pages = 0
             for order in range(0, 11):
 
                 area = zone + free_area_offset + order * free_area_size
@@ -57,12 +61,18 @@ class Pagetypeinfo(RamParser):
                 nums = nums + ('{0:6}'.format(pg_count))
                 total_type_bytes = total_type_bytes + \
                     pg_count * 4096 * (2 ** order)
+                total_type_pages = total_type_pages + pg_count * (2 ** order)
+                total_orders[order] += pg_count
             print_out_str(pageinfo + nums +
-                          ' = {0} MB'.format(total_type_bytes / (1024 * 1024)))
+                          ' = {0} MB {1} pages'.format(total_type_bytes / (1024 * 1024), total_type_pages))
             total_bytes = total_bytes + total_type_bytes
+            total_pages = total_pages + total_type_pages
+        for order in range(0, 11):
+            total_orders_str += '{0:6}'.format(total_orders[order])
+        print_out_str(total_orders_str)
 
-        print_out_str('Approximate total for zone {0}: {1} MB\n'.format(
-            zname, total_bytes / (1024 * 1024)))
+        print_out_str('Approximate total for zone {0}: {1} MB, {2} pages\n'.format(
+            zname, total_bytes / (1024 * 1024), total_pages))
         if is_corrupt:
             print_out_str(
                 '!!! Numbers may not be accurate due to list corruption!')
