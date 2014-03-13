@@ -713,7 +713,7 @@ class RamDump():
                     print_out_str('smem_addr = {0:x}'.format(board.smem_addr))
 
                 socinfo_start_addr = board.smem_addr + heap_toc_offset + smem_heap_entry_size * SMEM_HW_SW_BUILD_ID + offset_offset
-                soc_start = self.read_word(socinfo_start_addr, False)
+                soc_start = self.read_int(socinfo_start_addr, False)
                 if trace is True:
                     print_out_str('Read from {0:x}'.format(socinfo_start_addr))
                     if soc_start is None:
@@ -727,14 +727,14 @@ class RamDump():
                 if trace:
                     print_out_str('socinfo_start {0:x}'.format(socinfo_start))
 
-                socinfo_id = self.read_word(socinfo_start + 4, False)
+                socinfo_id = self.read_int(socinfo_start + 4, False)
                 if trace:
                    print_out_str('socinfo_id = {0} check against {1}'.format(socinfo_id, board.socid))
                 if socinfo_id != board.socid:
                     continue
 
-                socinfo_format = self.read_word(socinfo_start, False)
-                socinfo_version = self.read_word(socinfo_start + 8, False)
+                socinfo_format = self.read_int(socinfo_start, False)
+                socinfo_version = self.read_int(socinfo_start + 8, False)
                 socinfo_build_id = self.read_cstring(
                     socinfo_start + 12, BUILD_ID_LENGTH, virtual=False)
 
@@ -770,7 +770,8 @@ class RamDump():
         print_out_str('Socinfo build = {0}'.format(socinfo_build_id))
         print_out_str(
             'Now setting phys_offset to {0:x}'.format(board.phys_offset))
-        print_out_str(
+        if board.wdog_addr is not None:
+            print_out_str(
             'TZ address: {0:x}'.format(board.wdog_addr))
         self.phys_offset = board.phys_offset
         self.tz_addr = board.wdog_addr
