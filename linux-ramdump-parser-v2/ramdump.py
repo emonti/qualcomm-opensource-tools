@@ -1022,3 +1022,18 @@ class RamDump():
 
     def iter_cpus(self):
         return xrange(self.get_num_cpus())
+
+    def thread_saved_field_common(self, task, reg_offset):
+        thread_info = self.read_word(task + self.field_offset('struct task_struct', 'stack'))
+        cpu_context_offset = self.field_offset('struct thread_info', 'cpu_context')
+        val = self.read_word(thread_info + cpu_context_offset + reg_offset)
+        return val
+
+    def thread_saved_pc(self, task):
+        return self.thread_saved_field_common(task, self.field_offset('struct cpu_context_save', 'pc'))
+
+    def thread_saved_sp(self, task):
+        return self.thread_saved_field_common(task, self.field_offset('struct cpu_context_save', 'sp'))
+
+    def thread_saved_fp(self, task):
+        return self.thread_saved_field_common(task, self.field_offset('struct cpu_context_save', 'fp'))
