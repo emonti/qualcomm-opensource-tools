@@ -33,7 +33,7 @@ class Dmesg(RamParser):
         len_offset = ramdump.field_offset('struct log', 'len')
 
         msg = logbuf + idx
-        msg_len = ramdump.read_word(msg + len_offset)
+        msg_len = ramdump.read_u16(msg + len_offset)
         if (msg_len == 0):
             return logbuf
         else:
@@ -43,7 +43,7 @@ class Dmesg(RamParser):
         len_offset = ramdump.field_offset('struct log', 'len')
         msg = idx
 
-        msg_len = ramdump.read_halfword(msg + len_offset)
+        msg_len = ramdump.read_u16(msg + len_offset)
         if (msg_len == 0):
             self.wrap_cnt += 1
             return logbuf
@@ -59,14 +59,14 @@ class Dmesg(RamParser):
         text_len_offset = ramdump.field_offset('struct log', 'text_len')
         log_size = ramdump.sizeof('struct log')
 
-        first_idx = ramdump.read_word(first_idx_addr)
-        last_idx = ramdump.read_word(last_idx_addr)
+        first_idx = ramdump.read_u32(first_idx_addr)
+        last_idx = ramdump.read_u32(last_idx_addr)
 
         curr_idx = logbuf_addr + first_idx
 
         while curr_idx != logbuf_addr + last_idx and self.wrap_cnt < 2:
             timestamp = ramdump.read_dword(curr_idx + time_offset)
-            text_len = ramdump.read_halfword(curr_idx + text_len_offset)
+            text_len = ramdump.read_u16(curr_idx + text_len_offset)
             text_str = ramdump.read_cstring(curr_idx + log_size, text_len)
             for partial in text_str.split('\n'):
                 f = '[{0:>5}.{1:0>6d}] {2}'.format(
