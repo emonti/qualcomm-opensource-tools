@@ -42,7 +42,7 @@ class RunQueues(RamParser):
         comm_offset = self.ramdump.field_offset('struct task_struct', 'comm')
 
         if 0 < task_addr:
-            pid = self.ramdump.read_word(task_addr + pid_offset)
+            pid = self.ramdump.read_int(task_addr + pid_offset)
             taskname = self.ramdump.read_cstring(task_addr + comm_offset, 16)
             self.print_out_str_with_tab(
                 '{0}: {1}({2})'.format(status, taskname, pid))
@@ -62,7 +62,7 @@ class RunQueues(RamParser):
             if my_q_addr == 0:
                 self.print_task_state(status, se_addr - se_offset)
             else:
-                cfs_nr_running = self.ramdump.read_word(
+                cfs_nr_running = self.ramdump.read_int(
                     my_q_addr + cfs_nr_running_offset)
                 self.print_out_str_with_tab(
                     '{0}: {1} process is grouping'.format(status, cfs_nr_running))
@@ -179,7 +179,7 @@ class RunQueues(RamParser):
 
         for i in self.ramdump.iter_cpus():
             rq_addr = runqueues_addr + self.ramdump.per_cpu_offset(i)
-            nr_running = self.ramdump.read_word(rq_addr + nr_running_offset)
+            nr_running = self.ramdump.read_int(rq_addr + nr_running_offset)
             print_out_str(
                 'CPU{0} {1} process is running'.format(i, nr_running))
             curr_addr = self.ramdump.read_word(rq_addr + curr_offset)
@@ -190,13 +190,13 @@ class RunQueues(RamParser):
             self.print_task_state('stop', stop_addr)
 
             cfs_rq_addr = rq_addr + cfs_rq_offset
-            cfs_nr_running = self.ramdump.read_word(
+            cfs_nr_running = self.ramdump.read_int(
                 cfs_rq_addr + cfs_nr_running_offset)
             print_out_str('CFS {0} process is pending'.format(cfs_nr_running))
             self.print_cfs_state(cfs_rq_addr)
 
             rt_rq_addr = rq_addr + rt_rq_offset
-            rt_nr_running = self.ramdump.read_word(
+            rt_nr_running = self.ramdump.read_int(
                 rt_rq_addr + rt_nr_running_offset)
             print_out_str('RT {0} process is pending'.format(rt_nr_running))
             self.print_rt_state(rt_rq_addr)

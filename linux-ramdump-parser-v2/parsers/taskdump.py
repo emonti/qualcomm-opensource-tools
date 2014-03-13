@@ -11,51 +11,7 @@
 
 import string
 from print_out import print_out_str
-from parser_util import register_parser, RamParser
-
-
-def cleanupString(str):
-    if str is None:
-        return str
-    else:
-        return ''.join([c for c in str if c in string.printable])
-
-cpu_context_save_str = ''.join([
-    'I',  # __u32   r4
-    'I',  # __u32   r5
-    'I',  # __u32   r6
-    'I',  # __u32   r7
-    'I',  # __u32   r8
-    'I',  # __u32   r9
-    'I',  # __u32   sl
-    'I',  # __u32   fp 14
-    'I',  # __u32   sp 15
-    'I',  # __u32   pc 16
-    'II',  # __u32   extra[2]               /* Xscale 'acc' register, etc */
-])
-
-thread_info_str = ''.join([  # struct thread_info {
-    'I',  # flags          /* low level flags */
-    # int                     preempt_count  /* 0 => preemptable, <0 => bug */
-    'I',
-    'I',  # addr_limit     /* address limit */
-    'I',  # task
-    'I',  # exec_domain   /* execution domain */
-    'I',  # 5                 cpu            /* cpu */
-    'I',  # cpu_domain     /* cpu domain */
-    # struct cpu_context_save cpu_context    /* cpu context */
-    cpu_context_save_str,
-    'I',  # syscall        /* syscall number */
-    # unsigned char                    used_cp[16]    /* thread used copro */
-    'I',
-    'I',  # tp_value
-])
-
-thread_info_cpu_idx = 5
-thread_info_fp_idx = 14
-thread_info_sp_idx = 15
-thread_info_pc_idx = 16
-
+from parser_util import register_parser, RamParser, cleanupString
 
 def find_panic(ramdump, addr_stack, thread_task_name):
     for i in range(addr_stack, addr_stack + 0x2000, 4):
@@ -86,6 +42,7 @@ def dump_thread_group(ramdump, thread_group, task_out, check_for_panic=0):
     offset_state = ramdump.field_offset('struct task_struct', 'state')
     offset_exit_state = ramdump.field_offset(
         'struct task_struct', 'exit_state')
+    offset_cpu = ramdump.field_offset('struct thread_info', 'cpu')
     orig_thread_group = thread_group
     first = 0
     seen_threads = []
@@ -100,33 +57,36 @@ def dump_thread_group(ramdump, thread_group, task_out, check_for_panic=0):
             ramdump.read_cstring(next_thread_comm, 16))
         if thread_task_name is None:
             return
-        thread_task_pid = ramdump.read_word(next_thread_pid)
+        thread_task_pid = ramdump.read_int(next_thread_pid)
         if thread_task_pid is None:
             return
         task_state = ramdump.read_word(next_thread_state)
         if task_state is None:
             return
-        task_exit_state = ramdump.read_word(next_thread_exit_state)
+        task_exit_state = ramdump.read_int(next_thread_exit_state)
         if task_exit_state is None:
             return
         addr_stack = ramdump.read_word(next_thread_stack)
         if addr_stack is None:
             return
-        threadinfo = ramdump.read_string(addr_stack, thread_info_str)
+        threadinfo = addr_stack
         if threadinfo is None:
             return
         if not check_for_panic:
             if not first:
                 task_out.write('Process: {0}, cpu: {1} pid: {2} start: 0x{3:x}\n'.format(
-                    thread_task_name, threadinfo[thread_info_cpu_idx], thread_task_pid, next_thread_start))
+                    thread_task_name, ramdump.read_int(threadinfo + offset_cpu), thread_task_pid, next_thread_start))
                 task_out.write(
                     '=====================================================\n')
                 first = 1
             task_out.write('    Task name: {0} pid: {1} cpu: {2}\n    state: 0x{3:x} exit_state: 0x{4:x} stack base: 0x{5:x}\n'.format(
-                thread_task_name, thread_task_pid, threadinfo[thread_info_cpu_idx], task_state, task_exit_state, addr_stack))
+                thread_task_name, thread_task_pid, ramdump.read_int(threadinfo + offset_cpu), task_state, task_exit_state, addr_stack))
             task_out.write('    Stack:')
-            ramdump.unwind.unwind_backtrace(threadinfo[thread_info_sp_idx], threadinfo[
-                                            thread_info_fp_idx], threadinfo[thread_info_pc_idx], 0, '    ', task_out)
+            ramdump.unwind.unwind_backtrace(
+                 ramdump.thread_saved_sp(next_thread_start),
+                 ramdump.thread_saved_fp(next_thread_start),
+                 ramdump.thread_saved_pc(next_thread_start),
+                 0, '    ', task_out)
             task_out.write(
                 '=======================================================\n')
         else:

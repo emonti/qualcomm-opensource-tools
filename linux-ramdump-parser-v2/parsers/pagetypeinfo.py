@@ -33,7 +33,7 @@ class Pagetypeinfo(RamParser):
         total_orders_str = 'Total pages:                    '
 
         for mtype in range(0, migrate_types):
-            mname_addr = ramdump.read_word(migratetype_names + mtype * 4)
+            mname_addr = ramdump.read_word(ramdump.array_index(migratetype_names, 'char *', mtype))
             mname = ramdump.read_cstring(mname_addr, 12)
             pageinfo = ('zone {0:8} type {1:12} '.format(zname, mname))
             nums = ''

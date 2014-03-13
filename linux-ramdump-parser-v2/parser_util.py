@@ -13,6 +13,7 @@ import os
 import platform
 import glob
 import re
+import string
 
 _parsers = []
 
@@ -29,6 +30,11 @@ class ParserConfig(object):
         self.shortopt = shortopt
         self.optional = optional
 
+def cleanupString(unclean_str):
+    if unclean_str is None:
+        return unclean_str
+    else:
+        return ''.join([c for c in unclean_str if c in string.printable])
 
 def register_parser(longopt, desc, shortopt=None, optional=False):
     """Decorator to register a parser class (a class that inherits from

@@ -342,7 +342,6 @@ class Workqueues(RamParser):
     def print_workqueue_state_3_10(self, ram_dump):
         print_out_str(
             '======================= WORKQUEUE STATE ============================')
-        per_cpu_offset_addr = ram_dump.addr_lookup('__per_cpu_offset')
         cpu_worker_pools_addr = ram_dump.addr_lookup('cpu_worker_pools')
 
         busy_hash_offset = ram_dump.field_offset(
@@ -362,22 +361,15 @@ class Workqueues(RamParser):
         worker_pool_size = ram_dump.sizeof('struct worker_pool')
         pending_work_offset = ram_dump.field_offset(
             'struct worker_pool', 'worklist')
-        cpu_present_bits_addr = ram_dump.addr_lookup('cpu_present_bits')
-        cpu_present_bits = ram_dump.read_word(cpu_present_bits_addr)
-        cpus = bin(cpu_present_bits).count('1')
 
         s = '<'
         for a in range(0, 64):
             s = s + 'I'
 
-        for i in range(0, cpus):
+        for i in ram_dump.iter_cpus():
             busy_hash = []
-            if per_cpu_offset_addr is None:
-                offset = 0
-            else:
-                offset = ram_dump.read_word(per_cpu_offset_addr + 4 * i)
 
-            worker_pool = cpu_worker_pools_addr + offset
+            worker_pool = cpu_worker_pools_addr + ram_dump.per_cpu_offset(i)
             # Need better way to ge the number of pools...
             for k in range(0, 2):
                 worker_pool_i = worker_pool + k * worker_pool_size
