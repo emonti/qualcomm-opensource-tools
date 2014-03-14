@@ -15,19 +15,19 @@ import os
 import struct
 import gzip
 import functools
+import string
 from boards import get_supported_boards, get_supported_ids
 from tempfile import NamedTemporaryFile
 
 import gdbmi
 from print_out import print_out_str
-from mmu import Armv7MMU, Armv7LPAEMMU
+from mmu import Armv7MMU, Armv7LPAEMMU, Armv8MMU
 from parser_util import cleanupString
 
 FP = 11
 SP = 13
 LR = 14
 PC = 15
-THREAD_SIZE = 8192
 
 launch_config_str = 'OS=\nID=T32_1000002\nTMP=C:\\TEMP\nSYS=C:\\T32\nHELP=C:\\T32\\pdf\n\nPBI=SIM\nSCREEN=\nFONT=SMALL\nHEADER=Trace32-ScorpionSimulator\nPRINTER=WINDOWS'
 
@@ -69,7 +69,10 @@ class RamDump():
             end = ramdump.addr_lookup('__stop_unwind_idx')
             self.ramdump = ramdump
             if (start is None) or (end is None):
-                self.unwind_frame = self.unwind_frame_generic
+                if ramdump.arm64:
+                    self.unwind_frame = self.unwind_frame_generic64
+                else:
+                    self.unwind_frame = self.unwind_frame_generic
                 return None
             # addresses
             self.unwind_frame = self.unwind_frame_tables
@@ -104,12 +107,20 @@ class RamDump():
                     stop = mid
             return stop
 
+        def unwind_frame_generic64(self, frame, trace=False):
+            fp = frame.fp
+
+            frame.sp = fp + 0x10
+            frame.fp = self.ramdump.read_word(fp)
+            frame.pc = self.ramdump.read_word(fp + 8)
+            return 0
+
         def unwind_frame_generic(self, frame):
             high = 0
             fp = frame.fp
 
             low = frame.sp
-            mask = (THREAD_SIZE) - 1
+            mask = (self.ramdump.thread_size) - 1
 
             high = (low + mask) & (~mask)  # ALIGN(low, THREAD_SIZE)
 
@@ -328,8 +339,8 @@ class RamDump():
 
         def unwind_frame_tables(self, frame, trace=False):
             low = frame.sp
-            high = ((low + (THREAD_SIZE - 1)) & ~(THREAD_SIZE - 1)) + \
-                THREAD_SIZE
+            high = ((low + (self.ramdump.thread_size - 1)) & \
+                ~(self.ramdump.thread_size - 1)) + self.ramdump.thread_size
             idx = self.search_idx(frame.pc)
 
             if (idx is None):
@@ -399,6 +410,9 @@ class RamDump():
                 where = frame.pc
                 offset = 0
 
+                if frame.pc is None:
+                    break
+
                 r = self.ramdump.unwind_lookup(frame.pc)
                 if r is None:
                     symname = 'UNKNOWN'
@@ -416,7 +430,7 @@ class RamDump():
                 if urc < 0:
                     break
 
-    def __init__(self, vmlinux_path, nm_path, gdb_path, ebi, file_path, phys_offset, outdir, hw_id=None, hw_version=None):
+    def __init__(self, vmlinux_path, nm_path, gdb_path, ebi, file_path, phys_offset, outdir, hw_id=None, hw_version=None, arm64=False):
         self.ebi_files = []
         self.phys_offset = None
         self.tz_start = 0
@@ -432,7 +446,9 @@ class RamDump():
         self.imem_fname = None
         self.gdbmi = gdbmi.GdbMI(self.gdb_path, self.vmlinux)
         self.gdbmi.open()
+        self.arm64 = arm64
         self.page_offset = 0xc0000000
+        self.thread_size = 8192
         if ebi is not None:
             # TODO sanity check to make sure the memory regions don't overlap
             for file_path, start, end in ebi:
@@ -456,6 +472,9 @@ class RamDump():
         self.lookup_table = []
         self.page_offset = 0xc0000000
         self.config = []
+        if self.arm64:
+            self.page_offset = 0xffffffc000000000
+            self.thread_size = 16384
         self.setup_symbol_tables()
 
         # The address of swapper_pg_dir can be used to determine
@@ -466,7 +485,10 @@ class RamDump():
         self.swapper_pg_dir_addr = self.addr_lookup('swapper_pg_dir') - self.page_offset
         self.kernel_text_offset = self.addr_lookup('stext') - self.page_offset
         pg_dir_size = self.kernel_text_offset - self.swapper_pg_dir_addr
-        if pg_dir_size == 0x4000:
+        if self.arm64:
+            print_out_str('Using 64bit MMU')
+            self.mmu = Armv8MMU(self)
+        elif pg_dir_size == 0x4000:
             print_out_str('Using non-LPAE MMU')
             self.mmu = Armv7MMU(self)
         elif pg_dir_size == 0x5000:
@@ -914,21 +936,27 @@ class RamDump():
         else:
             return s[0]
 
-    # returns the 4 bytes read from the specified virtual address
-    # return None on error
+    # returns a word size (pointer) read from ramdump
     def read_word(self, address, virtual=True, trace=False, cpu=None):
         if trace:
             print_out_str('reading {0:x}'.format(address))
-        s = self.read_string(address, '<I', virtual, trace, cpu)
+        if self.arm64:
+            s = self.read_string(address, '<Q', virtual, trace, cpu)
+        else:
+            s = self.read_string(address, '<I', virtual, trace, cpu)
         if s is None:
             return None
         else:
             return s[0]
 
+    # returns a value corresponding to half the word size
     def read_halfword(self, address, virtual=True, trace=False, cpu=None):
         if trace:
             print_out_str('reading {0:x}'.format(address))
-        s = self.read_string(address, '<H', virtual, trace, cpu)
+        if self.arm64:
+            s = self.read_string(address, '<I', virtual, trace, cpu)
+        else:
+            s = self.read_string(address, '<H', virtual, trace, cpu)
         if s is None:
             return None
         else:
@@ -1025,17 +1053,32 @@ class RamDump():
     def iter_cpus(self):
         return xrange(self.get_num_cpus())
 
-    def thread_saved_field_common(self, task, reg_offset):
+    def thread_saved_field_common_32(self, task, reg_offset):
         thread_info = self.read_word(task + self.field_offset('struct task_struct', 'stack'))
         cpu_context_offset = self.field_offset('struct thread_info', 'cpu_context')
         val = self.read_word(thread_info + cpu_context_offset + reg_offset)
         return val
 
+    def thread_saved_field_common_64(self, task, reg_offset):
+        thread_offset = self.field_offset('struct task_struct', 'thread')
+        cpu_context_offset = self.field_offset('struct thread_struct', 'cpu_context')
+        val = self.read_word(task + thread_offset + cpu_context_offset + reg_offset)
+        return val
+
     def thread_saved_pc(self, task):
-        return self.thread_saved_field_common(task, self.field_offset('struct cpu_context_save', 'pc'))
+        if self.arm64:
+            return self.thread_saved_field_common_64(task, self.field_offset('struct cpu_context', 'pc'))
+        else:
+            return self.thread_saved_field_common_32(task, self.field_offset('struct cpu_context_save', 'pc'))
 
     def thread_saved_sp(self, task):
-        return self.thread_saved_field_common(task, self.field_offset('struct cpu_context_save', 'sp'))
+        if self.arm64:
+            return self.thread_saved_field_common_64(task, self.field_offset('struct cpu_context', 'sp'))
+        else:
+            return self.thread_saved_field_common_32(task, self.field_offset('struct cpu_context_save', 'sp'))
 
     def thread_saved_fp(self, task):
-        return self.thread_saved_field_common(task, self.field_offset('struct cpu_context_save', 'fp'))
+        if self.arm64:
+            return self.thread_saved_field_common_64(task, self.field_offset('struct cpu_context', 'fp'))
+        else:
+            return self.thread_saved_field_common_32(task, self.field_offset('struct cpu_context_save', 'fp'))
