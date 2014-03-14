@@ -612,7 +612,7 @@ class RamDump():
         first_mem = open(first_mem_path, 'rb')
         # put some dummy data in for now
         self.ebi_files = [(first_mem, 0, 0xffff0000, first_mem_path)]
-        if not self.get_hw_id():
+        if not self.get_hw_id(add_offset=False):
             return False
         first_mem_end = self.ebi_start + os.path.getsize(first_mem_path) - 1
         self.ebi_files = [
@@ -705,7 +705,7 @@ class RamDump():
         else:
             return self.read_word(self.tz_addr, False)
 
-    def get_hw_id(self):
+    def get_hw_id(self, add_offset=True):
         heap_toc_offset = self.field_offset('struct smem_shared', 'heap_toc')
         if heap_toc_offset is None:
             print_out_str(
@@ -734,6 +734,8 @@ class RamDump():
                     print_out_str('smem_addr = {0:x}'.format(board.smem_addr))
 
                 socinfo_start_addr = board.smem_addr + heap_toc_offset + smem_heap_entry_size * SMEM_HW_SW_BUILD_ID + offset_offset
+                if add_offset:
+                    socinfo_start_addr += board.ram_start
                 soc_start = self.read_int(socinfo_start_addr, False)
                 if trace is True:
                     print_out_str('Read from {0:x}'.format(socinfo_start_addr))
@@ -745,6 +747,8 @@ class RamDump():
                     continue
 
                 socinfo_start = board.smem_addr + soc_start
+                if add_offset:
+                    socinfo_start += board.ram_start
                 if trace:
                     print_out_str('socinfo_start {0:x}'.format(socinfo_start))
 
