@@ -77,6 +77,7 @@ class IrqParse(RamParser):
         rnode_height_offset = ram_dump.field_offset(
             'struct radix_tree_node', 'height')
         slots_offset = ram_dump.field_offset('struct radix_tree_node', 'slots')
+        pointer_size = ram_dump.sizeof('struct radix_tree_node *')
 
         # if CONFIG_BASE_SMALL=0: radix_tree_map_shift = 6
         radix_tree_map_shift = 6
@@ -87,10 +88,10 @@ class IrqParse(RamParser):
         if ram_dump.read_word(root_addr + rnode_offset) & 1 == 0:
             if index > 0:
                 return None
-            return (ram_dump.read_word(root_addr + rnode_offset) & 0xfffffffe)
+            return (ram_dump.read_word(root_addr + rnode_offset) & 0xfffffffffffffffe)
 
-        node_addr = ram_dump.read_word(root_addr + rnode_offset) & 0xfffffffe
-        height = ram_dump.read_word(node_addr + rnode_height_offset)
+        node_addr = ram_dump.read_word(root_addr + rnode_offset) & 0xfffffffffffffffe
+        height = ram_dump.read_int(node_addr + rnode_height_offset)
 
         if height > len(height_to_maxindex):
             return None
@@ -101,11 +102,11 @@ class IrqParse(RamParser):
         shift = (height - 1) * radix_tree_map_shift
         for h in range(height, 0, -1):
             node_addr = ram_dump.read_word(
-                node_addr + slots_offset + ((index >> shift) & radix_tree_map_mask) * 4)
+                node_addr + slots_offset + ((index >> shift) & radix_tree_map_mask) * pointer_size)
             if node_addr == 0:
                 return None
             shift -= radix_tree_map_shift
-        return (node_addr & 0xfffffffe)
+        return (node_addr & 0xfffffffffffffffe)
 
     def print_irq_state_sparse_irq(self, ram_dump):
         h_irq_offset = ram_dump.field_offset('struct irq_desc', 'handle_irq')
@@ -122,7 +123,7 @@ class IrqParse(RamParser):
         cpu_str = ''
 
         irq_desc_tree = ram_dump.addr_lookup('irq_desc_tree')
-        nr_irqs = ram_dump.read_word(ram_dump.addr_lookup('nr_irqs'))
+        nr_irqs = ram_dump.read_int(ram_dump.addr_lookup('nr_irqs'))
 
         for i in ram_dump.iter_cpus():
             cpu_str = cpu_str + '{0:10} '.format('CPU{0}'.format(i))
