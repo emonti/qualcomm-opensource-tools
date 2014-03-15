@@ -57,6 +57,8 @@ class ROData(RamParser):
                         fd.seek(prgheader.offset + (count - prgheader.vaddr))
                         ram_value = self.ramdump.read_word(count)
                         vm_value = struct.unpack('I', fd.read(4))[0]
+                        if ram_value is None:
+                            break
 
                         if detect == 0 and vm_value != ram_value:
                             print_out_str(
