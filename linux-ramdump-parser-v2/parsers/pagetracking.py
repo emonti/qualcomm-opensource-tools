@@ -11,7 +11,7 @@
 
 from print_out import print_out_str
 from parser_util import register_parser, RamParser
-from mm import pfn_to_page
+from mm import pfn_to_page, page_buddy
 
 @register_parser('--print-pagetracking', 'print page tracking information (if available)')
 class PageTracking(RamParser):

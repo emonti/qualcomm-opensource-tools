@@ -332,3 +332,140 @@ class Armv7LPAEMMU(MMU):
         f.write(
             'Dumping page tables is not currently supported for Armv7LPAEMMU\n')
         f.flush()
+
+class Armv8MMU(MMU):
+
+    """An MMU for ARMv8 VMSA"""
+    # Descriptor types
+    DESCRIPTOR_INVALID = 0x0
+    DESCRIPTOR_BLOCK = 0x1
+    DESCRIPTOR_TABLE = 0x3
+    TL_DESCRIPTOR_RESERVED = 0x1
+    TL_DESCRIPTOR_PAGE = 0x3
+
+    def do_fl_sl_level_lookup(self, table_base_address, table_index,
+                              input_addr_split, block_split):
+        descriptor, addr = self.do_level_lookup(
+            table_base_address, table_index,
+            input_addr_split)
+        if descriptor.dtype == Armv8MMU.DESCRIPTOR_BLOCK:
+            descriptor.add_field('output_address', (47, block_split))
+        elif descriptor.dtype == Armv8MMU.DESCRIPTOR_TABLE:
+            # we have bits 39:12 of the next-level table in
+            # next_level_base_addr_upper
+            descriptor.add_field('next_level_base_addr_upper', (47, 12))
+        else:
+            raise Exception(
+                'Invalid stage 1 first- or second-level translation\ndescriptor: (%s)\naddr: (%s)'
+                % (str(descriptor), str(addr))
+            )
+        return descriptor
+
+    def do_fl_level_lookup(self, table_base_address, table_index,
+                           input_addr_split):
+        return self.do_fl_sl_level_lookup(table_base_address, table_index,
+                                     input_addr_split, 30)
+
+    def do_sl_level_lookup(self, table_base_address, table_index):
+        return self.do_fl_sl_level_lookup(table_base_address, table_index,
+                                     12, 21)
+
+    def do_tl_level_lookup(self, table_base_address, table_index):
+        descriptor, addr = self.do_level_lookup(
+            table_base_address, table_index, 12)
+        if descriptor.dtype == Armv8MMU.TL_DESCRIPTOR_PAGE:
+            descriptor.add_field('output_address', (47, 12))
+        else:
+            raise Exception(
+                'Invalid stage 1 third-level translation\ndescriptor: (%s)\naddr: (%s)'
+                % (str(descriptor), str(addr))
+            )
+        return descriptor
+
+    def do_level_lookup(self, table_base_address, table_index,
+                        input_addr_split):
+        """Does a base + index descriptor lookup.
+
+        Returns a tuple with the Register object representing the found
+        descriptor and a Register object representing the the computed
+        descriptor address.
+
+        """
+        n = input_addr_split
+        # these Registers are overkill but nice documentation:).
+        table_base = Register(table_base_address, base=(47, n))
+        descriptor_addr = Register(table_base_address, base=(47, n),
+                                   offset=(n - 1, 3))
+        descriptor_addr.offset = table_index
+        descriptor_val = self.read_phys_dword(descriptor_addr.value)
+        descriptor = Register(descriptor_val,
+                              dtype=(1, 0))
+        return descriptor, descriptor_addr
+
+    def block_or_page_desc_2_phys(self, desc, virt_r, n):
+        phys = Register(output_address=(47, n),
+                        page_offset=(n - 1, 0))
+        phys.output_address = desc.output_address
+        virt_r.add_field('rest', (n - 1, 0))
+        phys.page_offset |= virt_r.rest
+        return phys.value
+
+    def fl_block_desc_2_phys(self, desc, virt_r):
+        """Block descriptor to physical address."""
+        return self.block_or_page_desc_2_phys(desc, virt_r, 30)
+
+    def sl_block_desc_2_phys(self, desc, virt_r):
+        """Block descriptor to physical address."""
+        return self.block_or_page_desc_2_phys(desc, virt_r, 21)
+
+    def tl_page_desc_2_phys(self, desc, virt_r):
+        """Page descriptor to physical address."""
+        return self.block_or_page_desc_2_phys(desc, virt_r, 12)
+
+    def read_phys_dword(self, physaddr):
+        return self.ramdump.read_dword(physaddr, virtual=False)
+
+    def load_page_tables(self):
+        pass
+
+    def page_table_walk(self, virt):
+
+        self.ttbr = self.ramdump.swapper_pg_dir_addr + self.ramdump.phys_offset
+
+        virt_r = Register(virt,
+            zl_index=(47,39),
+            fl_index=(38,30),
+            sl_index=(29,21),
+            tl_index=(20,12),
+            page_index=(11,0))
+
+	fl_desc = self.do_fl_sl_level_lookup(self.ttbr, virt_r.fl_index, 12, 30)
+
+        if fl_desc.dtype == Armv8MMU.DESCRIPTOR_BLOCK:
+            return self.fl_block_desc_2_phys(fl_desc, virt_r)
+
+        base = Register(base=(47, 12))
+        base.base = fl_desc.next_level_base_addr_upper
+        try:
+            sl_desc = self.do_sl_level_lookup(
+                base.value, virt_r.sl_index)
+        except:
+            return None
+
+	if sl_desc.dtype == Armv8MMU.DESCRIPTOR_BLOCK:
+            r = self.sl_block_desc_2_phys(sl_desc, virt_r)
+            return r
+
+        base.base = sl_desc.next_level_base_addr_upper
+        try:
+            tl_desc = self.do_tl_level_lookup(base.value, virt_r.tl_index)
+        except:
+            return None
+
+        r = self.tl_page_desc_2_phys(tl_desc, virt_r)
+        return r
+
+    def dump_page_tables(self, f):
+        f.write(
+            'Dumping page tables is not currently supported for Armv8MMU\n')
+        f.flush()

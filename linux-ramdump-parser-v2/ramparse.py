@@ -72,6 +72,8 @@ if __name__ == '__main__':
         help='Force the hardware detection to a specific hardware version')
     parser.add_option('', '--parse-qdss', action='store_true',
                       dest='qdss', help='Parse QDSS (deprecated)')
+    parser.add_option('', '--64-bit', action='store_true', dest='arm64',
+                      help='Parse dumps as 64-bit dumps')
 
     for p in parser_util.get_parsers():
         parser.add_option(p.shortopt or '',
@@ -150,8 +152,12 @@ if __name__ == '__main__':
 
     try:
         import local_settings
-        gdb_path = gdb_path or local_settings.gdb_path
-        nm_path = nm_path or local_settings.nm_path
+        if options.arm64:
+            gdb_path = gdb_path or local_settings.gdb64_path
+            nm_path = nm_path or local_settings.nm64_path
+        else:
+            gdb_path = gdb_path or local_settings.gdb_path
+            nm_path = nm_path or local_settings.nm_path
     except ImportError:
         cross_compile = os.environ.get('CROSS_COMPILE')
         if cross_compile is not None:
@@ -188,7 +194,8 @@ if __name__ == '__main__':
 
     dump = RamDump(options.vmlinux, nm_path, gdb_path, options.ram_addr,
                    options.autodump, options.phys_offset, options.outdir,
-                   options.force_hardware, options.force_hardware_version)
+                   options.force_hardware, options.force_hardware_version,
+                   arm64=options.arm64)
 
     if not dump.print_command_line():
         print_out_str('!!! Error printing saved command line.')
