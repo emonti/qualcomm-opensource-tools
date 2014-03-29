@@ -16,6 +16,7 @@ from print_out import print_out_str
 from qdss import QDSSDump
 from cachedump import save_l1_dump, parse_cache_dump
 from watchdog import TZRegDump
+from debug_image_v2 import DebugImage_v2
 
 QDSS_MAGIC = 0x5D1DB1Bf
 
@@ -126,12 +127,7 @@ class DebugImage(RamParser):
 
         setattr(self.qdss, tag_to_field_name[tag], start + 4096)
 
-    def parse(self):
-        if not self.ramdump.is_config_defined('CONFIG_MSM_MEMORY_DUMP'):
-            print_out_str(
-                '!!! Debug image was not enabled. No debug dump will be provided')
-            return
-
+    def parse_dump(self):
         out_dir = self.ramdump.outdir
         self.name_lookup_table = self.ramdump.gdbmi.get_enum_lookup_table(
             'dump_client_type', 32)
@@ -195,3 +191,18 @@ class DebugImage(RamParser):
             print_out_str('--------')
 
         self.qdss.dump_all(self.ramdump)
+
+    def parse(self):
+        # use the mem_dump_data variable to detect if debug image feature was compiled in,
+        # and memdump data variable for debug image v2 feature, rather than relying on
+        # configuration option.
+        if self.ramdump.addr_lookup('mem_dump_data'):
+            self.parse_dump()
+        elif self.ramdump.addr_lookup('memdump'):
+            regs = DebugImage_v2()
+            regs.parse_dump_v2(self.ramdump)
+        else:
+            print_out_str(
+                '!!! Debug image was not enabled. No debug dump will be provided')
+            return
+
