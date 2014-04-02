@@ -1,4 +1,4 @@
-# Copyright (c) 2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -438,8 +438,6 @@ class IOMMU(RamParser):
             print_out_str(
                 '[!] WARNING: IOMMU domains was not found in this build. No IOMMU page tables will be generated')
             return
-
-        out_dir = self.ramdump.outdir
 
         iommu_domains_rb_root_addr = self.ramdump.read_word(
             iommu_domains_rb_root)
