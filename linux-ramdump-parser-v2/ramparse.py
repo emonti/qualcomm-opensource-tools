@@ -13,6 +13,7 @@
 
 import sys
 import os
+import re
 from optparse import OptionParser
 
 import parser_util
@@ -156,12 +157,19 @@ if __name__ == '__main__':
 
     try:
         import local_settings
-        if options.arm64:
-            gdb_path = gdb_path or local_settings.gdb64_path
-            nm_path = nm_path or local_settings.nm64_path
-        else:
-            gdb_path = gdb_path or local_settings.gdb_path
-            nm_path = nm_path or local_settings.nm_path
+        try:
+            if options.arm64:
+                gdb_path = gdb_path or local_settings.gdb64_path
+                nm_path = nm_path or local_settings.nm64_path
+            else:
+                gdb_path = gdb_path or local_settings.gdb_path
+                nm_path = nm_path or local_settings.nm_path
+        except AttributeError as e:
+            print_out_str("local_settings.py looks bogus. Please see README.txt")
+            missing_attr = re.sub(".*has no attribute '(.*)'", '\\1', e.message)
+            print_out_str("Specifically, looks like you're missing `%s'\n" % missing_attr)
+            print_out_str("Full message: %s" % e.message)
+            sys.exit(1)
     except ImportError:
         cross_compile = os.environ.get('CROSS_COMPILE')
         if cross_compile is not None:
