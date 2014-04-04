@@ -74,6 +74,10 @@ if __name__ == '__main__':
                       dest='qdss', help='Parse QDSS (deprecated)')
     parser.add_option('', '--64-bit', action='store_true', dest='arm64',
                       help='Parse dumps as 64-bit dumps')
+    parser.add_option('', '--shell', action='store_true',
+                      help='Run an interactive python interpreter with the ramdump loaded')
+    parser.add_option('', '--classic-shell', action='store_true',
+                      help='Like --shell, but forces the use of the classic python shell, even if ipython is installed')
 
     for p in parser_util.get_parsers():
         parser.add_option(p.shortopt or '',
@@ -196,6 +200,29 @@ if __name__ == '__main__':
                    options.autodump, options.phys_offset, options.outdir,
                    options.force_hardware, options.force_hardware_version,
                    arm64=options.arm64)
+
+    if options.shell or options.classic_shell:
+        print "Entering interactive shell mode."
+        print "The RamDump instance is available in the `dump' variable\n"
+        do_fallback = options.classic_shell
+        if not do_fallback:
+            try:
+                from IPython import embed
+                embed()
+            except ImportError:
+                do_fallback = True
+
+        if do_fallback:
+            import code
+            import readline
+            import rlcompleter
+            vars = globals()
+            vars.update(locals())
+            readline.set_completer(rlcompleter.Completer(vars).complete)
+            readline.parse_and_bind("tab: complete")
+            shell = code.InteractiveConsole(vars)
+            shell.interact()
+        sys.exit(0)
 
     if not dump.print_command_line():
         print_out_str('!!! Error printing saved command line.')
