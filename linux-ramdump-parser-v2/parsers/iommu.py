@@ -15,27 +15,9 @@ import rb_tree
 import linux_list as llist
 from print_out import print_out_str
 from parser_util import register_parser, RamParser
+from sizes import SZ_4K, SZ_64K, SZ_1M, SZ_16M, get_order, order_size_strings
 
 IOMMU_DOMAIN_VAR = 'domain_root'
-
-SZ_4K = 0x1000
-SZ_64K = 0x10000
-SZ_1M = 0x100000
-SZ_16M = 0x1000000
-
-MAP_SIZE_STR = ['4K', '8K', '16K', '32K', '64K',
-                '128K', '256K', '512K', '1M', '2M',
-                '4M', '8M', '16M']
-
-
-def get_order(size):
-    order = math.log(size, 2)
-    if (order % 1.0) != 0.0:
-        print 'ERROR: Number is not a power of 2: %x' % (size)
-        order = 0
-    else:
-        order -= math.log(SZ_4K, 2)
-    return int(order)
 
 
 @register_parser('--print-iommu-pg-tables', 'Print IOMMU page tables')
@@ -427,7 +409,7 @@ class IOMMU(RamParser):
                 self.out_file.write(
                     '0x%08x--0x%08x [0x%08x] A:0x%08x--0x%08x [0x%08x] %s[%s]\n' % (mapping.virt_start, mapping.virt_end, mapping.virt_size(),
                                                                                     mapping.phys_start, mapping.phys_end,
-                                                                                    mapping.phys_size(), mapping.mapping_type, MAP_SIZE_STR[get_order(mapping.mapping_size)]))
+                                                                                    mapping.phys_size(), mapping.mapping_type, order_size_strings[get_order(mapping.mapping_size)]))
             else:
                 self.out_file.write('0x%08x--0x%08x [0x%08x] [UNMAPPED]\n' %
                                     (mapping.virt_start, mapping.virt_end, mapping.virt_size()))
