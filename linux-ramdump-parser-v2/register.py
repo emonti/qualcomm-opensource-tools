@@ -1,4 +1,4 @@
-# Copyright (c) 2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -47,6 +47,16 @@ class Register(object):
     >>> hex(abc.value)
     '0x5'
 
+    We also handle `None' values:
+
+    >>> r = Register(None, h=(3,0))
+    >>> r
+    value: None
+    >>> r.h
+    >>> r.h = 3
+    >>> r
+    value: 0x3 {h[3:0]=>0x3}
+
     """
 
     def __init__(self, value=0, **kwargs):
@@ -80,12 +90,16 @@ class Register(object):
     def __getattr__(self, name):
         if name not in self._regs:
             raise AttributeError
+        if self.value is None:
+            return None
         msb, lsb = self._regs[name]
         return bitops.bvalsel(msb, lsb, self.value)
 
     def __setattr__(self, name, newvalue):
         if name not in self._regs:
             raise AttributeError
+        if self.value is None:
+            object.__setattr__(self, 'value', 0)
         msb, lsb = self._regs[name]
         val = self.value & (~bitops.bm(msb, lsb))
         val |= newvalue << lsb
@@ -94,6 +108,8 @@ class Register(object):
         object.__setattr__(self, 'value', val)
 
     def __repr__(self):
+        if self.value is None:
+            return 'value: None'
         ret = []
         for r in sorted(self._regs, key=self._regs.get, reverse=True):
             msb, lsb = self._regs[r]
