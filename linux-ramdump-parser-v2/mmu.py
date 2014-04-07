@@ -174,11 +174,11 @@ class Armv7LPAEMMU(MMU):
 
     def do_fl_level_lookup(self, table_base_address, table_index,
                            input_addr_split):
-        return do_fl_sl_level_lookup(table_base_address, table_index,
+        return self.do_fl_sl_level_lookup(table_base_address, table_index,
                                      input_addr_split, 30)
 
     def do_sl_level_lookup(self, table_base_address, table_index):
-        return do_fl_sl_level_lookup(table_base_address, table_index,
+        return self.do_fl_sl_level_lookup(table_base_address, table_index,
                                      12, 21)
 
     def do_tl_level_lookup(self, table_base_address, table_index):
