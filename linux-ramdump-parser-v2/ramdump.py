@@ -22,7 +22,7 @@ from tempfile import NamedTemporaryFile
 import gdbmi
 from print_out import print_out_str
 from mmu import Armv7MMU, Armv7LPAEMMU, Armv8MMU
-from parser_util import cleanupString
+import parser_util
 
 FP = 11
 SP = 13
@@ -975,7 +975,7 @@ class RamDump():
         ebi[0].seek(offset)
         a = ebi[0].read(length)
         if trace:
-            print_out_str('result = {0}'.format(cleanupString(a)))
+            print_out_str('result = {0}'.format(parser_util.cleanupString(a)))
             print_out_str('lenght = {0}'.format(len(a)))
         return a
 
@@ -1088,6 +1088,18 @@ class RamDump():
                     'address {0:x} failed hard core (v {1} t{2})'.format(addr, virtual, trace))
             return None
         return struct.unpack(format_string, s)
+
+    def hexdump(self, address, length, virtual=True, file_object=None):
+        """Does a hexdump (in the format of `xxd'). `length' is in bytes. If
+        given, will write to `file_object', otherwise will write to
+        stdout.
+
+        """
+        parser_util.xxd(
+            address,
+            [self.read_byte(address + i, virtual=virtual) or 0
+             for i in xrange(length)],
+            file_object=file_object)
 
     def per_cpu_offset(self, cpu):
         per_cpu_offset_addr = self.addr_lookup('__per_cpu_offset')
