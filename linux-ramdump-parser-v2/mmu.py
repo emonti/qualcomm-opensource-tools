@@ -11,6 +11,7 @@
 
 from bitops import bm, bvalsel
 from register import Register
+import sizes
 
 
 class MMU(object):
@@ -154,11 +155,195 @@ class Armv7LPAEMMU(MMU):
     TL_DESCRIPTOR_RESERVED = 0x1
     TL_DESCRIPTOR_PAGE = 0x3
 
+    # Mapping classes
+    class MappingInfo(object): pass
+
+    class LeafMapping(MappingInfo):
+        def __init__(self, virt_r, descriptor, page_size, n):
+            self.virt_r = virt_r
+
+            self.descriptor = descriptor
+            self.attributes = Register(
+                descriptor.value,
+                software=(58, 55),
+                XN=(54, 54),
+                PXN=(53, 53),
+                contiguous_hint=(52, 52),
+                nG=(11, 11),
+                AF=(10, 10),
+                sh_10=(9, 8),
+                ap_21=(7, 6),
+                ns=(5, 5),
+                attr_index_20=(4, 2),
+            )
+
+            self.page_size = page_size
+            self.leaf = True
+
+            p = Register(output_address=(39, n), page_offset=(n - 1, 0))
+            p.output_address = self.descriptor.output_address
+            self.virt_r.add_field('rest', (n - 1, 0))
+            p.page_offset |= self.virt_r.rest
+            self.phys = p.value
+
+        def __repr__(self):
+            pstart, pend = self.phys_addr_range()
+            return '[{:x}-{:x}][{:}]'.format(
+                pstart, pend,
+                ','.join(self.get_attributes_strings())
+            )
+
+        def phys_addr_range(self):
+            return (self.phys, self.phys + self.page_size)
+
+        def get_attributes_strings(self):
+            attrs = [
+                self.get_xn_string(), self.get_pxn_string(),
+                self.get_contiguous_hint_string(),
+                self.get_nG_string(), self.get_AF_string(),
+                self.get_sh_string(), self.get_ap_21_string(),
+                self.get_ns_string(), self.get_attr_index_20_string(),
+            ]
+            return [a for a in attrs if a != '']
+
+        def get_xn_string(self):
+            if self.attributes.XN == 1:
+                return 'XN'
+            return ''
+
+        def get_pxn_string(self):
+            if self.attributes.PXN == 1:
+                return 'PXN'
+            return ''
+
+        def get_contiguous_hint_string(self):
+            if self.attributes.contiguous_hint == 1:
+                return 'Contiguous'
+            return ''
+
+        def get_nG_string(self):
+            if self.attributes.nG == 1:
+                return 'nG'
+            return ''
+
+        def get_AF_string(self):
+            if self.attributes.AF == 1:
+                return 'AF'
+            return ''
+
+        def get_sh_string(self):
+            if self.attributes.sh_10 == 0b00:
+                return 'Non-shareable'
+            elif self.attributes.sh_10 == 0b01:
+                return 'UNPREDICTABLE'
+            elif self.attributes.sh_10 == 0b10:
+                return 'Outer Shareable'
+            elif self.attributes.sh_10 == 0b11:
+                return 'Inner Shareable'
+            raise ValueError('Impossible sh[1:0]: 0x%x' % self.attributes.sh_10)
+
+        def get_ap_21_string(self):
+            if self.attributes.ap_21 == 0b00:
+                return 'R/W@PL1'
+            elif self.attributes.ap_21 == 0b01:
+                return 'R/W'
+            elif self.attributes.ap_21 == 0b10:
+                return 'R/O@PL1'
+            elif self.attributes.ap_21 == 0b11:
+                return 'R/O'
+            raise ValueError('Impossible ap[2:1]: 0x%x' % self.attributes.ap_21)
+
+        def get_ns_string(self):
+            if self.attributes.ns == 1:
+                return 'NS'
+            return ''
+
+        def get_attr_index_20_string(self):
+            return 'AI=0x%x' % self.attributes.attr_index_20
+
+    class TableMapping(MappingInfo):
+        def __init__(self, next_table_addr):
+            self.next_table_addr = next_table_addr
+            self.leaf = False
+
+        def __repr__(self):
+            return '[Next Table: 0x%x]' % (
+                self.next_table_addr
+            )
+
+    class FLBlockMapping(LeafMapping):
+        def __init__(self, virt_r, desc):
+            super(Armv7LPAEMMU.FLBlockMapping, self).__init__(
+                virt_r, desc, sizes.SZ_1G, 30)
+
+    class SLBlockMapping(LeafMapping):
+        def __init__(self, virt_r, desc):
+            super(Armv7LPAEMMU.SLBlockMapping, self).__init__(
+                virt_r, desc, sizes.SZ_2M, 21)
+
+    class TLPageMapping(LeafMapping):
+        def __init__(self, virt_r, desc):
+            super(Armv7LPAEMMU.TLPageMapping, self).__init__(
+                virt_r, desc, sizes.SZ_4K, 12)
+
+    class FLTableMapping(TableMapping): pass
+    class SLTableMapping(TableMapping): pass
+
+
+    # Exceptions
+    class LookupException(Exception): pass
+    class LookupExceptionFLSL(LookupException): pass
+    class LookupExceptionTL(LookupException): pass
+
+    def __init__(self, ramdump, pgtbl, txsz, virt_for_fl=False):
+        """Constructor for Armv7LPAEMMU.
+
+        - ramdump: RamDump instance
+
+        - pgtbl: base address of page table
+
+        - txsz: t0sz or t1sz (see ARM ARM B3.6.6 (rev 0406C.b))
+
+        - virt_for_fl: whether we should do a virtual address lookup
+          for the first-level page table. Note that it wouldn't make
+          any sense to pass `True' here if this is the "main" mmu
+          instance for a RamDump, because then the RamDump would try
+          to invoke this very object to do the lookup, and we would
+          recursively discover the higgs boson. This option is useful,
+          though, for parsing LPAE page tables whose first-level page
+          table is sitting in kernel address space (as is the case for
+          the IOMMU LPAE page tables).
+
+        """
+        super(Armv7LPAEMMU, self).__init__(ramdump)
+        self.pgtbl = pgtbl
+        self.txsz = txsz
+        self.virt_for_fl = virt_for_fl
+
+        if (32 - txsz) > 30:
+            self.initial_lkup_level = 1
+            self.initial_block_split = 12
+        else:
+            self.initial_lkup_level = 2
+            self.initial_block_split = 21
+
+        if self.initial_lkup_level == 1:
+            # see the ARMv7 ARM B3.6.6 (rev 0406C.b):
+            self.input_addr_split = 5 - self.txsz
+            if self.input_addr_split not in [4, 5]:
+                raise ValueError("Invalid stage 1 first-level `n' value: 0x%x. Please check txsz."
+                                % self.input_addr_split)
+        else:
+            # see the ARMv7 ARM B3.6.6 (rev 0406C.b):
+            self.input_addr_split = 14 - self.txsz
+            if self.input_addr_split not in range(7, 13):
+                raise ValueError("Invalid stage 1 second-level (initial) `n' value: 0x%x. Please check txsz."
+                                % self.input_addr_split)
+
     def do_fl_sl_level_lookup(self, table_base_address, table_index,
-                              input_addr_split, block_split):
+                              block_split, virtual=False):
         descriptor, addr = self.do_level_lookup(
-            table_base_address, table_index,
-            input_addr_split)
+            table_base_address, table_index, virtual=virtual)
         if descriptor.dtype == Armv7LPAEMMU.DESCRIPTOR_BLOCK:
             descriptor.add_field('output_address', (39, block_split))
         elif descriptor.dtype == Armv7LPAEMMU.DESCRIPTOR_TABLE:
@@ -166,35 +351,25 @@ class Armv7LPAEMMU(MMU):
             # next_level_base_addr_upper
             descriptor.add_field('next_level_base_addr_upper', (39, 12))
         else:
-            raise Exception(
+            raise Armv7LPAEMMU.LookupExceptionFLSL(
                 'Invalid stage 1 first- or second-level translation\ndescriptor: (%s)\naddr: (%s)'
                 % (str(descriptor), str(addr))
             )
         return descriptor
 
-    def do_fl_level_lookup(self, table_base_address, table_index,
-                           input_addr_split):
-        return self.do_fl_sl_level_lookup(table_base_address, table_index,
-                                     input_addr_split, 30)
-
-    def do_sl_level_lookup(self, table_base_address, table_index):
-        return self.do_fl_sl_level_lookup(table_base_address, table_index,
-                                     12, 21)
-
     def do_tl_level_lookup(self, table_base_address, table_index):
         descriptor, addr = self.do_level_lookup(
-            table_base_address, table_index, 12)
+            table_base_address, table_index)
         if descriptor.dtype == Armv7LPAEMMU.TL_DESCRIPTOR_PAGE:
             descriptor.add_field('output_address', (39, 12))
         else:
-            raise Exception(
+            raise Armv7LPAEMMU.LookupExceptionTL(
                 'Invalid stage 1 third-level translation\ndescriptor: (%s)\naddr: (%s)'
                 % (str(descriptor), str(addr))
             )
         return descriptor
 
-    def do_level_lookup(self, table_base_address, table_index,
-                        input_addr_split):
+    def do_level_lookup(self, table_base_address, table_index, virtual=False):
         """Does a base + index descriptor lookup.
 
         Returns a tuple with the Register object representing the found
@@ -202,107 +377,102 @@ class Armv7LPAEMMU(MMU):
         descriptor address.
 
         """
-        n = input_addr_split
+        n = self.input_addr_split
         # these Registers are overkill but nice documentation:).
         table_base = Register(table_base_address, base=(39, n))
-        descriptor_addr = Register(base=(39, n),
-                                   offset=(n - 1, 3))
+        descriptor_addr = Register(base=(39, n), offset=(n - 1, 3))
         descriptor_addr.base = table_base.base
         descriptor_addr.offset = table_index
-        descriptor_val = self.read_phys_dword(descriptor_addr.value)
-        descriptor = Register(descriptor_val,
-                              dtype=(1, 0))
+        descriptor_val = self.ramdump.read_dword(
+            descriptor_addr.value, virtual=virtual)
+        descriptor = Register(descriptor_val, dtype=(1, 0))
         return descriptor, descriptor_addr
-
-    def block_or_page_desc_2_phys(self, desc, virt_r, n):
-        phys = Register(output_address=(39, n),
-                        page_offset=(n - 1, 0))
-        phys.output_address = desc.output_address
-        virt_r.add_field('rest', (n - 1, 0))
-        phys.page_offset |= virt_r.rest
-        return phys.value
-
-    def fl_block_desc_2_phys(self, desc, virt_r):
-        """Block descriptor to physical address."""
-        return self.block_or_page_desc_2_phys(desc, virt_r, 30)
-
-    def sl_block_desc_2_phys(self, desc, virt_r):
-        """Block descriptor to physical address."""
-        return self.block_or_page_desc_2_phys(desc, virt_r, 21)
-
-    def tl_page_desc_2_phys(self, desc, virt_r):
-        """Page descriptor to physical address."""
-        return self.block_or_page_desc_2_phys(desc, virt_r, 12)
-
-    def read_phys_dword(self, physaddr):
-        return self.ramdump.read_dword(physaddr, virtual=False)
 
     def load_page_tables(self):
         pass
 
-    def __init__(self, ramdump, pgtbl, t1sz, initial_lkup_level):
-        super(Armv7LPAEMMU, self).__init__(ramdump)
-        self.pgtbl = pgtbl
-        self.t1sz = t1sz
-        self.initial_lkup_level = initial_lkup_level
-
     def page_table_walk(self, virt):
+        info = self.translate(virt)
+        return info.phys if info is not None else None
 
-        if self.initial_lkup_level == 1:
-            # see the ARMv7 ARM B3.6.6 (rev 0406C.b):
-            input_addr_split = 5 - self.t1sz
-            if input_addr_split not in [4, 5]:
-                raise Exception("Invalid stage 1 first-level `n' value: 0x%x"
-                                % input_addr_split)
-            virt_r = Register(virt,
-                              fl_index=(input_addr_split + 26, 30),
-                              sl_index=(29, 21),
-                              tl_index=(20, 12),
-                              page_index=(11, 0))
-            fl_desc = self.do_fl_level_lookup(
-                self.pgtbl, virt_r.fl_index, input_addr_split)
+    def translate_first_level(self, virt_r):
+        try:
+            fl_desc = self.do_fl_sl_level_lookup(self.pgtbl, virt_r.fl_index,
+                                                 30, virtual=self.virt_for_fl)
+        except Armv7LPAEMMU.LookupExceptionFLSL:
+            return None
 
-            # if we got a block descriptor we're done:
-            if fl_desc.dtype == Armv7LPAEMMU.DESCRIPTOR_BLOCK:
-                return self.fl_block_desc_2_phys(fl_desc, virt_r)
+        # if we got a block descriptor we're done:
+        if fl_desc.dtype == Armv7LPAEMMU.DESCRIPTOR_BLOCK:
+            return Armv7LPAEMMU.FLBlockMapping(virt_r, fl_desc)
 
-            base = Register(base=(39, 12))
-            base.base = fl_desc.next_level_base_addr_upper
-            sl_desc = self.do_sl_level_lookup(
-                base.value, virt_r.sl_index)
+        base = Register(base=(39, 12))
+        base.base = fl_desc.next_level_base_addr_upper
+        return Armv7LPAEMMU.FLTableMapping(base.value)
 
-        elif self.initial_lkup_level == 2:
-            # see the ARMv7 ARM B3.6.6 (rev 0406C.b):
-            input_addr_split = 14 - self.t1sz
-            if input_addr_split not in range(7, 13):
-                raise Exception("Invalid stage 1 second-level (initial) `n' value: 0x%x"
-                                % input_addr_split)
-            virt_r = Register(virt,
-                              sl_index=(input_addr_split + 17, 21),
-                              tl_index=(20, 12),
-                              page_index=(11, 0))
-            try:
-                sl_desc = self.do_fl_sl_level_lookup(
-                    self.pgtbl, virt_r.sl_index, input_addr_split, 21)
-            except:
-                return None
-        else:
-            raise Exception('Invalid initial lookup level (0x%x)' %
-                            self.initial_lkup_level)
+    def translate_second_level(self, virt_r, level2_table_addr, block_split=None):
+        if block_split is None:
+            block_split = self.initial_block_split
+        try:
+            sl_desc = self.do_fl_sl_level_lookup(
+                level2_table_addr, virt_r.sl_index, block_split)
+                # res.next_table_addr, virt_r.sl_index, 12, 21)
+        except Armv7LPAEMMU.LookupExceptionFLSL:
+            return None
 
         # if we got a block descriptor we're done:
         if sl_desc.dtype == Armv7LPAEMMU.DESCRIPTOR_BLOCK:
-            return self.sl_block_desc_2_phys(sl_desc, virt_r)
+            return Armv7LPAEMMU.SLBlockMapping(virt_r, sl_desc)
 
         base = Register(base=(39, 12))
         base.base = sl_desc.next_level_base_addr_upper
+        return Armv7LPAEMMU.SLTableMapping(base.value)
+
+    def translate_third_level(self, virt_r, level3_table_addr):
         try:
             tl_desc = self.do_tl_level_lookup(
-                base.value, virt_r.tl_index)
-        except:
+                level3_table_addr, virt_r.tl_index)
+        except Armv7LPAEMMU.LookupExceptionTL:
             return None
 
-        return self.tl_page_desc_2_phys(tl_desc, virt_r)
+        return Armv7LPAEMMU.TLPageMapping(virt_r, tl_desc)
+
+    def translate(self, virt):
+        """Does a page table walk and returns a LeafMapping that describes the
+        mapping (including the physical address and mapping
+        attributes)
+
+        """
+        if self.initial_lkup_level == 1:
+            virt_r = Register(virt,
+                              fl_index=(self.input_addr_split + 26, 30),
+                              sl_index=(29, 21),
+                              tl_index=(20, 12),
+                              page_index=(11, 0))
+
+            res = self.translate_first_level(virt_r)
+
+            if res is None or res.leaf:
+                return res
+
+            level2_table_addr = res.next_table_addr
+        elif self.initial_lkup_level == 2:
+            virt_r = Register(virt,
+                              sl_index=(self.input_addr_split + 17, 21),
+                              tl_index=(20, 12),
+                              page_index=(11, 0))
+            level2_table_addr = self.pgtbl
+        else:
+            raise ValueError('Invalid initial lookup level (0x%x). Should be 1 or 2.' %
+                            self.initial_lkup_level)
+
+        res = self.translate_second_level(virt_r, level2_table_addr)
+
+        if res is None or res.leaf:
+            return res
+
+        level3_table_addr = res.next_table_addr
+        return self.translate_third_level(virt_r, level3_table_addr)
 
     def dump_page_tables(self, f):
         f.write(
