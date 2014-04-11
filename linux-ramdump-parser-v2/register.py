@@ -39,6 +39,14 @@ class Register(object):
     >>> abc.other = 0x3
     >>> hex(abc.value)
     '0x31'
+    >>> abc.add_field("just_a_bit", (4, 4))
+    >>> abc.just_a_bit
+    1
+    >>> abc.just_a_bit = 0
+    >>> abc.just_a_bit
+    0
+    >>> hex(abc.value)
+    '0x21'
     >>> abc.value = 0
     >>> abc.value
     0
