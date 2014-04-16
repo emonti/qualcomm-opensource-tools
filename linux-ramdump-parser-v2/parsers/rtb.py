@@ -55,40 +55,40 @@ class RTB(RamParser):
         rtbout.write('{0} No data\n'.format(logtype).encode('ascii', 'ignore'))
 
     def print_readlwritel(self, rtbout, rtb_ptr, logtype, data_offset, caller_offset):
-        data = self.ramdump.read_word(rtb_ptr + data_offset)
-        caller = self.ramdump.read_word(rtb_ptr + caller_offset)
+        data = self.ramdump.read_u64(rtb_ptr + data_offset)
+        caller = self.ramdump.read_u64(rtb_ptr + caller_offset)
         func = self.get_fun_name(caller)
         line = self.get_caller(caller)
         rtbout.write('{0} from address {1:x} called from addr {2:x} {3} {4}\n'.format(
             logtype, data, caller, func, line).encode('ascii', 'ignore'))
 
     def print_logbuf(self, rtbout, rtb_ptr, logtype, data_offset, caller_offset):
-        data = self.ramdump.read_word(rtb_ptr + data_offset)
-        caller = self.ramdump.read_word(rtb_ptr + caller_offset)
+        data = self.ramdump.read_u64(rtb_ptr + data_offset)
+        caller = self.ramdump.read_u64(rtb_ptr + caller_offset)
         func = self.get_fun_name(caller)
         line = self.get_caller(caller)
         rtbout.write('{0} log end {1:x} called from addr {2:x} {3} {4}\n'.format(
             logtype, data, caller, func, line).encode('ascii', 'ignore'))
 
     def print_hotplug(self, rtbout, rtb_ptr, logtype, data_offset, caller_offset):
-        data = self.ramdump.read_word(rtb_ptr + data_offset)
-        caller = self.ramdump.read_word(rtb_ptr + caller_offset)
+        data = self.ramdump.read_u64(rtb_ptr + data_offset)
+        caller = self.ramdump.read_u64(rtb_ptr + caller_offset)
         func = self.get_fun_name(caller)
         line = self.get_caller(caller)
         rtbout.write('{0} cpu data {1:x} called from addr {2:x} {3} {4}\n'.format(
             logtype, data, caller, func, line).encode('ascii', 'ignore'))
 
     def print_ctxid(self, rtbout, rtb_ptr, logtype, data_offset, caller_offset):
-        data = self.ramdump.read_word(rtb_ptr + data_offset)
-        caller = self.ramdump.read_word(rtb_ptr + caller_offset)
+        data = self.ramdump.read_u64(rtb_ptr + data_offset)
+        caller = self.ramdump.read_u64(rtb_ptr + caller_offset)
         func = self.get_fun_name(caller)
         line = self.get_caller(caller)
         rtbout.write('{0} context id {1:x} called from addr {2:x} {3} {4}\n'.format(
             logtype, data, caller, func, line).encode('ascii', 'ignore'))
 
     def print_timestamp(self, rtbout, rtb_ptr, logtype, data_offset, caller_offset):
-        data = self.ramdump.read_word(rtb_ptr + data_offset)
-        caller = self.ramdump.read_word(rtb_ptr + caller_offset)
+        data = self.ramdump.read_u64(rtb_ptr + data_offset)
+        caller = self.ramdump.read_u64(rtb_ptr + caller_offset)
         rtbout.write('{0} Timestamp: {1:x}{2:x}\n'.format(
             logtype, data, caller).encode('ascii', 'ignore'))
 
@@ -114,20 +114,21 @@ class RTB(RamParser):
         data_offset = self.ramdump.field_offset(
             'struct msm_rtb_layout', 'data')
         rtb_entry_size = self.ramdump.sizeof('struct msm_rtb_layout')
-        step_size = self.ramdump.read_word(rtb + step_size_offset)
-        total_entries = self.ramdump.read_word(rtb + nentries_offset)
+        step_size = self.ramdump.read_u32(rtb + step_size_offset)
+        print 'step size = {0:x}'.format(step_size)
+        total_entries = self.ramdump.read_int(rtb + nentries_offset)
         rtb_read_ptr = self.ramdump.read_word(rtb + rtb_entry_offset)
         for i in range(0, step_size):
             rtb_out = self.ramdump.open_file('msm_rtb{0}.txt'.format(i))
             gdb_cmd = NamedTemporaryFile(mode='w+t', delete=False)
             gdb_out = NamedTemporaryFile(mode='w+t', delete=False)
-            mask = self.ramdump.read_word(rtb + nentries_offset) - 1
+            mask = self.ramdump.read_int(rtb + nentries_offset) - 1
             if step_size == 1:
-                last = self.ramdump.read_word(
+                last = self.ramdump.read_int(
                     self.ramdump.addr_lookup('msm_rtb_idx'))
             else:
-                last = self.ramdump.read_word(self.ramdump.addr_lookup(
-                    'msm_rtb_idx_cpu') + self.ramdump.read_word(self.ramdump.addr_lookup('__per_cpu_offset') + 4 * i))
+                last = self.ramdump.read_int(self.ramdump.addr_lookup(
+                    'msm_rtb_idx_cpu'), cpu=i )
             last = last & mask
             last_ptr = 0
             next_ptr = 0
@@ -137,8 +138,8 @@ class RTB(RamParser):
                 last_ptr = rtb_read_ptr + last * rtb_entry_size + idx_offset
                 next_ptr = rtb_read_ptr + next_entry * \
                     rtb_entry_size + idx_offset
-                a = self.ramdump.read_word(last_ptr)
-                b = self.ramdump.read_word(next_ptr)
+                a = self.ramdump.read_int(last_ptr)
+                b = self.ramdump.read_int(next_ptr)
                 if a < b:
                     last = next_entry
                 if next_entry != last:
@@ -154,7 +155,7 @@ class RTB(RamParser):
                 'struct msm_rtb_layout', 'caller')
             while True:
                 ptr = rtb_read_ptr + next_entry * rtb_entry_size
-                stamp = self.ramdump.read_word(ptr + rtb_idx_offset)
+                stamp = self.ramdump.read_int(ptr + rtb_idx_offset)
                 if stamp is None:
                     break
                 rtb_out.write('{0:x} '.format(stamp).encode('ascii', 'ignore'))
