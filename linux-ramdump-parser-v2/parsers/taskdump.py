@@ -81,7 +81,7 @@ def dump_thread_group(ramdump, thread_group, task_out, check_for_panic=0):
                 first = 1
             task_out.write('    Task name: {0} pid: {1} cpu: {2}\n    state: 0x{3:x} exit_state: 0x{4:x} stack base: 0x{5:x}\n'.format(
                 thread_task_name, thread_task_pid, ramdump.read_int(threadinfo + offset_cpu), task_state, task_exit_state, addr_stack))
-            task_out.write('    Stack:')
+            task_out.write('    Stack:\n')
             ramdump.unwind.unwind_backtrace(
                  ramdump.thread_saved_sp(next_thread_start),
                  ramdump.thread_saved_fp(next_thread_start),
