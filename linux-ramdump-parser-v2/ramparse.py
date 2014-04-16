@@ -13,6 +13,7 @@
 
 import sys
 import os
+import re
 from optparse import OptionParser
 
 import parser_util
@@ -104,10 +105,6 @@ if __name__ == '__main__':
         set_outfile(options.outdir + '/' + options.outfile)
 
     print_out_str('Linux Ram Dump Parser Version %s' % VERSION)
-    if options.vmlinux is None:
-        print_out_str("No vmlinux given. I can't proceed!")
-        parser.print_usage()
-        sys.exit(1)
 
     args = ''
     for arg in sys.argv:
@@ -117,6 +114,24 @@ if __name__ == '__main__':
 
     system_type = parser_util.get_system_type()
 
+    if options.autodump is not None:
+        if os.path.exists(options.autodump):
+            print_out_str(
+                'Looking for Ram dumps in {0}'.format(options.autodump))
+        else:
+            print_out_str(
+                'Path {0} does not exist for Ram dumps. Exiting...'.format(options.autodump))
+            sys.exit(1)
+
+    if options.vmlinux is None:
+        autovm = os.path.join(options.autodump, 'vmlinux')
+        if os.path.isfile(autovm):
+            options.vmlinux = autovm
+        else:
+            print_out_str("No vmlinux given or found in autodump dir. I can't proceed!")
+            parser.print_usage()
+            sys.exit(1)
+
     if not os.path.exists(options.vmlinux):
         print_out_str(
             '{0} does not exist. Cannot proceed without vmlinux. Exiting...'.format(options.vmlinux))
@@ -125,8 +140,8 @@ if __name__ == '__main__':
         print_out_str(
             '{0} is not a file. Did you pass the ram file directory instead of the vmlinux?'.format(options.vmlinux))
         sys.exit(1)
-    else:
-        print_out_str('using vmlinx file {0}'.format(options.vmlinux))
+
+    print_out_str('using vmlinux file {0}'.format(options.vmlinux))
 
     if options.ram_addr is None and options.autodump is None:
         print_out_str('Need one of --auto-dump or at least one --ram-file')
@@ -142,26 +157,24 @@ if __name__ == '__main__':
                     'Ram file {0} does not exist. Exiting...'.format(a[0]))
                 sys.exit(1)
 
-    if options.autodump is not None:
-        if os.path.exists(options.autodump):
-            print_out_str(
-                'Looking for Ram dumps in {0}'.format(options.autodump))
-        else:
-            print_out_str(
-                'Path {0} does not exist for Ram dumps. Exiting...'.format(options.autodump))
-            sys.exit(1)
-
     gdb_path = options.gdb
     nm_path = options.nm
 
     try:
         import local_settings
-        if options.arm64:
-            gdb_path = gdb_path or local_settings.gdb64_path
-            nm_path = nm_path or local_settings.nm64_path
-        else:
-            gdb_path = gdb_path or local_settings.gdb_path
-            nm_path = nm_path or local_settings.nm_path
+        try:
+            if options.arm64:
+                gdb_path = gdb_path or local_settings.gdb64_path
+                nm_path = nm_path or local_settings.nm64_path
+            else:
+                gdb_path = gdb_path or local_settings.gdb_path
+                nm_path = nm_path or local_settings.nm_path
+        except AttributeError as e:
+            print_out_str("local_settings.py looks bogus. Please see README.txt")
+            missing_attr = re.sub(".*has no attribute '(.*)'", '\\1', e.message)
+            print_out_str("Specifically, looks like you're missing `%s'\n" % missing_attr)
+            print_out_str("Full message: %s" % e.message)
+            sys.exit(1)
     except ImportError:
         cross_compile = os.environ.get('CROSS_COMPILE')
         if cross_compile is not None:
