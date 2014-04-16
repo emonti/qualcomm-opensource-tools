@@ -33,16 +33,22 @@ class ListWalker(object):
         self.seen_nodes = []
 
     def walk(self, node_addr, func, extra=None):
-        if node_addr != 0:
+
+        while True:
+            if node_addr == 0:
+                break
+
             func(node_addr - self.list_elem_offset, extra)
 
             next_node_addr = node_addr + self.ram_dump.field_offset('struct list_head', 'next')
             next_node = self.ram_dump.read_word(next_node_addr)
 
-            if next_node != self.last_node:
-                if next_node in self.seen_nodes:
-                    print_out_str(
-                        '[!] WARNING: Cycle found in list. List is corrupted!')
-                else:
-                    self.seen_nodes.append(node_addr)
-                    self.walk(next_node, func, extra)
+            if next_node == self.last_node:
+                break
+
+            if next_node in self.seen_nodes:
+                print_out_str(
+                   '[!] WARNING: Cycle found in attach list. List is corrupted!')
+                break
+            node_addr = next_node
+            self.seen_nodes.append(node_addr)
