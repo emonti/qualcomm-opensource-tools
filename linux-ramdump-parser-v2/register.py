@@ -130,6 +130,29 @@ class Register(object):
         # infinite recursion to __setattr__
         object.__setattr__(self, 'value', val)
 
+    def __eq__(self, other):
+        """Two Register objects are defined to be equal if they have the same
+        fields and all of those fields have the same values.
+
+        >>> r1 = Register(0xf, top=(7, 4), bottom=(3, 0))
+        >>> r2 = Register(0, top=(7, 4), bottom=(3, 0))
+        >>> r1 == r2
+        False
+        >>> r2.bottom = 0xf
+        >>> r1 == r2
+        True
+        >>> r2.top = 0xf
+        >>> r1 == r2
+        False
+
+        """
+        if self._regs != other._regs:
+            return False
+        for r in self._regs:
+            if getattr(self, r) != getattr(other, r):
+                return False
+        return True
+
     def __repr__(self):
         if self.value is None:
             return 'value: None'
