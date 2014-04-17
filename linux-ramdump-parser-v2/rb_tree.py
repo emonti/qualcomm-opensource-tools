@@ -30,21 +30,25 @@ class RbTreeWalker(object):
         self.left_offset = self.ram_dump.field_offset(
             'struct rb_node', 'rb_left')
 
-    def _walk(self, node, func, seen):
+    def _walk(self, node, func, seen, extra):
         if node != 0:
             left_node_addr = node + self.left_offset
             left_node = self.ram_dump.read_word(left_node_addr)
             if left_node not in seen:
                 seen.append(left_node)
-                self._walk(left_node, func, seen)
+                self._walk(left_node, func, seen, extra)
 
-            func(node)
+            func(node, extra)
 
             right_node_addr = node + self.right_offset
             right_node = self.ram_dump.read_word(right_node_addr)
             if right_node not in seen:
                 seen.append(right_node)
-                self._walk(right_node, func, seen)
+                self._walk(right_node, func, seen, extra)
 
-    def walk(self, node, func):
-        self._walk(node, func, [])
+    def walk(self, node, func, extra=None):
+        """Walks the RbTree, calling `func' on each iteration. `func' receives
+        two arguments: the current `struct rb_node', and `extra'.
+
+        """
+        self._walk(node, func, [], extra)
