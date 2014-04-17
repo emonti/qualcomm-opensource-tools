@@ -39,6 +39,15 @@ class Register(object):
     >>> abc.other = 0x3
     >>> hex(abc.value)
     '0x31'
+    >>> abc.value = 0
+    >>> abc.value
+    0
+    >>> abc.value = 42
+    >>> abc.value
+    42
+    >>> abc.zero()
+    >>> abc.value
+    0
 
     You can also overlay fields on top of each other without problems:
 
@@ -84,6 +93,9 @@ class Register(object):
         """
         self._regs[field] = bitrange
 
+    def zero(self):
+        object.__setattr__(self, 'value', 0)
+
     def __dir__(self):
         return self.__dict__.keys() + self._regs.keys()
 
@@ -96,6 +108,9 @@ class Register(object):
         return bitops.bvalsel(msb, lsb, self.value)
 
     def __setattr__(self, name, newvalue):
+        if name == 'value':
+            object.__setattr__(self, 'value', newvalue)
+            return
         if name not in self._regs:
             raise AttributeError
         if self.value is None:
