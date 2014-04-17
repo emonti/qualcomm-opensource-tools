@@ -869,6 +869,18 @@ class RamDump():
         except gdbmi.GdbMIException:
             pass
 
+    def container_of(self, ptr, the_type, member):
+        try:
+            return self.gdbmi.container_of(ptr, the_type, member)
+        except gdbmi.GdbMIException:
+            pass
+
+    def sibling_field_addr(self, ptr, parent_type, member, sibling):
+        try:
+            return self.gdbmi.sibling_field_addr(ptr, parent_type, member, sibling)
+        except gdbmi.GdbMIException:
+            pass
+
     def unwind_lookup(self, addr, symbol_size=0):
         if (addr is None):
             return ('(Invalid address)', 0x0)
