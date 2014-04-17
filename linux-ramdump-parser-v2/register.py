@@ -43,7 +43,7 @@ class Register(object):
     You can also overlay fields on top of each other without problems:
 
     >>> abc.add_field("another_other", (8, 0))
-    abc.another_other = 0x5
+    >>> abc.another_other = 0x5
     >>> hex(abc.value)
     '0x5'
 
@@ -116,3 +116,7 @@ class Register(object):
             val = bitops.bvalsel(msb, lsb, self.value)
             ret.append('%s[%d:%d]=>0x%0x' % (r, msb, lsb, val))
         return 'value: 0x%x {%s}' % (self.value, ', '.join(ret))
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
