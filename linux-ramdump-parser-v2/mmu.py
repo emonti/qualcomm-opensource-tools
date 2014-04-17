@@ -1,4 +1,4 @@
-# Copyright (c) 2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -43,6 +43,10 @@ class MMU(object):
         self.load_page_tables()
 
     def virt_to_phys(self, addr, skip_tlb=False, save_in_tlb=True):
+        """Do a virtual to physical address lookup and possibly cache the
+        result in the "TLB".
+
+        """
         if addr is None:
             return None
 
