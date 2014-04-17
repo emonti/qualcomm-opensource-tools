@@ -1,4 +1,4 @@
-# Copyright (c) 2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -14,6 +14,7 @@ import platform
 import glob
 import re
 import string
+import sys
 
 _parsers = []
 
@@ -160,3 +161,47 @@ def get_system_type():
         return 'Linux'
     if plat == 'Darwin':
         return 'Darwin'
+
+def _get_printable(n, fillchar='.'):
+    if n is None:
+        return
+    c = chr(n)
+    if c in string.printable[:string.printable.index(' ') + 1]:
+        return c
+    return fillchar
+
+def _xxd_line(addr, data):
+    printable = [_get_printable(d) for d in data]
+    data = ['{:02x}'.format(d) for d in data]
+    printable += [' '] * (16 - len(printable))
+    data += ['  '] * (16 - len(data))
+    return "{:08x}: {:}{:} {:}{:} {:}{:} {:}{:} {:}{:} {:}{:} {:}{:} {:}{:}  {:}{:}{:}{:}{:}{:}{:}{:}{:}{:}{:}{:}{:}{:}{:}{:}\n".format(
+        addr, *(data + printable)
+    )
+
+def xxd(address, data, file_object=None):
+    """Dumps data to stdout, in the format of `xxd'. data should be a list
+    of integers.
+
+    >>> xxd(0x1000, [0xde, 0xad, 0xbe, 0xef, 112, 105, 122, 122, 97, 0, 0, 42, 43, 44, 45, 90])
+    00001000: dead beef 7069 7a7a 6100 002a 2b2c 2d5a  ....pizza..*+,-Z
+
+    """
+    f = file_object or sys.stdout
+    bb = []
+    n = 0
+    for i in data:
+        bb.append(i)
+        if n == 15:
+            f.write(_xxd_line(address, bb))
+            bb = []
+            n = 0
+            address += 16
+        else:
+            n += 1
+    if len(bb):
+        f.write(_xxd_line(address, bb))
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
