@@ -109,6 +109,12 @@ class RamDump():
 
         def unwind_frame_generic64(self, frame, trace=False):
             fp = frame.fp
+            low = frame.sp
+            mask = (self.ramdump.thread_size) - 1
+            high = (low + mask) & (~mask)
+
+            if (fp < low or fp > high or fp & 0xf):
+                return
 
             frame.sp = fp + 0x10
             frame.fp = self.ramdump.read_word(fp)
