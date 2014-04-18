@@ -585,7 +585,7 @@ class Armv8MMU(MMU):
             tl_index=(20,12),
             page_index=(11,0))
 
-	fl_desc = self.do_fl_sl_level_lookup(self.ttbr, virt_r.fl_index, 12, 30)
+        fl_desc = self.do_fl_sl_level_lookup(self.ttbr, virt_r.fl_index, 12, 30)
 
         if fl_desc.dtype == Armv8MMU.DESCRIPTOR_BLOCK:
             return self.fl_block_desc_2_phys(fl_desc, virt_r)
@@ -598,7 +598,7 @@ class Armv8MMU(MMU):
         except:
             return None
 
-	if sl_desc.dtype == Armv8MMU.DESCRIPTOR_BLOCK:
+        if sl_desc.dtype == Armv8MMU.DESCRIPTOR_BLOCK:
             r = self.sl_block_desc_2_phys(sl_desc, virt_r)
             return r
 

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python2
 
 # Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
 #
@@ -11,6 +11,13 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
+# this script requires python2. However, we'd like to be able to print
+# an informative message to a user who might be unknowingly running
+# python3 so we can't allow any python2 print statements to sneak in
+# since they result in syntax errors in python3. By importing
+# print_function we are requiring ourselves to use the python3 syntax.
+from __future__ import print_function
+
 import sys
 import os
 import re
@@ -22,6 +29,27 @@ from print_out import print_out_str, set_outfile, print_out_section
 
 # Please update version when something is changed!'
 VERSION = '2.0'
+
+# quick check of system requirements:
+major, minor = sys.version_info[:2]
+if major != 2:
+    print("This script requires python2 to run!\n")
+    print("You seem to be running: " + sys.version)
+    print()
+    sys.exit(1)
+if minor != 7 and '--force-26' not in sys.argv:
+    from textwrap import dedent
+    print(dedent("""
+    Warning! This script is developed and tested with Python 2.7.
+    You might be able to get things working on 2.6 by installing
+    a few dependencies (most notably, OrderedDict [1])
+    and then passing --force-26 to bypass this version check, but
+    the recommended and supported approach is to install python2.7.
+
+    [1] https://pypi.python.org/pypi/ordereddict"""))
+    sys.exit(1)
+if '--force-26' in sys.argv:
+    sys.argv.remove('--force-26')
 
 
 def parse_ram_file(option, opt_str, value, parser):
@@ -223,8 +251,8 @@ if __name__ == '__main__':
                    arm64=options.arm64)
 
     if options.shell or options.classic_shell:
-        print "Entering interactive shell mode."
-        print "The RamDump instance is available in the `dump' variable\n"
+        print("Entering interactive shell mode.")
+        print("The RamDump instance is available in the `dump' variable\n")
         do_fallback = options.classic_shell
         if not do_fallback:
             try:
