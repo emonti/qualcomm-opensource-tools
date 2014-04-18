@@ -117,6 +117,10 @@ class RTB(RamParser):
         step_size = self.ramdump.read_u32(rtb + step_size_offset)
         total_entries = self.ramdump.read_int(rtb + nentries_offset)
         rtb_read_ptr = self.ramdump.read_word(rtb + rtb_entry_offset)
+        if step_size is None or step_size > self.ramdump.get_num_cpus():
+            print_out_str('RTB dump looks corrupt! Got step_size=%s' %
+                          hex(step_size) if step_size is not None else None)
+            return
         for i in range(0, step_size):
             rtb_out = self.ramdump.open_file('msm_rtb{0}.txt'.format(i))
             gdb_cmd = NamedTemporaryFile(mode='w+t', delete=False)
