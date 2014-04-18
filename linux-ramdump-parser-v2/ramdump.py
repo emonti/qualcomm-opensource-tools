@@ -22,7 +22,7 @@ from tempfile import NamedTemporaryFile
 import gdbmi
 from print_out import print_out_str
 from mmu import Armv7MMU, Armv7LPAEMMU, Armv8MMU
-from parser_util import cleanupString
+import parser_util
 
 FP = 11
 SP = 13
@@ -109,6 +109,12 @@ class RamDump():
 
         def unwind_frame_generic64(self, frame, trace=False):
             fp = frame.fp
+            low = frame.sp
+            mask = (self.ramdump.thread_size) - 1
+            high = (low + mask) & (~mask)
+
+            if (fp < low or fp > high or fp & 0xf):
+                return
 
             frame.sp = fp + 0x10
             frame.fp = self.ramdump.read_word(fp)
@@ -493,7 +499,39 @@ class RamDump():
             self.mmu = Armv7MMU(self)
         elif pg_dir_size == 0x5000:
             print_out_str('Using LPAE MMU')
-            self.mmu = Armv7LPAEMMU(self)
+            text_offset = 0x8000
+            pg_dir_size = 0x5000    # 0x4000 for non-LPAE
+            swapper_pg_dir_addr = self.phys_offset + text_offset - pg_dir_size
+
+            # We deduce ttbr1 and ttbcr.t1sz based on the value of
+            # PAGE_OFFSET. This is based on v7_ttb_setup in
+            # arch/arm/mm/proc-v7-3level.S:
+
+            # * TTBR0/TTBR1 split (PAGE_OFFSET):
+            # *   0x40000000: T0SZ = 2, T1SZ = 0 (not used)
+            # *   0x80000000: T0SZ = 0, T1SZ = 1
+            # *   0xc0000000: T0SZ = 0, T1SZ = 2
+            if self.page_offset == 0x40000000:
+                t1sz = 0
+                initial_lkup_level = 1
+            elif self.page_offset == 0x80000000:
+                t1sz = 1
+                initial_lkup_level = 1
+            elif self.page_offset == 0xc0000000:
+                t1sz = 2
+                # need to fixup ttbr1 since we'll be skipping the
+                # first-level lookup (see v7_ttb_setup):
+                # /* PAGE_OFFSET == 0xc0000000, T1SZ == 2 */
+                # add      \ttbr1, \ttbr1, #4096 * (1 + 3) @ only L2 used, skip
+                # pgd+3*pmd
+                swapper_pg_dir_addr += (4096 * (1 + 3))
+                initial_lkup_level = 2
+            else:
+                raise Exception(
+                    'Invalid phys_offset for page_table_walk: 0x%x'
+                    % self.page_offset)
+            self.mmu = Armv7LPAEMMU(self, swapper_pg_dir_addr,
+                                    t1sz, initial_lkup_level)
         else:
             print_out_str(
                 "!!! Couldn't determine whether or not we're using LPAE!")
@@ -869,6 +907,18 @@ class RamDump():
         except gdbmi.GdbMIException:
             pass
 
+    def container_of(self, ptr, the_type, member):
+        try:
+            return self.gdbmi.container_of(ptr, the_type, member)
+        except gdbmi.GdbMIException:
+            pass
+
+    def sibling_field_addr(self, ptr, parent_type, member, sibling):
+        try:
+            return self.gdbmi.sibling_field_addr(ptr, parent_type, member, sibling)
+        except gdbmi.GdbMIException:
+            pass
+
     def unwind_lookup(self, addr, symbol_size=0):
         if (addr is None):
             return ('(Invalid address)', 0x0)
@@ -931,7 +981,7 @@ class RamDump():
         ebi[0].seek(offset)
         a = ebi[0].read(length)
         if trace:
-            print_out_str('result = {0}'.format(cleanupString(a)))
+            print_out_str('result = {0}'.format(parser_util.cleanupString(a)))
             print_out_str('lenght = {0}'.format(len(a)))
         return a
 
@@ -1044,6 +1094,18 @@ class RamDump():
                     'address {0:x} failed hard core (v {1} t{2})'.format(addr, virtual, trace))
             return None
         return struct.unpack(format_string, s)
+
+    def hexdump(self, address, length, virtual=True, file_object=None):
+        """Does a hexdump (in the format of `xxd'). `length' is in bytes. If
+        given, will write to `file_object', otherwise will write to
+        stdout.
+
+        """
+        parser_util.xxd(
+            address,
+            [self.read_byte(address + i, virtual=virtual) or 0
+             for i in xrange(length)],
+            file_object=file_object)
 
     def per_cpu_offset(self, cpu):
         per_cpu_offset_addr = self.addr_lookup('__per_cpu_offset')

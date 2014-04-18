@@ -1,4 +1,4 @@
-# Copyright (c) 2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -43,6 +43,10 @@ class MMU(object):
         self.load_page_tables()
 
     def virt_to_phys(self, addr, skip_tlb=False, save_in_tlb=True):
+        """Do a virtual to physical address lookup and possibly cache the
+        result in the "TLB".
+
+        """
         if addr is None:
             return None
 
@@ -170,11 +174,11 @@ class Armv7LPAEMMU(MMU):
 
     def do_fl_level_lookup(self, table_base_address, table_index,
                            input_addr_split):
-        return do_fl_sl_level_lookup(table_base_address, table_index,
+        return self.do_fl_sl_level_lookup(table_base_address, table_index,
                                      input_addr_split, 30)
 
     def do_sl_level_lookup(self, table_base_address, table_index):
-        return do_fl_sl_level_lookup(table_base_address, table_index,
+        return self.do_fl_sl_level_lookup(table_base_address, table_index,
                                      12, 21)
 
     def do_tl_level_lookup(self, table_base_address, table_index):
@@ -236,45 +240,17 @@ class Armv7LPAEMMU(MMU):
     def load_page_tables(self):
         pass
 
+    def __init__(self, ramdump, pgtbl, t1sz, initial_lkup_level):
+        super(Armv7LPAEMMU, self).__init__(ramdump)
+        self.pgtbl = pgtbl
+        self.t1sz = t1sz
+        self.initial_lkup_level = initial_lkup_level
+
     def page_table_walk(self, virt):
-        text_offset = 0x8000
-        pg_dir_size = 0x5000    # 0x4000 for non-LPAE
-        swapper_pg_dir_addr = self.ramdump.phys_offset + \
-            text_offset - pg_dir_size
 
-        # We deduce ttbr1 and ttbcr.t1sz based on the value of
-        # PAGE_OFFSET. This is based on v7_ttb_setup in
-        # arch/arm/mm/proc-v7-3level.S:
-
-        # * TTBR0/TTBR1 split (PAGE_OFFSET):
-        # *   0x40000000: T0SZ = 2, T1SZ = 0 (not used)
-        # *   0x80000000: T0SZ = 0, T1SZ = 1
-        # *   0xc0000000: T0SZ = 0, T1SZ = 2
-        ttbr = swapper_pg_dir_addr
-        self.ttbr = ttbr
-        if self.ramdump.page_offset == 0x40000000:
-            t1sz = 0
-            initial_lkup_level = 1
-        elif self.ramdump.page_offset == 0x80000000:
-            t1sz = 1
-            initial_lkup_level = 1
-        elif self.ramdump.page_offset == 0xc0000000:
-            t1sz = 2
-            # need to fixup ttbr1 since we'll be skipping the
-            # first-level lookup (see v7_ttb_setup):
-            # /* PAGE_OFFSET == 0xc0000000, T1SZ == 2 */
-            # add      \ttbr1, \ttbr1, #4096 * (1 + 3) @ only L2 used, skip
-            # pgd+3*pmd
-            ttbr += (4096 * (1 + 3))
-            initial_lkup_level = 2
-        else:
-            raise Exception(
-                'Invalid phys_offset for page_table_walk: 0x%x'
-                % self.ramdump.page_offset)
-
-        if initial_lkup_level == 1:
+        if self.initial_lkup_level == 1:
             # see the ARMv7 ARM B3.6.6 (rev 0406C.b):
-            input_addr_split = 5 - t1sz
+            input_addr_split = 5 - self.t1sz
             if input_addr_split not in [4, 5]:
                 raise Exception("Invalid stage 1 first-level `n' value: 0x%x"
                                 % input_addr_split)
@@ -284,7 +260,7 @@ class Armv7LPAEMMU(MMU):
                               tl_index=(20, 12),
                               page_index=(11, 0))
             fl_desc = self.do_fl_level_lookup(
-                ttbr, virt_r.fl_index, input_addr_split)
+                self.pgtbl, virt_r.fl_index, input_addr_split)
 
             # if we got a block descriptor we're done:
             if fl_desc.dtype == Armv7LPAEMMU.DESCRIPTOR_BLOCK:
@@ -295,9 +271,9 @@ class Armv7LPAEMMU(MMU):
             sl_desc = self.do_sl_level_lookup(
                 base.value, virt_r.sl_index)
 
-        elif initial_lkup_level == 2:
+        elif self.initial_lkup_level == 2:
             # see the ARMv7 ARM B3.6.6 (rev 0406C.b):
-            input_addr_split = 14 - t1sz
+            input_addr_split = 14 - self.t1sz
             if input_addr_split not in range(7, 13):
                 raise Exception("Invalid stage 1 second-level (initial) `n' value: 0x%x"
                                 % input_addr_split)
@@ -307,12 +283,12 @@ class Armv7LPAEMMU(MMU):
                               page_index=(11, 0))
             try:
                 sl_desc = self.do_fl_sl_level_lookup(
-                    ttbr, virt_r.sl_index, input_addr_split, 21)
+                    self.pgtbl, virt_r.sl_index, input_addr_split, 21)
             except:
                 return None
         else:
             raise Exception('Invalid initial lookup level (0x%x)' %
-                            initial_lkup_level)
+                            self.initial_lkup_level)
 
         # if we got a block descriptor we're done:
         if sl_desc.dtype == Armv7LPAEMMU.DESCRIPTOR_BLOCK:

@@ -1,4 +1,4 @@
-# Copyright (c) 2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -157,6 +157,31 @@ class GdbMI(object):
         cmd = 'print /x (int)&(({0} *)0)->{1}'.format(the_type, field)
         result = self._run_for_one(cmd)
         return gdb_hex_to_dec(result)
+
+    def container_of(self, ptr, the_type, member):
+        return ptr - self.field_offset(the_type, member)
+
+    def sibling_field_addr(self, ptr, parent_type, member, sibling):
+        """Returns the address of a sibling field within the parent
+        structure.
+
+        Example:
+
+        Given:
+            struct pizza {
+                int price;
+                int *qty;
+            };
+
+            int quanitity = 42;
+            struct pizza mypizza = {.price = 10, .qty = &quanitity};
+
+        qtyp = dump.addr_lookup('quantity')
+        price = dump.read_int(gdbmi.sibling_field_addr(qtyp, 'struct pizza', 'qty', 'price'))
+
+        """
+        return self.container_of(ptr, parent_type, member) + \
+            self.field_offset(parent_type, sibling)
 
     def sizeof(self, the_type):
         """Returns the size of the type specified by `the_type'."""
