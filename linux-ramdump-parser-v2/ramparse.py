@@ -91,8 +91,12 @@ if __name__ == '__main__':
 
     if options.outdir:
         if not os.path.exists(options.outdir):
-            print ('!!! Out directory does not exist. Create it first.')
-            sys.exit(1)
+            print ('!!! Out directory does not exist. Creating...')
+            try:
+                os.makedirs(options.outdir)
+            except:
+                print ("Failed to create %s. You probably don't have permissions there. Bailing." % options.outdir)
+                sys.exit(1)
     else:
         options.outdir = '.'
 

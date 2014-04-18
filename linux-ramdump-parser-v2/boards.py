@@ -144,7 +144,7 @@ class Board8916(Board):
         super(Board8916, self).__init__()
         self.socid = socid
         self.board_num = 8916
-        self.cpu = 'CORTEXA53'
+        self.cpu = 'CORTEXA7'
         self.ram_start = 0x80000000
         #self.ram_start = 0x0
         self.smem_addr = 0xe200000

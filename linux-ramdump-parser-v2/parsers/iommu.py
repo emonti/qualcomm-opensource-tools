@@ -1,4 +1,4 @@
-# Copyright (c) 2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -11,44 +11,13 @@
 
 import math
 
-import rb_tree
-import linux_list as llist
 from print_out import print_out_str
 from parser_util import register_parser, RamParser
-
-IOMMU_DOMAIN_VAR = 'domain_root'
-
-SZ_4K = 0x1000
-SZ_64K = 0x10000
-SZ_1M = 0x100000
-SZ_16M = 0x1000000
-
-MAP_SIZE_STR = ['4K', '8K', '16K', '32K', '64K',
-                '128K', '256K', '512K', '1M', '2M',
-                '4M', '8M', '16M']
-
-
-def get_order(size):
-    order = math.log(size, 2)
-    if (order % 1.0) != 0.0:
-        print 'ERROR: Number is not a power of 2: %x' % (size)
-        order = 0
-    else:
-        order -= math.log(SZ_4K, 2)
-    return int(order)
-
+from sizes import SZ_4K, SZ_64K, SZ_1M, SZ_16M, get_order, order_size_strings
+from iommulib import IommuLib
 
 @register_parser('--print-iommu-pg-tables', 'Print IOMMU page tables')
 class IOMMU(RamParser):
-
-    class Domain(object):
-
-        def __init__(self):
-            self.domain_num = -1
-            self.pg_table = 0
-            self.redirect = 0
-            self.ctx_name = ''
-            self.client_name = ''
 
     class FlatMapping(object):
 
@@ -79,7 +48,6 @@ class IOMMU(RamParser):
     def __init__(self, *args):
         super(IOMMU, self).__init__(*args)
         self.out_file = None
-        self.domain_list = []
         self.NUM_FL_PTE = 4096
         self.NUM_SL_PTE = 256
 
@@ -108,113 +76,15 @@ class IOMMU(RamParser):
         self.SL_CACHEABLE = (1 << 3)
         self.SL_TEX0 = (1 << 6)
         self.SL_NG = (1 << 11)
-        self.ctxdrvdata_name_offset = 0
-        self.ctxdrvdata_num_offset = 0
-        self.ctx_list = []
 
         self.node_offset = self.ramdump.field_offset(
             'struct msm_iova_data', 'node')
-        self.domain_num_offset = self.ramdump.field_offset(
-            'struct msm_iova_data', 'domain_num')
-        self.domain_offset = self.ramdump.field_offset(
-            'struct msm_iova_data', 'domain')
-        self.priv_offset = self.ramdump.field_offset(
-            'struct iommu_domain', 'priv')
-        self.ctxdrvdata_attached_offset = self.ramdump.field_offset(
-            'struct msm_iommu_ctx_drvdata', 'attached_elm')
-        self.ctxdrvdata_name_offset = self.ramdump.field_offset(
-            'struct msm_iommu_ctx_drvdata', 'name')
-        self.ctxdrvdata_num_offset = self.ramdump.field_offset(
-            'struct msm_iommu_ctx_drvdata', 'num')
-        self.priv_pt_offset = self.ramdump.field_offset(
-            'struct msm_iommu_priv', 'pt')
-        self.list_attached_offset = self.ramdump.field_offset(
-            'struct msm_iommu_priv', 'list_attached')
-        self.client_name_offset = self.ramdump.field_offset(
-            'struct msm_iommu_priv', 'client_name')
-        self.pgtable_offset = self.ramdump.field_offset(
-            'struct msm_iommu_pt', 'fl_table')
-        self.redirect_offset = self.ramdump.field_offset(
-            'struct msm_iommu_pt', 'redirect')
-
-        self.list_next_offset, self.list_prev_offset = llist.get_list_offsets(
-            self.ramdump)
 
     def fl_offset(va):
         return (((va) & 0xFFF00000) >> 20)
 
     def sl_offset(va):
         return (((va) & 0xFF000) >> 12)
-
-    def list_func(self, node):
-        ctx_drvdata_name_ptr = self.ramdump.read_word(
-            node + self.ctxdrvdata_name_offset)
-        num = self.ramdump.read_word(node + self.ctxdrvdata_num_offset)
-
-        if ctx_drvdata_name_ptr != 0:
-            name = self.ramdump.read_cstring(ctx_drvdata_name_ptr, 100)
-            self.ctx_list.append((num, name))
-
-    def iommu_domain_func(self, node):
-
-        domain_num_addr = (node - self.node_offset) + self.domain_num_offset
-        domain_num = self.ramdump.read_word(domain_num_addr)
-
-        domain_addr = (node - self.node_offset) + self.domain_offset
-        domain = self.ramdump.read_word(domain_addr)
-
-        priv_ptr = self.ramdump.read_word(domain + self.priv_offset)
-
-        if self.client_name_offset is not None:
-            client_name_ptr = self.ramdump.read_word(
-                priv_ptr + self.client_name_offset)
-            if client_name_ptr != 0:
-                client_name = self.ramdump.read_cstring(client_name_ptr, 100)
-            else:
-                client_name = '(null)'
-        else:
-            client_name = 'unknown'
-
-        if self.list_attached_offset is not None:
-            list_attached = self.ramdump.read_word(
-                priv_ptr + self.list_attached_offset)
-        else:
-            list_attached = None
-
-        if self.priv_pt_offset is not None:
-            pg_table = self.ramdump.read_word(
-                priv_ptr + self.priv_pt_offset + self.pgtable_offset)
-            redirect = self.ramdump.read_word(
-                priv_ptr + self.priv_pt_offset + self.redirect_offset)
-        else:
-            # On some builds we are unable to look up the offsets so hardcode
-            # the offsets.
-            pg_table = self.ramdump.read_word(priv_ptr + 0)
-            redirect = self.ramdump.read_word(priv_ptr + 4)
-
-            # Note: On some code bases we don't have this pg_table and redirect in the priv structure (see msm_iommu_sec.c). It only
-            # contains list_attached. If this is the case we can detect that by checking whether
-            # pg_table == redirect (prev == next pointers of the attached
-            # list).
-            if pg_table == redirect:
-                # This is a secure domain. We don't have access to the page
-                # tables.
-                pg_table = 0
-                redirect = None
-
-        if list_attached is not None and list_attached != 0:
-            list_walker = llist.ListWalker(
-                self.ramdump, list_attached, self.ctxdrvdata_attached_offset, self.list_next_offset, self.list_prev_offset)
-            list_walker.walk(list_attached, self.list_func)
-
-        dom = self.Domain()
-        dom.domain_num = domain_num
-        dom.pg_table = pg_table
-        dom.redirect = redirect
-        dom.ctx_list = self.ctx_list
-        dom.client_name = client_name
-        self.ctx_list = []
-        self.domain_list.append(dom)
 
     def print_sl_page_table(self, pg_table):
         sl_pte = pg_table
@@ -427,24 +297,18 @@ class IOMMU(RamParser):
                 self.out_file.write(
                     '0x%08x--0x%08x [0x%08x] A:0x%08x--0x%08x [0x%08x] %s[%s]\n' % (mapping.virt_start, mapping.virt_end, mapping.virt_size(),
                                                                                     mapping.phys_start, mapping.phys_end,
-                                                                                    mapping.phys_size(), mapping.mapping_type, MAP_SIZE_STR[get_order(mapping.mapping_size)]))
+                                                                                    mapping.phys_size(), mapping.mapping_type, order_size_strings[get_order(mapping.mapping_size)]))
             else:
                 self.out_file.write('0x%08x--0x%08x [0x%08x] [UNMAPPED]\n' %
                                     (mapping.virt_start, mapping.virt_end, mapping.virt_size()))
 
     def parse(self):
-        iommu_domains_rb_root = self.ramdump.addr_lookup(IOMMU_DOMAIN_VAR)
-        if iommu_domains_rb_root is None:
+        ilib = IommuLib(self.ramdump)
+        self.domain_list = ilib.domain_list
+        if self.domain_list is None:
             print_out_str(
                 '[!] WARNING: IOMMU domains was not found in this build. No IOMMU page tables will be generated')
             return
-
-        out_dir = self.ramdump.outdir
-
-        iommu_domains_rb_root_addr = self.ramdump.read_word(
-            iommu_domains_rb_root)
-        rb_walker = rb_tree.RbTreeWalker(self.ramdump)
-        rb_walker.walk(iommu_domains_rb_root_addr, self.iommu_domain_func)
 
         for d in self.domain_list:
             self.out_file = self.ramdump.open_file(
