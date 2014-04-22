@@ -128,6 +128,10 @@ if __name__ == '__main__':
             sys.exit(1)
 
     if options.vmlinux is None:
+        if options.autodump is None:
+            print_out_str("No vmlinux or autodump dir given. I can't proceed!")
+            parser.print_usage()
+            sys.exit(1)
         autovm = os.path.join(options.autodump, 'vmlinux')
         if os.path.isfile(autovm):
             options.vmlinux = autovm
