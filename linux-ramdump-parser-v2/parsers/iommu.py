@@ -15,6 +15,7 @@ from print_out import print_out_str
 from parser_util import register_parser, RamParser
 from sizes import SZ_4K, SZ_64K, SZ_1M, SZ_16M, get_order, order_size_strings
 from iommulib import IommuLib
+from lpaeiommulib import parse_long_form_tables
 
 @register_parser('--print-iommu-pg-tables', 'Print IOMMU page tables')
 class IOMMU(RamParser):
@@ -302,6 +303,34 @@ class IOMMU(RamParser):
                 self.out_file.write('0x%08x--0x%08x [0x%08x] [UNMAPPED]\n' %
                                     (mapping.virt_start, mapping.virt_end, mapping.virt_size()))
 
+    def parse_short_form_tables(self, d):
+        self.out_file = self.ramdump.open_file(
+            'msm_iommu_domain_%02d.txt' % (d.domain_num))
+        redirect = 'OFF'
+        if d.redirect is None:
+            redirect = 'UNKNOWN'
+        elif d.redirect > 0:
+            redirect = 'ON'
+        iommu_context = 'None attached'
+        if len(d.ctx_list) > 0:
+            iommu_context = ''
+            for (num, name) in d.ctx_list:
+                iommu_context += '%s (%d) ' % (name, num)
+        iommu_context = iommu_context.strip()
+
+        self.out_file.write('IOMMU Context: %s. Domain: %s (%d) [L2 cache redirect for page tables is %s]\n' % (
+            iommu_context, d.client_name, d.domain_num, redirect))
+        self.out_file.write(
+            '[VA Start -- VA End  ] [Size      ] [PA Start   -- PA End  ] [Size      ] [Read/Write][Page Table Entry Size]\n')
+        if d.pg_table == 0:
+            self.out_file.write(
+                'No Page Table Found. (Probably a secure domain)\n')
+        else:
+            self.print_page_table_pretty(d.pg_table)
+            self.out_file.write('\n-------------\nRAW Dump\n')
+            self.print_page_table(d.pg_table)
+        self.out_file.close()
+
     def parse(self):
         ilib = IommuLib(self.ramdump)
         self.domain_list = ilib.domain_list
@@ -311,29 +340,7 @@ class IOMMU(RamParser):
             return
 
         for d in self.domain_list:
-            self.out_file = self.ramdump.open_file(
-                'msm_iommu_domain_%02d.txt' % (d.domain_num))
-            redirect = 'OFF'
-            if d.redirect is None:
-                redirect = 'UNKNOWN'
-            elif d.redirect > 0:
-                redirect = 'ON'
-            iommu_context = 'None attached'
-            if len(d.ctx_list) > 0:
-                iommu_context = ''
-                for (num, name) in d.ctx_list:
-                    iommu_context += '%s (%d) ' % (name, num)
-            iommu_context = iommu_context.strip()
-
-            self.out_file.write('IOMMU Context: %s. Domain: %s (%d) [L2 cache redirect for page tables is %s]\n' % (
-                iommu_context, d.client_name, d.domain_num, redirect))
-            self.out_file.write(
-                '[VA Start -- VA End  ] [Size      ] [PA Start   -- PA End  ] [Size      ] [Read/Write][Page Table Entry Size]\n')
-            if d.pg_table == 0:
-                self.out_file.write(
-                    'No Page Table Found. (Probably a secure domain)\n')
+            if self.ramdump.is_config_defined('CONFIG_IOMMU_LPAE'):
+                parse_long_form_tables(self.ramdump, d)
             else:
-                self.print_page_table_pretty(d.pg_table)
-                self.out_file.write('\n-------------\nRAW Dump\n')
-                self.print_page_table(d.pg_table)
-            self.out_file.close()
+                self.parse_short_form_tables(d)
