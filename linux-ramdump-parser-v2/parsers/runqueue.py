@@ -1,4 +1,4 @@
-# Copyright (c) 2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -70,7 +70,7 @@ class RunQueues(RamParser):
                 self.print_cfs_state(my_q_addr)
                 self.tab_offset -= 1
 
-    def cfs_node_func(self, node):
+    def cfs_node_func(self, node, extra):
         run_node_offset = self.ramdump.field_offset(
             'struct sched_entity', 'run_node')
 
