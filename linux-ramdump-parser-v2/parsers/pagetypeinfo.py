@@ -47,16 +47,17 @@ class Pagetypeinfo(RamParser):
                 curr = orig_free_list
                 pg_count = -1
                 first = True
+                seen = []
                 while True:
                     pg_count = pg_count + 1
+                    seen.append(curr)
                     next_p = ramdump.read_word(curr)
-                    if next_p == curr:
-                        if not first:
-                            is_corrupt = True
-                        break
                     first = False
                     curr = next_p
                     if curr == orig_free_list:
+                        break
+                    if next_p in seen:
+                        is_corrupt = True
                         break
                 nums = nums + ('{0:6}'.format(pg_count))
                 total_type_bytes = total_type_bytes + \
