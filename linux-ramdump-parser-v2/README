@@ -43,6 +43,12 @@ linux-parser-output.txt is used
 The list of features parsed is constantly growing. Please use --help option
 to see the full list of features that can be parsed.
 
+System requirements
+-------------------------------
+Python 2.7 is required to run this tool. It can be downloaded and
+installed from https://www.python.org/ or through your system's
+software package manager.
+
 Setting up the toolchains
 -------------------------------
 The parser relies on having access to gdb and nm to work. You will need to
