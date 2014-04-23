@@ -20,6 +20,9 @@ class Domain(object):
         self.ctx_list = ctx_list
         self.client_name = client_name
 
+    def __repr__(self):
+        return "#%d: %s" % (self.domain_num, self.client_name)
+
 class IommuLib(object):
     def __init__(self, ramdump):
         self.ramdump = ramdump

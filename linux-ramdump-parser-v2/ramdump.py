@@ -513,10 +513,8 @@ class RamDump():
             # *   0xc0000000: T0SZ = 0, T1SZ = 2
             if self.page_offset == 0x40000000:
                 t1sz = 0
-                initial_lkup_level = 1
             elif self.page_offset == 0x80000000:
                 t1sz = 1
-                initial_lkup_level = 1
             elif self.page_offset == 0xc0000000:
                 t1sz = 2
                 # need to fixup ttbr1 since we'll be skipping the
@@ -525,13 +523,11 @@ class RamDump():
                 # add      \ttbr1, \ttbr1, #4096 * (1 + 3) @ only L2 used, skip
                 # pgd+3*pmd
                 swapper_pg_dir_addr += (4096 * (1 + 3))
-                initial_lkup_level = 2
             else:
                 raise Exception(
                     'Invalid phys_offset for page_table_walk: 0x%x'
                     % self.page_offset)
-            self.mmu = Armv7LPAEMMU(self, swapper_pg_dir_addr,
-                                    t1sz, initial_lkup_level)
+            self.mmu = Armv7LPAEMMU(self, swapper_pg_dir_addr, t1sz)
         else:
             print_out_str(
                 "!!! Couldn't determine whether or not we're using LPAE!")
@@ -1024,6 +1020,16 @@ class RamDump():
         if trace:
             print_out_str('reading {0:x}'.format(address))
         s = self.read_string(address, '<B', virtual, trace, cpu)
+        if s is None:
+            return None
+        else:
+            return s[0]
+
+    # returns a value guaranteed to be 64 bits
+    def read_u64(self, address, virtual=True, trace=False, cpu=None):
+        if trace:
+            print_out_str('reading {0:x}'.format(address))
+        s = self.read_string(address, '<Q', virtual, trace, cpu)
         if s is None:
             return None
         else:
