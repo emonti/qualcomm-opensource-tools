@@ -149,7 +149,7 @@ class IrqParse(RamParser):
                 break
 
             for j in ram_dump.iter_cpus():
-                irq_statsn = ram_dump.read_word(kstat_irqs_addr, cpu=j)
+                irq_statsn = ram_dump.read_int(kstat_irqs_addr, cpu=j)
                 irq_stats_str = irq_stats_str + \
                     '{0:10} '.format('{0}'.format(irq_statsn))
 
