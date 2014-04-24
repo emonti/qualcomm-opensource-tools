@@ -687,32 +687,57 @@ class RamDump():
 
         startup_script = open(out_path + '/t32_startup_script.cmm', 'wb')
 
-        startup_script.write(
-            'sys.cpu {0}\n'.format(self.cpu_type).encode('ascii', 'ignore'))
+        # This is a semi hack until A53 support is fully integrated and tested.
+        # Remove this at the earliest convenience.
+        if self.arm64:
+            startup_script.write(
+                'sys.cpu CORTEXA53\n'.encode('ascii', 'ignore'))
+        else:
+            startup_script.write(
+                'sys.cpu {0}\n'.format(self.cpu_type).encode('ascii', 'ignore'))
         startup_script.write('sys.up\n'.encode('ascii', 'ignore'))
 
         for ram in self.ebi_files:
             ebi_path = os.path.abspath(ram[3])
             startup_script.write('data.load.binary {0} 0x{1:x}\n'.format(
                 ebi_path, ram[1]).encode('ascii', 'ignore'))
-        startup_script.write(
-            'PER.S.F C15:0x2 %L 0x{0:x}\n'.format(self.mmu.ttbr).encode('ascii', 'ignore'))
-        if isinstance(self.mmu, Armv7LPAEMMU):
-            # TTBR1. This gets setup once and never change again even if TTBR0
-            # changes
-            startup_script.write('PER.S.F C15:0x102 %L 0x{0:x}\n'.format(
-                self.mmu.ttbr + 0x4000).encode('ascii', 'ignore'))
-            # TTBCR with EAE and T1SZ set approprately
+        if self.arm64:
+            startup_script.write('Register.Set NS 1\n'.encode('ascii', 'ignore'))
+            startup_script.write('Data.Set SPR:0x30201 %Quad 0x000000008007D000\n'.encode('ascii', 'ignore'))
+            startup_script.write('Data.Set SPR:0x30202 %Quad 0x00000012B5193519\n'.encode('ascii', 'ignore'))
+            startup_script.write('Data.Set SPR:0x30A20 %Quad 0x000000FF440C0400\n'.encode('ascii', 'ignore'))
+            startup_script.write('Data.Set SPR:0x30A30 %Quad 0x0000000000000000\n'.encode('ascii', 'ignore'))
+            startup_script.write('Data.Set SPR:0x30100 %Quad 0x0000000034D5D91D\n'.encode('ascii', 'ignore'))
+            startup_script.write('Register.Set CPSR 0x3C5\n'.encode('ascii', 'ignore'))
+            startup_script.write('MMU.Delete\n'.encode('ascii', 'ignore'))
+            startup_script.write('MMU.SCAN PT 0xFFFFFF8000000000--0xFFFFFFFFFFFFFFFF\n'.encode('ascii', 'ignore'))
+            startup_script.write('mmu.on\n'.encode('ascii', 'ignore'))
+            startup_script.write('mmu.pt.list 0xffffff8000000000\n'.encode('ascii', 'ignore'))
+        else:
             startup_script.write(
-                'PER.S.F C15:0x202 %L 0x80030000\n'.encode('ascii', 'ignore'))
-        startup_script.write('mmu.on\n'.encode('ascii', 'ignore'))
-        startup_script.write('mmu.scan\n'.encode('ascii', 'ignore'))
+                'PER.S.F C15:0x2 %L 0x{0:x}\n'.format(self.mmu.ttbr).encode('ascii', 'ignore'))
+            if isinstance(self.mmu, Armv7LPAEMMU):
+                # TTBR1. This gets setup once and never change again even if TTBR0
+                # changes
+                startup_script.write('PER.S.F C15:0x102 %L 0x{0:x}\n'.format(
+                    self.mmu.ttbr + 0x4000).encode('ascii', 'ignore'))
+                # TTBCR with EAE and T1SZ set approprately
+                startup_script.write(
+                    'PER.S.F C15:0x202 %L 0x80030000\n'.encode('ascii', 'ignore'))
+            startup_script.write('mmu.on\n'.encode('ascii', 'ignore'))
+            startup_script.write('mmu.scan\n'.encode('ascii', 'ignore'))
         startup_script.write(
             ('data.load.elf ' + os.path.abspath(self.vmlinux) + ' /nocode\n').encode('ascii', 'ignore'))
-        startup_script.write(
-            'task.config c:\\t32\\demo\\arm\\kernel\\linux\\linux.t32\n'.encode('ascii', 'ignore'))
-        startup_script.write(
-            'menu.reprogram c:\\t32\\demo\\arm\\kernel\\linux\\linux.men\n'.encode('ascii', 'ignore'))
+        if self.arm64:
+            startup_script.write(
+                 'task.config C:\\T32\\demo\\arm64\\kernel\\linux\\linux-3.x\\linux3.t32\n'.encode('ascii', 'ignore'))
+            startup_script.write(
+                 'menu.reprogram C:\\T32\\demo\\arm64\\kernel\\linux\\linux-3.x\\linux.men\n'.encode('ascii', 'ignore'))
+        else:
+            startup_script.write(
+                'task.config c:\\t32\\demo\\arm\\kernel\\linux\\linux.t32\n'.encode('ascii', 'ignore'))
+            startup_script.write(
+                'menu.reprogram c:\\t32\\demo\\arm\\kernel\\linux\\linux.men\n'.encode('ascii', 'ignore'))
         startup_script.write('task.dtask\n'.encode('ascii', 'ignore'))
         startup_script.write(
             'v.v  %ASCII %STRING linux_banner\n'.encode('ascii', 'ignore'))
@@ -725,7 +750,14 @@ class RamDump():
         startup_script.close()
 
         t32_bat = open(out_path + '/launch_t32.bat', 'wb')
-        t32_bat.write(('start c:\\t32\\t32MARM.exe -c ' + out_path + '/t32_config.t32, ' +
+        if self.arm64:
+            t32_binary = 'C:\\T32\\bin\\windows64\\t32MARM64.exe'
+        elif self.hw_id == 8916:
+            t32_binary = 'C:\\T32\\bin\\windows64\\t32MARM.exe'
+        else:
+            t32_binary = 'c:\\t32\\t32MARM.exe'
+
+        t32_bat.write(('start '+ t32_binary + ' -c ' + out_path + '/t32_config.t32, ' +
                       out_path + '/t32_startup_script.cmm').encode('ascii', 'ignore'))
         t32_bat.close()
         print_out_str(
