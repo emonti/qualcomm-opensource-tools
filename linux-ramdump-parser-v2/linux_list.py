@@ -32,13 +32,19 @@ class ListWalker(object):
         self.last_node = node_addr
         self.seen_nodes = []
 
-    def walk(self, node_addr, func, extra=None):
+    def walk(self, node_addr, func, *args):
+        """Walk the linked list starting at `node_addr', calling `func' on
+        each node. `func' will be passed the current node and *args,
+        if given.
+
+        """
 
         while True:
             if node_addr == 0:
                 break
 
-            func(node_addr - self.list_elem_offset, extra)
+            funcargs = [node_addr - self.list_elem_offset] + list(args)
+            func(*funcargs)
 
             next_node_addr = node_addr + self.ram_dump.field_offset('struct list_head', 'next')
             next_node = self.ram_dump.read_word(next_node_addr)
