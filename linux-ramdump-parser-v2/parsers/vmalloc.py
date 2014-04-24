@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -96,10 +96,7 @@ class Vmalloc(RamParser):
         vmlist = self.ramdump.read_word('vmap_area_list')
         orig_vmlist = vmlist
 
-        list_next_offset, list_prev_offset = llist.get_list_offsets(
-            self.ramdump)
-
-        list_walker = llist.ListWalker(self.ramdump, vmlist, next_offset, list_next_offset, list_prev_offset)
+        list_walker = llist.ListWalker(self.ramdump, vmlist, next_offset)
         self.vmalloc_out = vmalloc_out
         list_walker.walk(vmlist, self.list_func)
         print_out_str('---wrote vmalloc to vmalloc.txt')
