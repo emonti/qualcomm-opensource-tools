@@ -211,7 +211,7 @@ class GdbMI(object):
     def get_enum_lookup_table(self, enum, upperbound):
         """Return a table translating enum values to human readable strings."""
         table = []
-        for i in xrange(0, upperbound):
+        for i in range(0, upperbound):
             result = self._run_for_first(
                 'print ((enum {0}){1})'.format(enum, i))
             parts = result.split(' ')
@@ -239,18 +239,18 @@ class GdbMI(object):
 
 if __name__ == '__main__':
     if len(sys.argv) != 3:
-        print 'Usage: gdbmi.py gdb_path elf'
+        print('Usage: gdbmi.py gdb_path elf')
         sys.exit(1)
 
     gdb_path, elf = sys.argv[1:]
 
     with GdbMI(gdb_path, elf) as g:
-        print 'GDB Version:', g.version()
-        print 'ion_buffer.heap offset:', g.field_offset('struct ion_buffer', 'heap')
-        print 'atomic_t.counter offset:', g.field_offset('atomic_t', 'counter')
-        print 'sizeof(struct ion_buffer):', g.sizeof('struct ion_buffer')
+        print('GDB Version: ' + g.version())
+        print('ion_buffer.heap offset: ' + str(g.field_offset('struct ion_buffer', 'heap')))
+        print('atomic_t.counter offset: ' + str(g.field_offset('atomic_t', 'counter')))
+        print('sizeof(struct ion_buffer): ' + str(g.sizeof('struct ion_buffer')))
         addr = g.address_of('kernel_config_data')
-        print 'address of kernel_config_data:', hex(addr)
+        print('address of kernel_config_data: ' + hex(addr))
         symbol = g.get_symbol_info(addr)
-        print 'symbol at', hex(addr), ':', symbol.symbol, \
-            'which is in section', symbol.section
+        print('symbol at ' + hex(addr) + ' : ' + symbol.symbol + \
+            ' which is in section ' + symbol.section)
