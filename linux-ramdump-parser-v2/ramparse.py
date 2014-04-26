@@ -40,11 +40,22 @@ if major != 2:
 if minor != 7 and '--force-26' not in sys.argv:
     from textwrap import dedent
     print(dedent("""
-    Warning! This script is developed and tested with Python 2.7.
+    WARNING! This script is developed and tested with Python 2.7.
     You might be able to get things working on 2.6 by installing
     a few dependencies (most notably, OrderedDict [1])
     and then passing --force-26 to bypass this version check, but
     the recommended and supported approach is to install python2.7.
+
+    If you already have python2.7 installed but it's not the default
+    python2 interpreter on your system (e.g. if python2 points to
+    python2.6) then you'll need to invoke the scripts with python2.7
+    explicitly, for example:
+
+        $ python2.7 $(which ramparse.py) ...
+
+    instead of:
+
+        $ ramparse.py ...
 
     [1] https://pypi.python.org/pypi/ordereddict"""))
     sys.exit(1)
