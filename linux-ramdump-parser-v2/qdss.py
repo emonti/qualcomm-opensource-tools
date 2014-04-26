@@ -312,6 +312,10 @@ class QDSSDump():
             dbalo_offset, dbalo_desc = tmc_registers['DBALO']
             dbalo = ram_dump.read_u32(
                 self.tmc_etr_start + dbalo_offset, False)
+            dbahi_offset, dbahi_desc = tmc_registers['DBAHI']
+            dbahi = ram_dump.read_u32(
+                self.tmc_etr_start + dbahi_offset, False)
+            dbaddr = (dbahi << 32) + dbalo
 
             rsz_offset, rsz_desc = tmc_registers['RSZ']
             rsz = ram_dump.read_u32(self.tmc_etr_start + rsz_offset, False)
@@ -320,18 +324,21 @@ class QDSSDump():
 
             rwp_offset, rwp_desc = tmc_registers['RWP']
             rwp = ram_dump.read_u32(self.tmc_etr_start + rwp_offset, False)
+            rwphi_offset, rwphi_desc = tmc_registers['RWPHI']
+            rwphi = ram_dump.read_u32(self.tmc_etr_start + rwphi_offset, False)
+            rwpval = (rwphi << 32) + rwp
 
             if (sts & 0x1) == 1:
-                for i in range(rwp, dbalo + rsz):
+                for i in range(rwpval, dbaddr + rsz):
                     val = ram_dump.read_byte(i, False)
                     tmc_etr.write(struct.pack('<B', val))
 
-                for i in range(dbalo, rwp):
+                for i in range(dbaddr, rwpval):
                     val = ram_dump.read_byte(i, False)
                     tmc_etr.write(struct.pack('<B', val))
 
             else:
-                for i in range(dbalo, dbalo + rsz):
+                for i in range(dbaddr, dbaddr + rsz):
                     val = ram_dump.read_byte(i, False)
                     tmc_etr.write(struct.pack('<B', val))
         else:
