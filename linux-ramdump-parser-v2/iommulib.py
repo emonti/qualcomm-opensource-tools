@@ -104,7 +104,7 @@ class IommuLib(object):
             list_walker = llist.ListWalker(
                 self.ramdump, list_attached,
                 self.ramdump.field_offset('struct msm_iommu_ctx_drvdata', 'attached_elm'))
-            list_walker.walk(list_attached, self._iommu_list_func, extra=ctx_list)
+            list_walker.walk(list_attached, self._iommu_list_func, ctx_list)
 
         domain_list.append(
             Domain(domain_num, pg_table, redirect, ctx_list, client_name))

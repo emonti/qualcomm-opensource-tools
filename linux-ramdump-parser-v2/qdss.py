@@ -216,7 +216,7 @@ class QDSSDump():
         for a, b in tmc_registers.iteritems():
             offset, name = b
             tmc_etf_out.write('{0} ({1}): {2:x}\n'.format(
-                a, name, ram_dump.read_word(self.tmc_etf_start + offset, False)))
+                a, name, ram_dump.read_u32(self.tmc_etf_start + offset, False)))
         tmc_etf_out.close()
 
     def print_tmc_etr(self, ram_dump):
@@ -230,7 +230,7 @@ class QDSSDump():
         for a, b in tmc_registers.iteritems():
             offset, name = b
             tmc_etf_out.write('{0} ({1}): {2:x}\n'.format(
-                a, name, ram_dump.read_word(self.tmc_etr_start + offset, False)))
+                a, name, ram_dump.read_u32(self.tmc_etr_start + offset, False)))
         tmc_etf_out.close()
 
     def print_etm_registers(self, ram_dump, base, fname):
@@ -238,7 +238,7 @@ class QDSSDump():
         for a, b in etm_registers.iteritems():
             offset, name = b
             etm_out.write('{0} ({1}): {2:x})\n'.format(
-                a, name, ram_dump.read_word(base + offset * 4, False)))
+                a, name, ram_dump.read_u32(base + offset * 4, False)))
         etm_out.close()
 
     def print_all_etm_register(self, ram_dump):
@@ -275,13 +275,16 @@ class QDSSDump():
 
         ctl_offset, ctl_desc = tmc_registers['CTL']
         mode_offset, mode_desc = tmc_registers['MODE']
+        rsz_offset, rsz_desc = tmc_registers['RSZ']
 
-        ctl = ram_dump.read_word(self.tmc_etf_start + ctl_offset, False)
-        mode = ram_dump.read_word(self.tmc_etf_start + mode_offset, False)
+        ctl = ram_dump.read_u32(self.tmc_etf_start + ctl_offset, False)
+        mode = ram_dump.read_u32(self.tmc_etf_start + mode_offset, False)
+        rsz = ram_dump.read_u32(self.tmc_etf_start + rsz_offset, False)
+        # rsz is given in words so convert to bytes
+        rsz = 4 * rsz
 
         if (ctl & 0x1) == 1 and (mode == 0):
-            # Save the 64kb of data
-            for i in range(0, 64 * 1024):
+            for i in range(0, rsz):
                 val = ram_dump.read_byte(self.etf_start + i, False)
                 tmc_etf.write(struct.pack('<B', val))
         else:
@@ -299,36 +302,43 @@ class QDSSDump():
         ctl_offset, ctl_desc = tmc_registers['CTL']
         mode_offset, mode_desc = tmc_registers['MODE']
 
-        ctl = ram_dump.read_word(self.tmc_etr_start + ctl_offset, False)
-        mode = ram_dump.read_word(self.tmc_etr_start + mode_offset, False)
+        ctl = ram_dump.read_u32(self.tmc_etr_start + ctl_offset, False)
+        mode = ram_dump.read_u32(self.tmc_etr_start + mode_offset, False)
 
         if (ctl & 0x1) == 1 and (mode == 0):
             sts_offset, sts_desc = tmc_registers['STS']
-            sts = ram_dump.read_word(self.tmc_etr_start + sts_offset, False)
+            sts = ram_dump.read_u32(self.tmc_etr_start + sts_offset, False)
 
             dbalo_offset, dbalo_desc = tmc_registers['DBALO']
-            dbalo = ram_dump.read_word(
+            dbalo = ram_dump.read_u32(
                 self.tmc_etr_start + dbalo_offset, False)
+            dbahi_offset, dbahi_desc = tmc_registers['DBAHI']
+            dbahi = ram_dump.read_u32(
+                self.tmc_etr_start + dbahi_offset, False)
+            dbaddr = (dbahi << 32) + dbalo
 
             rsz_offset, rsz_desc = tmc_registers['RSZ']
-            rsz = ram_dump.read_word(self.tmc_etr_start + rsz_offset, False)
+            rsz = ram_dump.read_u32(self.tmc_etr_start + rsz_offset, False)
             # rsz is given in words so convert to bytes
             rsz = 4 * rsz
 
             rwp_offset, rwp_desc = tmc_registers['RWP']
-            rwp = ram_dump.read_word(self.tmc_etr_start + rwp_offset, False)
+            rwp = ram_dump.read_u32(self.tmc_etr_start + rwp_offset, False)
+            rwphi_offset, rwphi_desc = tmc_registers['RWPHI']
+            rwphi = ram_dump.read_u32(self.tmc_etr_start + rwphi_offset, False)
+            rwpval = (rwphi << 32) + rwp
 
             if (sts & 0x1) == 1:
-                for i in range(rwp, dbalo + rsz):
+                for i in range(rwpval, dbaddr + rsz):
                     val = ram_dump.read_byte(i, False)
                     tmc_etr.write(struct.pack('<B', val))
 
-                for i in range(dbalo, rwp):
+                for i in range(dbaddr, rwpval):
                     val = ram_dump.read_byte(i, False)
                     tmc_etr.write(struct.pack('<B', val))
 
             else:
-                for i in range(dbalo, dbalo + rsz):
+                for i in range(dbaddr, dbaddr + rsz):
                     val = ram_dump.read_byte(i, False)
                     tmc_etr.write(struct.pack('<B', val))
         else:

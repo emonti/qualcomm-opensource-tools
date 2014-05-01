@@ -49,6 +49,17 @@ Python 2.7 is required to run this tool. It can be downloaded and
 installed from https://www.python.org/ or through your system's
 software package manager.
 
+If you already have python2.7 installed but it's not the default
+python2 interpreter on your system (e.g. if python2 points to
+python2.6) then you'll need to invoke the script with python2.7
+explicitly, for example:
+
+    $ python2.7 $(which ramparse.py) ...
+
+instead of:
+
+    $ ramparse.py ...
+
 Setting up the toolchains
 -------------------------------
 The parser relies on having access to gdb and nm to work. You will need to
