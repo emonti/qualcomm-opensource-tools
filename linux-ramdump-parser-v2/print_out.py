@@ -9,6 +9,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 import sys
+import traceback
 from contextlib import contextmanager
 
 out_file = None
@@ -30,6 +31,11 @@ def print_out_str(string):
     else:
         out_file.write((string + '\n').encode('ascii', 'ignore'))
 
+def print_out_exception():
+    if out_file is None:
+        traceback.print_exc(file=sys.stdout)
+    else:
+        traceback.print_exc(file=out_file)
 
 @contextmanager
 def print_out_section(header):
