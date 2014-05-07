@@ -436,8 +436,7 @@ class RamDump():
                 if urc < 0:
                     break
 
-    def __init__(self, vmlinux_path, nm_path, gdb_path, ebi, file_path, phys_offset, outdir, hw_id=None, hw_version=None, arm64=False,
-                   page_offset=None):
+    def __init__(self, vmlinux_path, nm_path, gdb_path, objdump_path, ebi, file_path, phys_offset, outdir, hw_id=None, hw_version=None, arm64=False, page_offset=None):
         self.ebi_files = []
         self.phys_offset = None
         self.tz_start = 0
@@ -449,6 +448,7 @@ class RamDump():
         self.vmlinux = vmlinux_path
         self.nm_path = nm_path
         self.gdb_path = gdb_path
+        self.objdump_path = objdump_path
         self.outdir = outdir
         self.imem_fname = None
         self.gdbmi = gdbmi.GdbMI(self.gdb_path, self.vmlinux)
