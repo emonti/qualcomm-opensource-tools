@@ -392,6 +392,7 @@ class Armv7LPAEMMU(MMU):
         pass
 
     def page_table_walk(self, virt):
+        self.ttbr = self.ramdump.swapper_pg_dir_addr + self.ramdump.phys_offset
         info = self.translate(virt)
         return info.phys if info is not None else None
 

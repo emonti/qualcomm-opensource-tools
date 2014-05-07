@@ -25,7 +25,7 @@ from optparse import OptionParser
 
 import parser_util
 from ramdump import RamDump
-from print_out import print_out_str, set_outfile, print_out_section
+from print_out import print_out_str, set_outfile, print_out_section, print_out_exception
 
 # Please update version when something is changed!'
 VERSION = '2.0'
@@ -306,7 +306,11 @@ if __name__ == '__main__':
         # p.cls.__name__ attribute.
         if getattr(options, p.cls.__name__) or (options.everything and not p.optional):
             with print_out_section(p.cls.__name__):
-                p.cls(dump).parse()
+                try:
+                    p.cls(dump).parse()
+                except:
+                    print_out_str('!!! Exception while running {0}'.format(p.cls.__name__))
+                    print_out_exception()
 
     if options.t32launcher or options.everything:
         dump.create_t32_launcher()
