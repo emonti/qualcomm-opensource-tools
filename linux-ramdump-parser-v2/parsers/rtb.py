@@ -115,7 +115,6 @@ class RTB(RamParser):
             'struct msm_rtb_layout', 'data')
         rtb_entry_size = self.ramdump.sizeof('struct msm_rtb_layout')
         step_size = self.ramdump.read_u32(rtb + step_size_offset)
-        print 'step size = {0:x}'.format(step_size)
         total_entries = self.ramdump.read_int(rtb + nentries_offset)
         rtb_read_ptr = self.ramdump.read_word(rtb + rtb_entry_offset)
         for i in range(0, step_size):
