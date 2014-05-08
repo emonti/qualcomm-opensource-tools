@@ -92,7 +92,7 @@ def get_parsers():
 
     """
     parsers_dir = os.path.join(os.path.dirname(__file__), 'parsers')
-    for f in glob.glob(os.path.join(parsers_dir, '*.py')):
+    for f in sorted(glob.glob(os.path.join(parsers_dir, '*.py'))):
         modname_ext = os.path.basename(f)
         if modname_ext == '__init__.py':
             continue
