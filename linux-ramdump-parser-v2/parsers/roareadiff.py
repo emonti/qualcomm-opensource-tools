@@ -1,4 +1,4 @@
-# Copyright (c) 2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -53,6 +53,7 @@ class ROData(RamParser):
                 if not prgheader.flags & PF_W:
                     count = prgheader.vaddr
                     detect = 0
+                    printed_once = False
                     while count < prgheader.vaddr + prgheader.memsz:
                         fd.seek(prgheader.offset + (count - prgheader.vaddr))
                         ram_value = self.ramdump.read_word(count)
@@ -61,8 +62,10 @@ class ROData(RamParser):
                             break
 
                         if detect == 0 and vm_value != ram_value:
-                            print_out_str(
-                                'Differences found! Differences written to roareadiff.txt')
+                            if not printed_once:
+                                print_out_str(
+                                    'Differences found! Differences written to roareadiff.txt')
+                            printed_once = True
                             ddr_str = 'detect RO area differences between vmlinux and DDR at 0x{0:0>8x}\n'.format(
                                 count)
                             ddr_str += 'from DDR:\n'
