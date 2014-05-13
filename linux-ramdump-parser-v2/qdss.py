@@ -10,6 +10,7 @@
 # GNU General Public License for more details.
 
 import struct
+import itertools
 from print_out import print_out_str
 
 tmc_registers = {
@@ -292,6 +293,71 @@ class QDSSDump():
 
         tmc_etf.close()
 
+    def read_sg_data(self, dbaddr, sts, rwpval, ram_dump, tmc_etr):
+        start = dbaddr
+        continue_looping = True
+        if (sts & 0x1) == 1:
+            bottom_delta_read = False
+            while continue_looping:
+                entry = ram_dump.read_u32(start, False)
+                blk = (entry >> 4) << 12
+                if (entry & 0x3) == 3:
+                    start = blk
+                    continue
+                elif (entry & 0x2) == 2:
+                    if blk < rwpval and rwpval < (blk + 4096):
+                        if not bottom_delta_read:
+                            it = range(rwpval, blk + 4096)
+                            bottom_delta_read = True
+                        else:
+                            it = range(blk, blk + (rwpval - blk))
+                            continue_looping = False
+                    elif bottom_delta_read:
+                        it = range(blk, blk + 4096)
+                    else:
+                        start += 4
+                        continue
+                    start += 4
+                elif (entry & 0x1) == 1:
+                    if blk < rwpval and rwpval < (blk + 4096):
+                        if not bottom_delta_read:
+                            it = range(rwpval, blk + 4096)
+                            bottom_delta_read = True
+                        else:
+                            it = range(blk, blk + (rwpval - blk))
+                            continue_looping = False
+                    elif bottom_delta_read:
+                        it = range(blk, blk + 4096)
+                    else:
+                        start = dbaddr
+                        continue
+                    start = dbaddr
+                else:
+                    break
+
+                for i in it:
+                    val = ram_dump.read_byte(i, False)
+                    tmc_etr.write(struct.pack("<B",val))
+        else:
+            while continue_looping:
+                entry = ram_dump.read_u32(start, False)
+                blk = (entry >> 4) << 12
+                if (entry & 0x3) == 3:
+                    start = blk
+                    continue
+                elif (entry & 0x2) == 2:
+                    it = range(blk, blk + 4096)
+                    start += 4
+                elif (entry & 0x1) == 1:
+                    it = range(blk, blk + 4096)
+                    continue_looping = False
+                else:
+                    break
+
+                for i in it:
+                    val = ram_dump.read_byte(i, False)
+                    tmc_etr.write(struct.pack("<B",val))
+
     def save_etr_bin(self, ram_dump):
         tmc_etr = ram_dump.open_file('tmc-etr.bin')
         if self.tmc_etr_start is None:
@@ -328,21 +394,24 @@ class QDSSDump():
             rwphi = ram_dump.read_u32(self.tmc_etr_start + rwphi_offset, False)
             rwpval = (rwphi << 32) + rwp
 
-            if (sts & 0x1) == 1:
-                for i in range(rwpval, dbaddr + rsz):
-                    val = ram_dump.read_byte(i, False)
-                    tmc_etr.write(struct.pack('<B', val))
+            axictl_offset, axictl_desc = tmc_registers["AXICTL"]
+            axictl = ram_dump.read_u32(self.tmc_etr_start + axictl_offset, False)
 
-                for i in range(dbaddr, rwpval):
-                    val = ram_dump.read_byte(i, False)
-                    tmc_etr.write(struct.pack('<B', val))
-
+            if ((axictl >> 7) & 0x1) == 1:
+                print_out_str('Scatter gather memory type was selected for TMC ETR')
+                self.read_sg_data(dbaddr, sts, rwpval, ram_dump, tmc_etr)
             else:
-                for i in range(dbaddr, dbaddr + rsz):
+                print_out_str('Contiguous memory type was selected for TMC ETR')
+                if (sts & 0x1) == 1:
+                    it = itertools.chain(range(rwpval, dbaddr+rsz), range(dbaddr, rwpval))
+                else:
+                    it = range(dbaddr, dbaddr+rsz)
+
+                for i in it:
                     val = ram_dump.read_byte(i, False)
-                    tmc_etr.write(struct.pack('<B', val))
+                    tmc_etr.write(struct.pack("<B",val))
         else:
-            print_out_str('!!! ETR was not the current sink!')
+            print_out_str ('!!! ETR was not the current sink!')
 
         tmc_etr.close()
 
