@@ -21,6 +21,7 @@ from __future__ import print_function
 import sys
 import os
 import re
+import time
 from optparse import OptionParser
 
 import parser_util
@@ -300,17 +301,29 @@ if __name__ == '__main__':
         get_wdog_timing(dump)
         print_out_str('---------- end watchdog time-----')
 
-    for p in parser_util.get_parsers():
-        # we called parser.add_option with dest=p.cls.__name__ above,
-        # so if the user passed that option then `options' will have a
-        # p.cls.__name__ attribute.
-        if getattr(options, p.cls.__name__) or (options.everything and not p.optional):
-            with print_out_section(p.cls.__name__):
-                try:
-                    p.cls(dump).parse()
-                except:
-                    print_out_str('!!! Exception while running {0}'.format(p.cls.__name__))
-                    print_out_exception()
+    # we called parser.add_option with dest=p.cls.__name__ above,
+    # so if the user passed that option then `options' will have a
+    # p.cls.__name__ attribute.
+    parsers_to_run = [p for p in parser_util.get_parsers()
+                      if getattr(options, p.cls.__name__)
+                      or (options.everything and not p.optional)]
+    for i,p in enumerate(parsers_to_run):
+        if i == 0:
+            sys.stderr.write("\n")
+        sys.stderr.write("    [%d/%d] %s ... " %
+                         (i + 1, len(parsers_to_run), p.longopt))
+        before = time.time()
+        with print_out_section(p.cls.__name__):
+            try:
+                p.cls(dump).parse()
+            except:
+                print_out_str('!!! Exception while running {0}'.format(p.cls.__name__))
+                print_out_exception()
+                sys.stderr.write("FAILED! ")
+        sys.stderr.write("%fs\n" % (time.time() - before))
+        sys.stderr.flush()
+
+    sys.stderr.write("\n")
 
     if options.t32launcher or options.everything:
         dump.create_t32_launcher()
