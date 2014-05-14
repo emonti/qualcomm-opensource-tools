@@ -26,7 +26,7 @@ from optparse import OptionParser
 
 import parser_util
 from ramdump import RamDump
-from print_out import print_out_str, set_outfile, print_out_section, print_out_exception
+from print_out import print_out_str, set_outfile, print_out_section, print_out_exception, flush_outfile
 
 # Please update version when something is changed!'
 VERSION = '2.0'
@@ -322,6 +322,7 @@ if __name__ == '__main__':
                 sys.stderr.write("FAILED! ")
         sys.stderr.write("%fs\n" % (time.time() - before))
         sys.stderr.flush()
+        flush_outfile()
 
     sys.stderr.write("\n")
 
