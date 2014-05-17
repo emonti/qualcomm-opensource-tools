@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -14,6 +14,11 @@ from contextlib import contextmanager
 
 out_file = None
 
+def flush_outfile():
+    if out_file is None:
+        sys.stdout.flush()
+    else:
+        out_file.flush()
 
 def set_outfile(path):
     global out_file
