@@ -121,7 +121,7 @@ class RamDump():
             frame.pc = self.ramdump.read_word(fp + 8)
             return 0
 
-        def unwind_frame_generic(self, frame):
+        def unwind_frame_generic(self, frame, trace=False):
             high = 0
             fp = frame.fp
 
