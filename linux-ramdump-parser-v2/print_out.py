@@ -12,7 +12,7 @@ import sys
 import traceback
 from contextlib import contextmanager
 
-out_file = None
+out_file = sys.stdout
 
 def flush_outfile():
     if out_file is None:
