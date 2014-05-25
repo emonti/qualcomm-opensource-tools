@@ -1090,6 +1090,15 @@ class RamDump():
         else:
             return s[0]
 
+    # reads a 4 or 8 byte field from a structure
+    def read_structure_field(self, address, struct_name, field):
+        size = self.sizeof("(({0} *)0)->{1}".format(struct_name, field))
+        if size == 4:
+            return self.read_u32(address + self.field_offset(struct_name, field))
+        if size == 8:
+            return self.read_u64(address + self.field_offset(struct_name, field))
+        return None
+
     def read_cstring(self, address, max_length, virtual=True, cpu=None, trace=False):
         addr = address
         if virtual:
