@@ -51,44 +51,44 @@ class RTB(RamParser):
             symname = 'Unknown function'
         return symname
 
-    def print_none(self, rtbout, rtb_ptr, logtype, data_offset, caller_offset):
+    def print_none(self, rtbout, rtb_ptr, logtype):
         rtbout.write('{0} No data\n'.format(logtype).encode('ascii', 'ignore'))
 
-    def print_readlwritel(self, rtbout, rtb_ptr, logtype, data_offset, caller_offset):
-        data = self.ramdump.read_u64(rtb_ptr + data_offset)
-        caller = self.ramdump.read_u64(rtb_ptr + caller_offset)
+    def print_readlwritel(self, rtbout, rtb_ptr, logtype):
+        data = self.ramdump.read_structure_field(rtb_ptr, 'struct msm_rtb_layout', 'data')
+        caller = self.ramdump.read_structure_field(rtb_ptr, 'struct msm_rtb_layout', 'caller')
         func = self.get_fun_name(caller)
         line = self.get_caller(caller)
         rtbout.write('{0} from address {1:x} called from addr {2:x} {3} {4}\n'.format(
             logtype, data, caller, func, line).encode('ascii', 'ignore'))
 
-    def print_logbuf(self, rtbout, rtb_ptr, logtype, data_offset, caller_offset):
-        data = self.ramdump.read_u64(rtb_ptr + data_offset)
-        caller = self.ramdump.read_u64(rtb_ptr + caller_offset)
+    def print_logbuf(self, rtbout, rtb_ptr, logtype):
+        data = self.ramdump.read_structure_field(rtb_ptr, 'struct msm_rtb_layout', 'data')
+        caller = self.ramdump.read_structure_field(rtb_ptr, 'struct msm_rtb_layout', 'caller')
         func = self.get_fun_name(caller)
         line = self.get_caller(caller)
         rtbout.write('{0} log end {1:x} called from addr {2:x} {3} {4}\n'.format(
             logtype, data, caller, func, line).encode('ascii', 'ignore'))
 
-    def print_hotplug(self, rtbout, rtb_ptr, logtype, data_offset, caller_offset):
-        data = self.ramdump.read_u64(rtb_ptr + data_offset)
-        caller = self.ramdump.read_u64(rtb_ptr + caller_offset)
+    def print_hotplug(self, rtbout, rtb_ptr, logtype):
+        data = self.ramdump.read_structure_field(rtb_ptr, 'struct msm_rtb_layout', 'data')
+        caller = self.ramdump.read_structure_field(rtb_ptr, 'struct msm_rtb_layout', 'caller')
         func = self.get_fun_name(caller)
         line = self.get_caller(caller)
         rtbout.write('{0} cpu data {1:x} called from addr {2:x} {3} {4}\n'.format(
             logtype, data, caller, func, line).encode('ascii', 'ignore'))
 
-    def print_ctxid(self, rtbout, rtb_ptr, logtype, data_offset, caller_offset):
-        data = self.ramdump.read_u64(rtb_ptr + data_offset)
-        caller = self.ramdump.read_u64(rtb_ptr + caller_offset)
+    def print_ctxid(self, rtbout, rtb_ptr, logtype):
+        data = self.ramdump.read_structure_field(rtb_ptr, 'struct msm_rtb_layout', 'data')
+        caller = self.ramdump.read_structure_field(rtb_ptr, 'struct msm_rtb_layout', 'caller')
         func = self.get_fun_name(caller)
         line = self.get_caller(caller)
         rtbout.write('{0} context id {1:x} called from addr {2:x} {3} {4}\n'.format(
             logtype, data, caller, func, line).encode('ascii', 'ignore'))
 
-    def print_timestamp(self, rtbout, rtb_ptr, logtype, data_offset, caller_offset):
-        data = self.ramdump.read_u64(rtb_ptr + data_offset)
-        caller = self.ramdump.read_u64(rtb_ptr + caller_offset)
+    def print_timestamp(self, rtbout, rtb_ptr, logtype):
+        data = self.ramdump.read_structure_field(rtb_ptr, 'struct msm_rtb_layout', 'data')
+        caller = self.ramdump.read_structure_field(rtb_ptr, 'struct msm_rtb_layout', 'caller')
         rtbout.write('{0} Timestamp: {1:x}{2:x}\n'.format(
             logtype, data, caller).encode('ascii', 'ignore'))
 
@@ -107,12 +107,6 @@ class RTB(RamParser):
         rtb_entry_offset = self.ramdump.field_offset(
             'struct msm_rtb_state', 'rtb')
         idx_offset = self.ramdump.field_offset('struct msm_rtb_layout', 'idx')
-        caller_offset = self.ramdump.field_offset(
-            'struct msm_rtb_layout', 'caller')
-        log_type_offset = self.ramdump.field_offset(
-            'struct msm_rtb_layout', 'log_type')
-        data_offset = self.ramdump.field_offset(
-            'struct msm_rtb_layout', 'data')
         rtb_entry_size = self.ramdump.sizeof('struct msm_rtb_layout')
         step_size = self.ramdump.read_u32(rtb + step_size_offset)
         total_entries = self.ramdump.read_int(rtb + nentries_offset)
@@ -152,10 +146,6 @@ class RTB(RamParser):
                 'struct msm_rtb_layout', 'log_type')
             rtb_idx_offset = self.ramdump.field_offset(
                 'struct msm_rtb_layout', 'idx')
-            rtb_data_offset = self.ramdump.field_offset(
-                'struct msm_rtb_layout', 'data')
-            rtb_caller_offset = self.ramdump.field_offset(
-                'struct msm_rtb_layout', 'caller')
             while True:
                 ptr = rtb_read_ptr + next_entry * rtb_entry_size
                 stamp = self.ramdump.read_int(ptr + rtb_idx_offset)
@@ -175,8 +165,7 @@ class RTB(RamParser):
                                         rtb_data_offset, rtb_caller_offset)
                     else:
                         func = print_table[name_str]
-                        getattr(RTB, func)(self, rtb_out, ptr, name_str,
-                                           rtb_data_offset, rtb_caller_offset)
+                        getattr(RTB, func)(self, rtb_out, ptr, name_str)
                 if next_entry == last:
                     stop = 1
                 next_entry = (next_entry + step_size) & mask
