@@ -28,7 +28,9 @@ class client(object):
     MSM_DUMP_DATA_TMC_ETF = 0xF0
     MSM_DUMP_DATA_TMC_REG = 0x100
     MSM_DUMP_DATA_TMC_ETF_REG = 0x101
-    MSM_DUMP_DATA_MAX = 0x110
+    MSM_DUMP_DATA_LOG_BUF = 0x110
+    MSM_DUMP_DATA_LOG_BUF_FIRST_IDX = 0x111
+    MSM_DUMP_DATA_MAX = 0x112
 
 client_table = {
     'MSM_DUMP_DATA_CPU_CTX': 'parse_cpu_ctx',
@@ -89,7 +91,7 @@ class DebugImage_v2():
         self.dump_table_id_lookup_table = ram_dump.gdbmi.get_enum_lookup_table(
             'msm_dump_table_ids', 0x110)
         self.dump_data_id_lookup_table = ram_dump.gdbmi.get_enum_lookup_table(
-            'msm_dump_data_ids', 0x110)
+            'msm_dump_data_ids', 0x112)
         cpu_present_bits = ram_dump.read_word('cpu_present_bits')
         cpus = bin(cpu_present_bits).count('1')
         # per cpu entries
@@ -106,6 +108,10 @@ class DebugImage_v2():
         # 0x100 - tmc-etr registers and 0x101 - for tmc-etf registers
         self.dump_data_id_lookup_table[
             client.MSM_DUMP_DATA_TMC_REG + 1] = 'MSM_DUMP_DATA_TMC_REG'
+        self.dump_data_id_lookup_table[
+            client.MSM_DUMP_DATA_LOG_BUF] = 'MSM_DUMP_DATA_LOG_BUF'
+        self.dump_data_id_lookup_table[
+            client.MSM_DUMP_DATA_LOG_BUF_FIRST_IDX] = 'MSM_DUMP_DATA_LOG_BUF_FIRST_IDX'
         dump_table_ptr_offset = ram_dump.field_offset(
             'struct msm_memory_dump', 'table')
         dump_table_version_offset = ram_dump.field_offset(
