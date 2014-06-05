@@ -436,7 +436,8 @@ class RamDump():
                 if urc < 0:
                     break
 
-    def __init__(self, vmlinux_path, nm_path, gdb_path, ebi, file_path, phys_offset, outdir, hw_id=None, hw_version=None, arm64=False):
+    def __init__(self, vmlinux_path, nm_path, gdb_path, ebi, file_path, phys_offset, outdir, hw_id=None, hw_version=None, arm64=False,
+                   page_offset=None):
         self.ebi_files = []
         self.phys_offset = None
         self.tz_start = 0
@@ -476,11 +477,14 @@ class RamDump():
                 '[!!!] Phys offset was set to {0:x}'.format(phys_offset))
             self.phys_offset = phys_offset
         self.lookup_table = []
-        self.page_offset = 0xc0000000
         self.config = []
         if self.arm64:
             self.page_offset = 0xffffffc000000000
             self.thread_size = 16384
+        if page_offset is not None:
+            print_out_str(
+                '[!!!] Page offset was set to {0:x}'.format(page_offset))
+            self.page_offset = page_offset
         self.setup_symbol_tables()
 
         # The address of swapper_pg_dir can be used to determine
