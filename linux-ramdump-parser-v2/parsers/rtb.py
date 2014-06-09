@@ -156,13 +156,11 @@ class RTB(RamParser):
                 item = item & 0x7F
                 name_str = '(unknown)'
                 if item >= len(self.name_lookup_table) or item < 0:
-                    self.print_none(rtb_out, ptr, name_str,
-                                    rtb_data_offset, rtb_caller_offset)
+                    self.print_none(rtb_out, ptr, None)
                 else:
                     name_str = self.name_lookup_table[item]
                     if name_str not in print_table:
-                        self.print_none(rtb_out, ptr, name_str,
-                                        rtb_data_offset, rtb_caller_offset)
+                        self.print_none(rtb_out, ptr, None)
                     else:
                         func = print_table[name_str]
                         getattr(RTB, func)(self, rtb_out, ptr, name_str)
