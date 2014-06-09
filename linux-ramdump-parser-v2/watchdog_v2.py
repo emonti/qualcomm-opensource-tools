@@ -273,7 +273,7 @@ class TZRegDump_v2():
         print ''
         pc = self.core_regs.regs['pc']
         if ram_dump.arm64:
-            lr = self.core_regs.regs['elr_el1']
+            lr = self.core_regs.regs['x30']
             bt = self.core_regs.regs['sp_el1']
         else:
             lr = self.core_regs.regs['r14_svc']
