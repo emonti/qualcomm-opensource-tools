@@ -30,6 +30,9 @@ print_table = {
     'LOGK_HOTPLUG': 'print_hotplug',
     'LOGK_CTXID': 'print_ctxid',
     'LOGK_TIMESTAMP': 'print_timestamp',
+    'LOGK_L2CPREAD': 'print_cp_rw',
+    'LOGK_L2CPWRITE': 'print_cp_rw',
+    'LOGK_IRQ': 'print_irq',
 }
 
 
@@ -91,6 +94,22 @@ class RTB(RamParser):
         caller = self.ramdump.read_structure_field(rtb_ptr, 'struct msm_rtb_layout', 'caller')
         rtbout.write('{0} Timestamp: {1:x}{2:x}\n'.format(
             logtype, data, caller).encode('ascii', 'ignore'))
+
+    def print_cp_rw(self, rtbout, rtb_ptr, logtype):
+        data = self.ramdump.read_structure_field(rtb_ptr, 'struct msm_rtb_layout', 'data')
+        caller = self.ramdump.read_structure_field(rtb_ptr, 'struct msm_rtb_layout', 'caller')
+        func = self.get_fun_name(caller)
+        line = self.get_caller(caller)
+        rtbout.write('{0} from offset {1:x} called from addr {2:x} {3} {4}\n'.format(
+            logtype, data, caller, func, line).encode('ascii', 'ignore'))
+
+    def print_irq(self, rtbout, rtb_ptr, logtype):
+        data = self.ramdump.read_structure_field(rtb_ptr, 'struct msm_rtb_layout', 'data')
+        caller = self.ramdump.read_structure_field(rtb_ptr, 'struct msm_rtb_layout', 'caller')
+        func = self.get_fun_name(caller)
+        line = self.get_caller(caller)
+        rtbout.write('{0} interrupt {1:x} handled from addr {2:x} {3} {4}\n'.format(
+            logtype, data, caller, func, line).encode('ascii', 'ignore'))
 
     def parse(self):
         rtb = self.ramdump.addr_lookup('msm_rtb')
