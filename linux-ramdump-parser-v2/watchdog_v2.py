@@ -275,9 +275,11 @@ class TZRegDump_v2():
         if ram_dump.arm64:
             lr = self.core_regs.regs['x30']
             bt = self.core_regs.regs['sp_el1']
+            fp = self.core_regs.regs['x29']
         else:
             lr = self.core_regs.regs['r14_svc']
             bt = self.core_regs.regs['r13_svc']
+            fp = self.core_regs.regs['r11']
 
         a = ram_dump.unwind_lookup(pc)
         if a is not None:
@@ -296,7 +298,7 @@ class TZRegDump_v2():
         print_out_str(
             'Core {3} LR: {0}+{1:x} <{2:x}>'.format(symname, offset, lr, self.core))
         print_out_str('')
-        ram_dump.unwind.unwind_backtrace(bt, 0, pc, lr, '')
+        ram_dump.unwind.unwind_backtrace(bt, fp, pc, lr, '')
         print_out_str('')
 
     def init_regs(self, start_addr, end_addr, core, ram_dump):
