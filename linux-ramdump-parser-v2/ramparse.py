@@ -106,6 +106,8 @@ if __name__ == '__main__':
                       dest='stdout', help='Dump to stdout instead of the file')
     parser.add_option('', '--phys-offset', type='int',
                       dest='phys_offset', help='use custom phys offset')
+    parser.add_option('', '--page-offset', type='int',
+                      dest='page_offset', help='use custom page offset')
     parser.add_option('', '--force-hardware', type='int',
                       dest='force_hardware', help='Force the hardware detection')
     parser.add_option(
@@ -260,7 +262,8 @@ if __name__ == '__main__':
     dump = RamDump(options.vmlinux, nm_path, gdb_path, options.ram_addr,
                    options.autodump, options.phys_offset, options.outdir,
                    options.force_hardware, options.force_hardware_version,
-                   arm64=options.arm64)
+                   arm64=options.arm64,
+                   page_offset=options.page_offset)
 
     if options.shell or options.classic_shell:
         print("Entering interactive shell mode.")
