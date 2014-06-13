@@ -306,6 +306,9 @@ class TZRegDump(RamParser):
         return True
 
     def parse(self):
+        if self.ramdump.addr_lookup('memdump'):
+            return None
+
         ebi_addr = self.ramdump.read_tz_offset()
 
         if ebi_addr is None:
@@ -322,22 +325,6 @@ class TZRegDump(RamParser):
         print_out_str(
             '[!!!!] Read {0:x} from IMEM successfully!'.format(ebi_addr))
         print_out_str('[!!!!] An FIQ occured on the system!')
-
-        # The debug image will be responsible for printing out the register
-        # information, no need to print it twice
-        if self.ramdump.is_config_defined('CONFIG_MSM_DEBUG_IMAGE'):
-            print_out_str(
-                '[!!!!] Debug image was enabled, the contexts will be printed there')
-            return
-
-        regs = self.init_regs(ebi_addr)
-        if regs is False:
-            print_out_str('!!! Could not get registers from TZ dump')
-            return
-
-        for i in range(self.ncores):
-            self.dump_core_pc(i)
-        self.dump_all_regs()
 
 
 def get_wdog_timing(ramdump):
