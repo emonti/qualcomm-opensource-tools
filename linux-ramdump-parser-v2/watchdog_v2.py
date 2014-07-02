@@ -10,6 +10,7 @@
 # GNU General Public License for more details.
 
 import struct
+import re
 from print_out import print_out_str
 
 # (name from tz dump, corresponding T32 register, whether or not to print_out_str (the function name))
@@ -149,7 +150,7 @@ sysdbg_cpu32_register_names = [
     ('cpsr', 'cpsr', False),
     ('r13_mon', 'r13_mon', False),
     ('r14_mon', 'r14_mon', True),
-    ('r14_hyp', 'r14_hyp', True),
+    ('r14_hyp', 'elr_hyp', True),
     ('_reserved', '_reserved', False),
     ('__reserved1', '__reserved1', False),
     ('__reserved2', '__reserved2', False),
@@ -226,6 +227,8 @@ class TZCpuCtx_v2():
         else:
             register_names = sysdbg_cpu32_register_names
         for reg_name, t32_name, print_pc in register_names:
+            if re.match('(.*)reserved(.*)', reg_name):
+                continue
             if print_pc:
                 a = ramdump.unwind_lookup(self.regs[reg_name])
                 if a is not None:
