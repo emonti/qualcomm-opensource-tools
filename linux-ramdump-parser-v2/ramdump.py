@@ -40,7 +40,7 @@ BUILD_ID_LENGTH = 32
 
 first_mem_file_names = ['EBICS0.BIN',
                         'EBI1.BIN', 'DDRCS0.BIN', 'ebi1_cs0.bin', 'DDRCS0_0.BIN']
-extra_mem_file_names = ['EBI1CS1.BIN', 'DDRCS1.BIN', 'ebi1_cs1.bin', 'DDRCS0_1.BIN']
+extra_mem_file_names = ['EBI1CS1.BIN', 'DDRCS1.BIN', 'ebi1_cs1.bin', 'DDRCS0_1.BIN', 'DDRCS1_0.BIN', 'DDRCS1_1.BIN']
 
 
 class RamDump():
@@ -657,14 +657,16 @@ class RamDump():
             (first_mem, self.ebi_start, first_mem_end, first_mem_path)]
         print_out_str(
             'Adding {0} {1:x}--{2:x}'.format(first_mem_path, self.ebi_start, first_mem_end))
+        self.ebi_start = self.ebi_start + os.path.getsize(first_mem_path)
 
         for f in extra_mem_file_names:
             extra_path = file_path + '/' + f
 
             if os.path.exists(extra_path):
                 extra = open(extra_path, 'rb')
-                extra_start = self.ebi_start + os.path.getsize(first_mem_path)
+                extra_start = self.ebi_start
                 extra_end = extra_start + os.path.getsize(extra_path) - 1
+                self.ebi_start = extra_end + 1
                 print_out_str(
                     'Adding {0} {1:x}--{2:x}'.format(extra_path, extra_start, extra_end))
                 self.ebi_files.append(
@@ -691,14 +693,10 @@ class RamDump():
 
         startup_script = open(out_path + '/t32_startup_script.cmm', 'wb')
 
-        # This is a semi hack until A53 support is fully integrated and tested.
-        # Remove this at the earliest convenience.
-        if self.arm64:
-            startup_script.write(
-                'sys.cpu CORTEXA53\n'.encode('ascii', 'ignore'))
+        if self.arm64 and self.hw_id == 8916:
+            startup_script.write('sys.cpu CORTEXA53\n'.encode('ascii', 'ignore'))
         else:
-            startup_script.write(
-                'sys.cpu {0}\n'.format(self.cpu_type).encode('ascii', 'ignore'))
+            startup_script.write('sys.cpu {0}\n'.format(self.cpu_type).encode('ascii', 'ignore'))
         startup_script.write('sys.up\n'.encode('ascii', 'ignore'))
 
         for ram in self.ebi_files:
@@ -707,11 +705,20 @@ class RamDump():
                 ebi_path, ram[1]).encode('ascii', 'ignore'))
         if self.arm64:
             startup_script.write('Register.Set NS 1\n'.encode('ascii', 'ignore'))
-            startup_script.write('Data.Set SPR:0x30201 %Quad 0x000000008007D000\n'.encode('ascii', 'ignore'))
-            startup_script.write('Data.Set SPR:0x30202 %Quad 0x00000012B5193519\n'.encode('ascii', 'ignore'))
-            startup_script.write('Data.Set SPR:0x30A20 %Quad 0x000000FF440C0400\n'.encode('ascii', 'ignore'))
-            startup_script.write('Data.Set SPR:0x30A30 %Quad 0x0000000000000000\n'.encode('ascii', 'ignore'))
-            startup_script.write('Data.Set SPR:0x30100 %Quad 0x0000000034D5D91D\n'.encode('ascii', 'ignore'))
+
+            if self.hw_id == 8916 or self.hw_id == 8939:
+                startup_script.write('Data.Set SPR:0x30201 %Quad 0x000000008007D000\n'.encode('ascii', 'ignore'))
+                startup_script.write('Data.Set SPR:0x30202 %Quad 0x00000012B5193519\n'.encode('ascii', 'ignore'))
+                startup_script.write('Data.Set SPR:0x30A20 %Quad 0x000000FF440C0400\n'.encode('ascii', 'ignore'))
+                startup_script.write('Data.Set SPR:0x30A30 %Quad 0x0000000000000000\n'.encode('ascii', 'ignore'))
+                startup_script.write('Data.Set SPR:0x30100 %Quad 0x0000000034D5D91D\n'.encode('ascii', 'ignore'))
+            else:
+                startup_script.write('Data.Set SPR:0x30201 %Quad 0x000000000007D000\n'.encode('ascii', 'ignore'))
+                startup_script.write('Data.Set SPR:0x30202 %Quad 0x00000032B5193519\n'.encode('ascii', 'ignore'))
+                startup_script.write('Data.Set SPR:0x30A20 %Quad 0x000000FF440C0400\n'.encode('ascii', 'ignore'))
+                startup_script.write('Data.Set SPR:0x30A30 %Quad 0x0000000000000000\n'.encode('ascii', 'ignore'))
+                startup_script.write('Data.Set SPR:0x30100 %Quad 0x0000000004C5D93D\n'.encode('ascii', 'ignore'))
+
             startup_script.write('Register.Set CPSR 0x3C5\n'.encode('ascii', 'ignore'))
             startup_script.write('MMU.Delete\n'.encode('ascii', 'ignore'))
             startup_script.write('MMU.SCAN PT 0xFFFFFF8000000000--0xFFFFFFFFFFFFFFFF\n'.encode('ascii', 'ignore'))
