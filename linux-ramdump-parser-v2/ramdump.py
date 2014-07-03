@@ -693,14 +693,10 @@ class RamDump():
 
         startup_script = open(out_path + '/t32_startup_script.cmm', 'wb')
 
-        # This is a semi hack until A53 support is fully integrated and tested.
-        # Remove this at the earliest convenience.
-        if self.arm64:
-            startup_script.write(
-                'sys.cpu CORTEXA53\n'.encode('ascii', 'ignore'))
+        if self.arm64 and self.hw_id == 8916:
+            startup_script.write('sys.cpu CORTEXA53\n'.encode('ascii', 'ignore'))
         else:
-            startup_script.write(
-                'sys.cpu {0}\n'.format(self.cpu_type).encode('ascii', 'ignore'))
+            startup_script.write('sys.cpu {0}\n'.format(self.cpu_type).encode('ascii', 'ignore'))
         startup_script.write('sys.up\n'.encode('ascii', 'ignore'))
 
         for ram in self.ebi_files:
