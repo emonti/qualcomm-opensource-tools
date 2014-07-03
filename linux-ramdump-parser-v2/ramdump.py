@@ -40,7 +40,7 @@ BUILD_ID_LENGTH = 32
 
 first_mem_file_names = ['EBICS0.BIN',
                         'EBI1.BIN', 'DDRCS0.BIN', 'ebi1_cs0.bin', 'DDRCS0_0.BIN']
-extra_mem_file_names = ['EBI1CS1.BIN', 'DDRCS1.BIN', 'ebi1_cs1.bin', 'DDRCS0_1.BIN']
+extra_mem_file_names = ['EBI1CS1.BIN', 'DDRCS1.BIN', 'ebi1_cs1.bin', 'DDRCS0_1.BIN', 'DDRCS1_0.BIN', 'DDRCS1_1.BIN']
 
 
 class RamDump():
@@ -657,14 +657,16 @@ class RamDump():
             (first_mem, self.ebi_start, first_mem_end, first_mem_path)]
         print_out_str(
             'Adding {0} {1:x}--{2:x}'.format(first_mem_path, self.ebi_start, first_mem_end))
+        self.ebi_start = self.ebi_start + os.path.getsize(first_mem_path)
 
         for f in extra_mem_file_names:
             extra_path = file_path + '/' + f
 
             if os.path.exists(extra_path):
                 extra = open(extra_path, 'rb')
-                extra_start = self.ebi_start + os.path.getsize(first_mem_path)
+                extra_start = self.ebi_start
                 extra_end = extra_start + os.path.getsize(extra_path) - 1
+                self.ebi_start = extra_end + 1
                 print_out_str(
                     'Adding {0} {1:x}--{2:x}'.format(extra_path, extra_start, extra_end))
                 self.ebi_files.append(
