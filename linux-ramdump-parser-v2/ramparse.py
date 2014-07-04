@@ -93,6 +93,7 @@ if __name__ == '__main__':
     parser.add_option('-v', '--vmlinux', dest='vmlinux', help='vmlinux path')
     parser.add_option('-n', '--nm-path', dest='nm', help='nm path')
     parser.add_option('-g', '--gdb-path', dest='gdb', help='gdb path')
+    parser.add_option('-j', '--objdump-path', dest='objdump', help='objdump path')
     parser.add_option('-a', '--auto-dump', dest='autodump',
                       help='Auto find ram dumps from the path')
     parser.add_option('-o', '--outdir', dest='outdir', help='Output directory')
@@ -209,6 +210,7 @@ if __name__ == '__main__':
 
     gdb_path = options.gdb
     nm_path = options.nm
+    objdump_path = options.objdump
 
     try:
         import local_settings
@@ -216,9 +218,11 @@ if __name__ == '__main__':
             if options.arm64:
                 gdb_path = gdb_path or local_settings.gdb64_path
                 nm_path = nm_path or local_settings.nm64_path
+                objdump_path = objdump_path or local_settings.objdump64_path
             else:
                 gdb_path = gdb_path or local_settings.gdb_path
                 nm_path = nm_path or local_settings.nm_path
+                objdump_path = objdump_path or local_settings.objdump_path
         except AttributeError as e:
             print_out_str("local_settings.py looks bogus. Please see README.txt")
             missing_attr = re.sub(".*has no attribute '(.*)'", '\\1', e.message)
@@ -259,7 +263,7 @@ if __name__ == '__main__':
         print_out_str("!!! If this tool is being run from a shared location, contact the maintainer")
         sys.exit(1)
 
-    dump = RamDump(options.vmlinux, nm_path, gdb_path, options.ram_addr,
+    dump = RamDump(options.vmlinux, nm_path, gdb_path, objdump_path, options.ram_addr,
                    options.autodump, options.phys_offset, options.outdir,
                    options.force_hardware, options.force_hardware_version,
                    arm64=options.arm64,
