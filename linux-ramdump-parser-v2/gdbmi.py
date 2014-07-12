@@ -144,8 +144,8 @@ class GdbMI(object):
 
         Example:
 
-        gdbmi.field_offset("struct ion_buffer", "heap")
-        -> 20
+        >>> gdbmi.field_offset("struct ion_buffer", "heap")
+        20
 
         - `the_type': struct or type (note that if it's a struct you
           should include the word "struct" (e.g.: "struct
