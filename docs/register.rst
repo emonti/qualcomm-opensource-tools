@@ -1,0 +1,5 @@
+register
+========
+
+.. automodule:: register
+   :members:
