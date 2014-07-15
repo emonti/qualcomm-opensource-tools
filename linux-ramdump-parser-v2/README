@@ -40,6 +40,10 @@ linux-parser-output.txt is used
 --stdout : Write to stdout instead of the out-file. This overrides any
 --out-file given.
 
+--qtf : Use QTF tool to parse and save QDSS trace data
+
+--qtf-path <path> : QTF tool executable
+
 The list of features parsed is constantly growing. Please use --help option
 to see the full list of features that can be parsed.
 
@@ -86,6 +90,7 @@ gdb_path - absolute path to the gdb tool for the ramdumps
 nm_path - absolute path to the gdb tool for the ramdumps
 gdb64_path - absolute path to the 64-bit gdb tool for the ramdumps
 nm64_path - absolute path to the 64-bit nm tool for the ramdumps
+qtf_path - absolute path to qtf tool executable
 
 Note that local_settings.py is just a python file so the file may take advantage
 of python features.
