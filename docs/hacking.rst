@@ -7,6 +7,9 @@ looking to add their own parser plugin to the LRDP.
 .. toctree::
    :maxdepth: 2
 
+   writing_parsers
+   ramdump
    gdbmi
-   parser_util
    register
+   sizes
+   parser_util

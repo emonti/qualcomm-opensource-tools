@@ -48,6 +48,13 @@ class GdbMIException(Exception):
 
 
 class GdbMI(object):
+    """Interface to the ``gdbmi`` subprocess. This should generally be
+    used as a context manager (using Python's ``with`` statement),
+    like so::
+
+        >>> with GdbMI(gdb_path, elf) as g:
+                print('GDB Version: ' + g.version())
+    """
 
     def __init__(self, gdb_path, elf):
         self.gdb_path = gdb_path
@@ -56,6 +63,10 @@ class GdbMI(object):
         self._gdbmi = None
 
     def open(self):
+        """Open the connection to the ``gdbmi`` backend. Not needed if using
+        ``gdbmi`` as a context manager (recommended).
+
+        """
         self._gdbmi = subprocess.Popen(
             [self.gdb_path, '--interpreter=mi2', self.elf],
             stdin=subprocess.PIPE,
@@ -64,6 +75,10 @@ class GdbMI(object):
         self._flush_gdbmi()
 
     def close(self):
+        """Close the connection to the ``gdbmi`` backend. Not needed if using
+        ``gdbmi`` as a context manager (recommended).
+
+        """
         self._gdbmi.communicate('quit')
 
     def __enter__(self):
@@ -147,11 +162,13 @@ class GdbMI(object):
         >>> gdbmi.field_offset("struct ion_buffer", "heap")
         20
 
-        - `the_type': struct or type (note that if it's a struct you
-          should include the word "struct" (e.g.: "struct
-          ion_buffer"))
+        ``the_type``
+           struct or type (note that if it's a struct you should
+           include the word ``"struct"`` (e.g.: ``"struct
+           ion_buffer"``))
 
-        - `field': the field whose offset we want to return
+        ``field``
+           the field whose offset we want to return
 
         """
         cmd = 'print /x (int)&(({0} *)0)->{1}'.format(the_type, field)
@@ -159,6 +176,7 @@ class GdbMI(object):
         return gdb_hex_to_dec(result)
 
     def container_of(self, ptr, the_type, member):
+        """Like ``container_of`` from the kernel."""
         return ptr - self.field_offset(the_type, member)
 
     def sibling_field_addr(self, ptr, parent_type, member, sibling):
@@ -167,35 +185,40 @@ class GdbMI(object):
 
         Example:
 
-        Given:
+        Given a dump containing an instance of the following struct::
+
             struct pizza {
                 int price;
-                int *qty;
+                int qty;
             };
 
-            int quanitity = 42;
-            struct pizza mypizza = {.price = 10, .qty = &quanitity};
+        If you have a pointer to qty, you can get a pointer to price with:
 
-        qtyp = dump.address_of('quantity')
-        price = dump.read_int(gdbmi.sibling_field_addr(qtyp, 'struct pizza', 'qty', 'price'))
-
+        >>> addr = sibling_field_addr(qty, 'struct pizza', 'qty', 'price')
+        >>> price = dump.read_int(addr)
+        >>> price
+        10
         """
         return self.container_of(ptr, parent_type, member) + \
             self.field_offset(parent_type, sibling)
 
     def sizeof(self, the_type):
-        """Returns the size of the type specified by `the_type'."""
+        """Returns the size of the type specified by ``the_type``."""
         result = self._run_for_one('print /x sizeof({0})'.format(the_type))
         return gdb_hex_to_dec(result)
 
     def address_of(self, symbol):
-        """Returns the address of the specified symbol."""
+        """Returns the address of the specified symbol.
+
+        >>> hex(dump.address_of('linux_banner'))
+        '0xc0b0006a'
+        """
         result = self._run_for_one('print /x &{0}'.format(symbol))
         return int(result.split(' ')[-1], 16)
 
     def get_symbol_info(self, address):
         """Returns a GdbSymbol representing the nearest symbol found at
-        `address'."""
+        ``address``."""
         result = self._run_for_one('info symbol ' + hex(address))
         parts = result.split(' ')
         if len(parts) < 2:
@@ -205,11 +228,25 @@ class GdbMI(object):
         return GdbSymbol(symbol, section, address)
 
     def symbol_at(self, address):
-        """Get the symbol at the specified address (using `get_symbol_info')"""
+        """Get the symbol at the given address (using ``get_symbol_info``)"""
         return self.get_symbol_info(address).symbol
 
     def get_enum_lookup_table(self, enum, upperbound):
-        """Return a table translating enum values to human readable strings."""
+        """Return a table translating enum values to human readable
+        strings.
+
+        >>> dump.gdbmi.get_enum_lookup_table('ion_heap_type', 10)
+        ['ION_HEAP_TYPE_SYSTEM',
+         'ION_HEAP_TYPE_SYSTEM_CONTIG',
+         'ION_HEAP_TYPE_CARVEOUT',
+         'ION_HEAP_TYPE_CHUNK',
+         'ION_HEAP_TYPE_CUSTOM',
+         'ION_NUM_HEAPS',
+         '6',
+         '7',
+         '8',
+         '9']
+        """
         table = []
         for i in range(0, upperbound):
             result = self._run_for_first(
@@ -223,8 +260,13 @@ class GdbMI(object):
         return table
 
     def get_func_info(self, address):
-        """Returns the function info at a particular address, specifically line
-        and file."""
+        """Returns the function info at a particular address, specifically
+        line and file.
+
+        >>> dump.gdbmi.get_func_info(dump.gdbmi.address_of('panic'))
+        'Line 78 of \\"kernel/kernel/panic.c\\"'
+
+        """
         result = self._run_for_one('info line *0x{0:x}'.format(address))
         m = re.search(r'(Line \d+ of \\?\".*\\?\")', result)
         if m is not None:

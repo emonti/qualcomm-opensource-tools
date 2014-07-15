@@ -46,6 +46,7 @@ extra_mem_file_names = ['EBI1CS1.BIN', 'DDRCS1.BIN', 'ebi1_cs1.bin', 'DDRCS0_1.B
 
 
 class RamDump():
+    """The main interface to the RAM dump"""
 
     class Unwinder ():
 
@@ -555,6 +556,13 @@ class RamDump():
         self.gdbmi.close()
 
     def open_file(self, file_name, mode='wb'):
+        """Open a file in the out directory.
+
+        Example:
+
+        >>> with self.ramdump.open_file('pizza.txt') as p:
+                p.write('Pizza is the best\\n')
+        """
         file_path = os.path.join(self.outdir, file_name)
         f = None
         try:
@@ -598,6 +606,13 @@ class RamDump():
         return True
 
     def get_config_val(self, config):
+        """Gets the value of a kernel config option.
+
+        Example:
+
+        >>> va_bits = int(dump.get_config_val("CONFIG_ARM64_VA_BITS"))
+        39
+        """
         return self.config_dict.get(config)
 
     def is_config_defined(self, config):
@@ -982,6 +997,13 @@ class RamDump():
         stream.close()
 
     def address_of(self, symbol):
+        """Returns the address of a symbol.
+
+        Example:
+
+        >>> hex(dump.address_of('linux_banner'))
+        '0xffffffc000c7a0a8L'
+        """
         try:
             return self.gdbmi.address_of(symbol)
         except gdbmi.GdbMIException:
@@ -1000,40 +1022,52 @@ class RamDump():
             pass
 
     def array_index(self, addr, the_type, index):
-        """Index into the array of type `the_type' located at `addr'.
+        """Index into the array of type ``the_type`` located at ``addr``.
 
-        I.e.:
+        I.e., given::
 
-            Given:
+            int my_arr[3];
+            my_arr[2] = 42;
 
-                int my_arr[3];
-                my_arr[2] = 42;
+        You could do the following:
 
-
-            The following:
-
-                my_arr_addr = dump.address_of("my_arr")
-                dump.read_word(dump.array_index(my_arr_addr, "int", 2))
-
-        will return 42.
-
+        >>> addr = dump.address_of("my_arr")
+        >>> dump.read_word(dump.array_index(addr, "int", 2))
+        42
         """
         offset = self.gdbmi.sizeof(the_type) * index
         return addr + offset
 
     def field_offset(self, the_type, field):
+        """Gets the offset of a field from the base of its containing struct.
+
+        This can be useful when reading struct fields, although you should
+        consider using :func:`~read_structure_field` if
+        you're reading a word-sized value.
+
+        Example:
+
+        >>> dump.field_offset('struct device', 'bus')
+        168
+        """
         try:
             return self.gdbmi.field_offset(the_type, field)
         except gdbmi.GdbMIException:
             pass
 
     def container_of(self, ptr, the_type, member):
+        """Like ``container_of`` in the kernel."""
         try:
             return self.gdbmi.container_of(ptr, the_type, member)
         except gdbmi.GdbMIException:
             pass
 
     def sibling_field_addr(self, ptr, parent_type, member, sibling):
+        """Gets the address of a sibling structure field.
+
+        Given the address of some field within a structure, returns the
+        address of the requested sibling field.
+        """
         try:
             return self.gdbmi.sibling_field_addr(ptr, parent_type, member, sibling)
         except gdbmi.GdbMIException:
@@ -1111,10 +1145,12 @@ class RamDump():
         return s[0] if s is not None else None
 
     def read_byte(self, addr_or_name, virtual=True, cpu=None):
+        """Reads a single byte."""
         s = self.read_string(addr_or_name, '<B', virtual, cpu)
         return s[0] if s is not None else None
 
     def read_bool(self, addr_or_name, virtual=True, cpu=None):
+        """Reads a bool."""
         s = self.read_string(addr_or_name, '<?', virtual, cpu)
         return s[0] if s is not None else None
 
@@ -1134,7 +1170,7 @@ class RamDump():
         return s[0] if s is not None else None
 
     def read_int(self, addr_or_name, virtual=True,  cpu=None):
-        """Alias for `read_u32'"""
+        """Alias for :func:`~read_u32`"""
         return self.read_u32(addr_or_name, virtual, cpu)
 
     def read_u16(self, addr_or_name, virtual=True, cpu=None):
@@ -1143,7 +1179,7 @@ class RamDump():
         return s[0] if s is not None else None
 
     def read_pointer(self, addr_or_name, virtual=True, cpu=None):
-        """Reads `addr_or_name' as a pointer variable.
+        """Reads ``addr_or_name`` as a pointer variable.
 
         The read length is either 32-bit or 64-bit depending on the
         architecture.  This returns the *value* of the pointer variable
@@ -1167,8 +1203,8 @@ class RamDump():
     def read_structure_cstring(self, addr_or_name, struct_name, field,
                                max_length=100):
         """reads a C string from a structure field.  The C string field will be
-        dereferenced before reading, so it should be a `char *', not a
-        `char []'.
+        dereferenced before reading, so it should be a ``char *``, not a
+        ``char []``.
         """
         virt = self.resolve_virt(addr_or_name)
         cstring_addr = virt + self.field_offset(struct_name, field)
@@ -1176,6 +1212,7 @@ class RamDump():
 
     def read_cstring(self, addr_or_name, max_length=100, virtual=True,
                      cpu=None):
+        """Reads a C string."""
         addr = addr_or_name
         if virtual:
             if cpu is not None:
@@ -1213,9 +1250,9 @@ class RamDump():
         return struct.unpack(format_string, s)
 
     def hexdump(self, addr_or_name, length, virtual=True, file_object=None):
-        """Returns a string with a hexdump (in the format of `xxd').
+        """Returns a string with a hexdump (in the format of ``xxd``).
 
-        `length' is in bytes.
+        ``length`` is in bytes.
 
         Example (intentionally not in doctest format since it would require
         a specific dump to be loaded to pass as a doctest):
@@ -1251,11 +1288,19 @@ class RamDump():
         return self.read_word(per_cpu_offset_addr_indexed)
 
     def get_num_cpus(self):
+        """Gets the number of CPUs in the system."""
         cpu_present_bits_addr = self.address_of('cpu_present_bits')
         cpu_present_bits = self.read_word(cpu_present_bits_addr)
         return bin(cpu_present_bits).count('1')
 
     def iter_cpus(self):
+        """Returns an iterator over all CPUs in the system.
+
+        Example:
+
+        >>> list(dump.iter_cpus())
+        [0, 1, 2, 3]
+        """
         return xrange(self.get_num_cpus())
 
     def thread_saved_field_common_32(self, task, reg_offset):

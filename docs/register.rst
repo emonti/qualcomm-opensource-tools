@@ -1,3 +1,5 @@
+.. _`register`:
+
 register
 ========
 
