@@ -179,6 +179,19 @@ class Board8939(Board):
         self.wdog_addr = 0x8605658
         self.imem_file_name = 'OCIMEM.BIN'
 
+class Board8936(Board):
+    def __init__(self, socid):
+        super(Board8936, self).__init__()
+        self.socid = socid
+        self.board_num = 8936
+        self.cpu = 'CORTEXA53'
+        self.ram_start = 0x80000000
+        self.smem_addr = 0x6300000
+        self.phys_offset = 0x80000000
+        self.imem_start = 0x8600000
+        self.wdog_addr = 0x8605658
+        self.imem_file_name = 'OCIMEM.BIN'
+
 class Board8994(Board):
     def __init__(self, socid):
         super(Board8994, self).__init__()
@@ -199,6 +212,10 @@ boards.append(Board8939(socid=239, smem_addr=0xe200000))
 boards.append(Board8939(socid=241, smem_addr=0xe200000))
 boards.append(Board8939(socid=239, smem_addr=0x6300000))
 boards.append(Board8939(socid=241, smem_addr=0x6300000))
+boards.append(Board8936(socid=233))
+boards.append(Board8936(socid=240))
+boards.append(Board8936(socid=242))
+boards.append(Board8936(socid=243))
 boards.append(Board8974(socid=126))
 boards.append(Board8974(socid=184))
 boards.append(Board8974(socid=185))
