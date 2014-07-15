@@ -18,7 +18,7 @@ class Register(object):
     bits). Provides easy read and write access to the fields in the
     register by taking care of all bit-shifting automatically. Fields
     can be defined at __init__ time using kwargs or can be added
-    dynamically with `add_field'. Fields are accessible as instance
+    dynamically with ``add_field``. Fields are accessible as instance
     attributes.
 
     For example:
@@ -64,7 +64,7 @@ class Register(object):
     >>> hex(abc.value)
     '0x5'
 
-    We also handle `None' values:
+    We also handle ``None`` values:
 
     >>> r = Register(None, h=(3,0))
     >>> r
