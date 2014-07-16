@@ -171,7 +171,7 @@ class Board8939(Board):
         super(Board8939, self).__init__()
         self.socid = socid
         self.board_num = 8939
-        self.cpu = 'CORTEXA53'
+        self.cpu = 'CORTEXA7'
         self.ram_start = 0x80000000
         self.smem_addr = smem_addr
         self.phys_offset = 0x80000000
@@ -184,7 +184,7 @@ class Board8936(Board):
         super(Board8936, self).__init__()
         self.socid = socid
         self.board_num = 8936
-        self.cpu = 'CORTEXA53'
+        self.cpu = 'CORTEXA7'
         self.ram_start = 0x80000000
         self.smem_addr = 0x6300000
         self.phys_offset = 0x80000000
