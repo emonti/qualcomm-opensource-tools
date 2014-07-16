@@ -122,6 +122,10 @@ if __name__ == '__main__':
                       help='Run an interactive python interpreter with the ramdump loaded')
     parser.add_option('', '--classic-shell', action='store_true',
                       help='Like --shell, but forces the use of the classic python shell, even if ipython is installed')
+    parser.add_option('', '--qtf', action='store_true', dest='qtf',
+                      help='Use QTF tool to parse and save QDSS trace data')
+    parser.add_option('', '--qtf-path', dest='qtf_path',
+                      help='QTF tool executable')
 
     for p in parser_util.get_parsers():
         parser.add_option(p.shortopt or '',
@@ -263,11 +267,14 @@ if __name__ == '__main__':
         print_out_str("!!! If this tool is being run from a shared location, contact the maintainer")
         sys.exit(1)
 
+    if options.everything:
+        options.qtf = True
+
     dump = RamDump(options.vmlinux, nm_path, gdb_path, objdump_path, options.ram_addr,
-                   options.autodump, options.phys_offset, options.outdir,
+                   options.autodump, options.phys_offset, options.outdir, options.qtf_path,
                    options.force_hardware, options.force_hardware_version,
                    arm64=options.arm64,
-                   page_offset=options.page_offset)
+                   page_offset=options.page_offset, qtf=options.qtf)
 
     if options.shell or options.classic_shell:
         print("Entering interactive shell mode.")

@@ -10,6 +10,12 @@
 # GNU General Public License for more details.
 
 import struct
+import linux_list as llist
+import re
+import shutil
+import os
+import platform
+import subprocess
 
 from print_out import print_out_str
 from qdss import QDSSDump
@@ -84,6 +90,130 @@ class DebugImage_v2():
             setattr(self.qdss, 'tmc_etf_start', start)
         else:
             setattr(self.qdss, qdss_tag_to_field_name[client_name], start)
+
+    def ftrace_field_func(self, common_list, ram_dump):
+        name_offset = ram_dump.field_offset('struct ftrace_event_field', 'name')
+        type_offset = ram_dump.field_offset('struct ftrace_event_field', 'type')
+        filter_type_offset = ram_dump.field_offset('struct ftrace_event_field', 'filter_type')
+        field_offset = ram_dump.field_offset('struct ftrace_event_field', 'offset')
+        size_offset = ram_dump.field_offset('struct ftrace_event_field', 'size')
+        signed_offset = ram_dump.field_offset('struct ftrace_event_field', 'is_signed')
+
+        name = ram_dump.read_word(common_list + name_offset)
+        field_name = ram_dump.read_cstring(name, 256)
+        type_name = ram_dump.read_word(common_list + type_offset)
+        type_str = ram_dump.read_cstring(type_name, 256)
+        offset = ram_dump.read_u32(common_list + field_offset)
+        size = ram_dump.read_u32(common_list + size_offset)
+        signed = ram_dump.read_u32(common_list + signed_offset)
+
+        if re.match('(.*)\[(.*)', type_str) and not(re.match('__data_loc', type_str)):
+            s = re.split('\[', type_str)
+            s[1] = '[' + s[1]
+            self.formats_out.write("\tfield:{0} {1}{2};\toffset:{3};\tsize:{4};\tsigned:{5};\n".format(s[0], field_name, s[1], offset, size, signed))
+        else:
+            self.formats_out.write("\tfield:{0} {1};\toffset:{2};\tsize:{3};\tsigned:{4};\n".format(type_str, field_name, offset, size, signed))
+
+    def ftrace_events_func(self, ftrace_list, ram_dump):
+        name_offset = ram_dump.field_offset('struct ftrace_event_call', 'name')
+        event_offset = ram_dump.field_offset('struct ftrace_event_call', 'event')
+        fmt_offset = ram_dump.field_offset('struct ftrace_event_call', 'print_fmt')
+        class_offset = ram_dump.field_offset('struct ftrace_event_call', 'class')
+        type_offset = ram_dump.field_offset('struct trace_event', 'type')
+        fields_offset = ram_dump.field_offset('struct ftrace_event_class', 'fields')
+        common_field_list = ram_dump.addr_lookup('ftrace_common_fields')
+        field_next_offset = ram_dump.field_offset('struct ftrace_event_field', 'link')
+
+        name = ram_dump.read_word(ftrace_list + name_offset)
+        name_str = ram_dump.read_cstring(name, 512)
+        event_id = ram_dump.read_word(ftrace_list + event_offset + type_offset)
+        fmt = ram_dump.read_word(ftrace_list + fmt_offset)
+        fmt_str = ram_dump.read_cstring(fmt, 2048)
+
+        self.formats_out.write("name: {0}\n".format(name_str))
+        self.formats_out.write("ID: {0}\n".format(event_id))
+        self.formats_out.write("format:\n")
+
+        list_walker = llist.ListWalker(ram_dump, common_field_list, field_next_offset)
+        list_walker.walk_prev(common_field_list, self.ftrace_field_func, ram_dump)
+        self.formats_out.write("\n")
+
+        event_class = ram_dump.read_word(ftrace_list + class_offset)
+        field_list =  event_class + fields_offset
+        list_walker = llist.ListWalker(ram_dump, field_list, field_next_offset)
+        list_walker.walk_prev(field_list, self.ftrace_field_func, ram_dump)
+        self.formats_out.write("\n")
+        self.formats_out.write("print fmt: {0}\n".format(fmt_str))
+
+    def collect_ftrace_format(self, ram_dump):
+        formats = os.path.join(self.qtf_dir, 'map_files\\formats.txt')
+        formats_out = ram_dump.open_file(formats)
+        self.formats_out = formats_out
+
+        ftrace_events_list = ram_dump.addr_lookup('ftrace_events')
+        next_offset = ram_dump.field_offset('struct ftrace_event_call', 'list')
+        list_walker = llist.ListWalker(ram_dump, ftrace_events_list, next_offset)
+        list_walker.walk_prev(ftrace_events_list, self.ftrace_events_func, ram_dump)
+
+        self.formats_out.close
+
+    def parse_qtf(self, ram_dump):
+        if platform.system() != 'Windows':
+            return
+
+        qtf_path = ram_dump.qtf_path
+        if qtf_path is None:
+            try:
+                import local_settings
+                try:
+                    qtf_path = local_settings.qtf_path
+                except AttributeError as e:
+                    print_out_str("attribute qtf_path in local_settings.py looks bogus. Please see README.txt")
+                    print_out_str("Full message: %s" % e.message)
+                    return
+            except ImportError:
+                print_out_str("missing qtf_path local_settings.")
+                print_out_str("Please see the README for instructions on setting up local_settings.py")
+                return
+
+        if qtf_path is None:
+            print_out_str("!!! Incorrect path for qtf specified.")
+            print_out_str("!!! Please see the README for instructions on setting up local_settings.py")
+            return
+
+        if not os.path.exists(qtf_path):
+            print_out_str("!!! qtf_path {0} does not exist! Check your settings!".format(qtf_path))
+            return
+
+        if not os.access(qtf_path, os.X_OK):
+            print_out_str("!!! No execute permissions on qtf path {0}".format(qtf_path))
+            return
+
+        if os.path.getsize('tmc-etf.bin') > 0:
+            trace_file = 'tmc-etf.bin'
+        elif os.path.getsize('tmc-etr.bin') > 0:
+            trace_file = 'tmc-etr.bin'
+        else:
+            return
+
+        port = 12345
+        qtf_dir = 'qtf'
+        workspace = os.path.join(qtf_dir, 'qtf.workspace')
+        qtf_out = 'qtf.txt'
+        chipset = 'msm' + str(ram_dump.hw_id)
+        hlos = 'LA'
+
+        p = subprocess.Popen([qtf_path, '-s', '{0}'.format(port)])
+        subprocess.call('{0} -c {1} new workspace {2} {3} {4}'.format(qtf_path, port, qtf_dir, chipset, hlos))
+
+        self.qtf_dir = qtf_dir
+        self.collect_ftrace_format(ram_dump)
+
+        subprocess.call('{0} -c {1} open workspace {2}'.format(qtf_path, port, workspace))
+        subprocess.call('{0} -c {1} open bin {2}'.format(qtf_path, port, trace_file))
+        subprocess.call('{0} -c {1} stream trace table {2}'.format(qtf_path, port, qtf_out))
+        subprocess.call('{0} -c {1} exit'.format(qtf_path, port))
+        p.communicate('quit')
 
     def parse_dump_v2(self, ram_dump):
         self.dump_type_lookup_table = ram_dump.gdbmi.get_enum_lookup_table(
@@ -241,3 +371,5 @@ class DebugImage_v2():
                                                  client_id, ram_dump)
 
             self.qdss.dump_all(ram_dump)
+            if ram_dump.qtf:
+                self.parse_qtf(ram_dump)
