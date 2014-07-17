@@ -436,7 +436,7 @@ class RamDump():
                 if urc < 0:
                     break
 
-    def __init__(self, vmlinux_path, nm_path, gdb_path, objdump_path, ebi, file_path, phys_offset, outdir, hw_id=None, hw_version=None, arm64=False, page_offset=None):
+    def __init__(self, vmlinux_path, nm_path, gdb_path, objdump_path, ebi, file_path, phys_offset, outdir, qtf_path, hw_id=None, hw_version=None, arm64=False, page_offset=None, qtf=False):
         self.ebi_files = []
         self.phys_offset = None
         self.tz_start = 0
@@ -456,6 +456,8 @@ class RamDump():
         self.arm64 = arm64
         self.page_offset = 0xc0000000
         self.thread_size = 8192
+        self.qtf_path = qtf_path
+        self.qtf = qtf
         if ebi is not None:
             # TODO sanity check to make sure the memory regions don't overlap
             for file_path, start, end in ebi:

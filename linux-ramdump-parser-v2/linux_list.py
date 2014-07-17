@@ -58,3 +58,30 @@ class ListWalker(object):
                 break
             node_addr = next_node
             self.seen_nodes.append(node_addr)
+
+    def walk_prev(self, node_addr, func, *args):
+        """Walk the linked list starting at `node_addr' previous node and traverse the list in
+        reverse order, calling `func' on each node. `func' will be passed the current node and *args,
+        if given.
+
+        """
+        node_addr = self.ram_dump.read_word(node_addr + self.ram_dump.field_offset('struct list_head', 'prev'))
+        while True:
+            if node_addr == 0:
+                break
+
+            funcargs = [node_addr - self.list_elem_offset] + list(args)
+            func(*funcargs)
+
+            prev_node_addr = node_addr + self.ram_dump.field_offset('struct list_head', 'prev')
+            prev_node = self.ram_dump.read_word(prev_node_addr)
+
+            if prev_node == self.last_node:
+                break
+
+            if prev_node in self.seen_nodes:
+                print_out_str(
+                   '[!] WARNING: Cycle found in attach list. List is corrupted!')
+                break
+            node_addr = prev_node
+            self.seen_nodes.append(node_addr)
