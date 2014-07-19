@@ -695,7 +695,7 @@ class RamDump():
 
         startup_script = open(out_path + '/t32_startup_script.cmm', 'wb')
 
-        if self.arm64 and self.hw_id == 8916:
+        if self.arm64 and (self.hw_id == 8916 or self.hw_id == 8939 or self.hw_id == 8936):
             startup_script.write('sys.cpu CORTEXA53\n'.encode('ascii', 'ignore'))
         else:
             startup_script.write('sys.cpu {0}\n'.format(self.cpu_type).encode('ascii', 'ignore'))
@@ -765,7 +765,7 @@ class RamDump():
         t32_bat = open(out_path + '/launch_t32.bat', 'wb')
         if self.arm64:
             t32_binary = 'C:\\T32\\bin\\windows64\\t32MARM64.exe'
-        elif self.hw_id == 8916:
+        elif self.hw_id == 8916 or self.hw_id == 8939 or self.hw_id == 8936:
             t32_binary = 'C:\\T32\\bin\\windows64\\t32MARM.exe'
         else:
             t32_binary = 'c:\\t32\\t32MARM.exe'
