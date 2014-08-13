@@ -29,8 +29,6 @@ SP = 13
 LR = 14
 PC = 15
 
-launch_config_str = 'OS=\nID=T32_1000002\nTMP=C:\\TEMP\nSYS=C:\\T32\nHELP=C:\\T32\\pdf\n\nPBI=SIM\nSCREEN=\nFONT=SMALL\nHEADER=Trace32-ScorpionSimulator\nPRINTER=WINDOWS'
-
 # The smem code is very stable and unlikely to go away or be changed.
 # Rather than go through the hassel of parsing the id through gdb,
 # just hard code it
@@ -689,8 +687,25 @@ class RamDump():
     # TODO support linux launcher, for when linux T32 actually happens
     def create_t32_launcher(self):
         out_path = self.outdir
+
         launch_config = open(out_path + '/t32_config.t32', 'wb')
-        launch_config.write(launch_config_str.encode('ascii', 'ignore'))
+        launch_config.write('OS=\n')
+        launch_config.write('ID=T32_1000002\n')
+        launch_config.write('TMP=C:\\TEMP\n')
+        launch_config.write('SYS=C:\\T32\n')
+        launch_config.write('HELP=C:\\T32\\pdf\n')
+        launch_config.write('\n')
+        launch_config.write('PBI=SIM\n')
+        launch_config.write('SCREEN=\n')
+        launch_config.write('FONT=SMALL\n')
+        launch_config.write('HEADER=Trace32-ScorpionSimulator\n')
+        launch_config.write('PRINTER=WINDOWS\n')
+        launch_config.write('\n')
+        launch_config.write('RCL=NETASSIST\n')
+        launch_config.write('PACKLEN=1024\n')
+        launch_config.write('PORT=20000\n')
+        launch_config.write('\n')
+
         launch_config.close()
 
         startup_script = open(out_path + '/t32_startup_script.cmm', 'wb')
