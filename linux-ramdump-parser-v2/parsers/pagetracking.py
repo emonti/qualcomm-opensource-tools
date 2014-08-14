@@ -39,8 +39,6 @@ class PageTracking(RamParser):
         out_frequency = self.ramdump.open_file('page_frequency.txt')
         sorted_pages = {}
 
-        print 'min {0:x} max {1:x}'.format(min_pfn, max_pfn)
-
         for pfn in range(min_pfn, max_pfn):
             page = pfn_to_page(self.ramdump, pfn)
 
