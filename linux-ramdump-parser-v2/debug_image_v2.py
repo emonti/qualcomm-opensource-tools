@@ -146,7 +146,7 @@ class DebugImage_v2():
         self.formats_out.write("print fmt: {0}\n".format(fmt_str))
 
     def collect_ftrace_format(self, ram_dump):
-        formats = os.path.join(self.qtf_dir, 'map_files\\formats.txt')
+        formats = os.path.join('qtf', 'map_files', 'formats.txt')
         formats_out = ram_dump.open_file(formats)
         self.formats_out = formats_out
 
@@ -158,6 +158,7 @@ class DebugImage_v2():
         self.formats_out.close
 
     def parse_qtf(self, ram_dump):
+        out_dir = ram_dump.outdir
         if platform.system() != 'Windows':
             return
 
@@ -189,24 +190,23 @@ class DebugImage_v2():
             print_out_str("!!! No execute permissions on qtf path {0}".format(qtf_path))
             return
 
-        if os.path.getsize('tmc-etf.bin') > 0:
-            trace_file = 'tmc-etf.bin'
-        elif os.path.getsize('tmc-etr.bin') > 0:
-            trace_file = 'tmc-etr.bin'
+        if os.path.getsize(os.path.join(out_dir, 'tmc-etf.bin')) > 0:
+            trace_file = os.path.join(out_dir, 'tmc-etf.bin')
+        elif os.path.getsize(os.path.join(out_dir, 'tmc-etr.bin')) > 0:
+            trace_file = os.path.join(out_dir, 'tmc-etr.bin')
         else:
             return
 
         port = 12345
-        qtf_dir = 'qtf'
+        qtf_dir = os.path.join(out_dir, 'qtf')
         workspace = os.path.join(qtf_dir, 'qtf.workspace')
-        qtf_out = 'qtf.txt'
+        qtf_out = os.path.join(out_dir, 'qtf.txt')
         chipset = 'msm' + str(ram_dump.hw_id)
         hlos = 'LA'
 
         p = subprocess.Popen([qtf_path, '-s', '{0}'.format(port)])
         subprocess.call('{0} -c {1} new workspace {2} {3} {4}'.format(qtf_path, port, qtf_dir, chipset, hlos))
 
-        self.qtf_dir = qtf_dir
         self.collect_ftrace_format(ram_dump)
 
         subprocess.call('{0} -c {1} open workspace {2}'.format(qtf_path, port, workspace))
