@@ -14,20 +14,36 @@ from print_out import print_out_str
 from parser_util import register_parser, RamParser, cleanupString
 
 def find_panic(ramdump, addr_stack, thread_task_name):
-    for i in range(addr_stack, addr_stack + 0x2000, 4):
-        pc = ramdump.read_word(i)
-        lr = ramdump.read_word(i + 4)
-        spx = ramdump.read_word(i + 8)
+    if ramdump.arm64:
+        stack_size = 0x4000
+        increment = 8
+    else:
+        stack_size = 0x2000
+        increment = 4
+    for i in range(addr_stack, addr_stack + stack_size, increment):
+        if ramdump.arm64:
+            pc = ramdump.read_word(i + 8) - 4
+            fp = ramdump.read_word(i)
+            spx = i + 16
+            lr = 0
+        else:
+            pc = ramdump.read_word(i)
+            lr = ramdump.read_word(i + 4)
+            spx = i + 4
+            fp = 0
         l = ramdump.unwind_lookup(pc)
         if l is not None:
             s, offset = l
             if s == 'panic':
-                print_out_str('Faulting process found! Name {0}. Attempting to retrieve stack (sp = {1:x} pc = {2:x})'.format(
-                    thread_task_name, i + 4, pc))
-                ramdump.unwind.unwind_backtrace(i + 4, 0, pc, lr, '')
+                print_out_str('Faulting process found! Name {0})'.format(thread_task_name))
+                ramdump.unwind.unwind_backtrace(spx, fp, pc, lr, '')
                 regspanic = ramdump.open_file('regs_panic.cmm')
-                regspanic.write('r.s pc 0x{0:x}\n'.format(pc))
-                regspanic.write('r.s r13 0x{0:x}\n'.format(i + 4))
+                if ramdump.arm64:
+                    regspanic.write('r.s pc 0x{0:x}\n'.format(pc))
+                    regspanic.write('r.s sp 0x{0:x}\n'.format(spx))
+                else:
+                    regspanic.write('r.s pc 0x{0:x}\n'.format(pc))
+                    regspanic.write('r.s r13 0x{0:x}\n'.format(i + 4))
                 regspanic.close()
                 return True
     return False
