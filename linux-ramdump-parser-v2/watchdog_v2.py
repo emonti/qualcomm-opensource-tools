@@ -273,7 +273,6 @@ class TZRegDump_v2():
         secure_regs.close()
 
     def dump_core_pc(self, ram_dump):
-        print ''
         pc = self.core_regs.regs['pc']
         if ram_dump.arm64:
             lr = self.core_regs.regs['x30']
