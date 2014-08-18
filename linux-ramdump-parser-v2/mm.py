@@ -12,7 +12,7 @@
 
 def page_buddy(ramdump, page):
     mapcount_offset = ramdump.field_offset('struct page', '_mapcount')
-    val = ramdump.read_word(page + mapcount_offset)
+    val = ramdump.read_int(page + mapcount_offset)
     # -128 is the magic for in the buddy allocator
     return val == 0xffffff80
 
@@ -41,6 +41,9 @@ def page_zone(ramdump, page):
 
 
 def zone_is_highmem(ramdump, zone):
+    if not ramdump.is_config_defined('CONFIG_HIGHMEM'):
+        return False
+
     if zone is None:
         return False
     # not at all how linux does it but it works for our purposes...
@@ -119,6 +122,22 @@ def page_to_pfn_sparse(ramdump, page):
     # divide by struct page size for division fun
     return (page - addr) / sizeof_page
 
+# Yes, we are hard coding the vmemmap. This isn't very likely to change unless
+# the rest of the addresses start changing as well. When that happens, the
+# entire parser will probably be broken in many other ways so a better solution
+# can be derived then.
+def page_to_pfn_vmemmap(ramdump, page):
+    mem_map = 0xffffffbc00000000
+    page_size = ramdump.sizeof('struct page')
+    return ((page - mem_map) / page_size)
+
+
+def pfn_to_page_vmemmap(ramdump, pfn):
+    mem_map = 0xffffffbc00000000
+    page_size = ramdump.sizeof('struct page')
+    pfn_offset = ramdump.phys_offset >> 12
+    return mem_map + (pfn * page_size)
+
 
 def page_to_pfn_flat(ramdump, page):
     mem_map_addr = ramdump.addr_lookup('mem_map')
@@ -139,6 +158,8 @@ def pfn_to_page_flat(ramdump, pfn):
 
 
 def page_to_pfn(ramdump, page):
+    if ramdump.arm64:
+        return page_to_pfn_vmemmap(ramdump, page)
     if ramdump.is_config_defined('CONFIG_SPARSEMEM'):
         return page_to_pfn_sparse(ramdump, page)
     else:
@@ -146,6 +167,8 @@ def page_to_pfn(ramdump, page):
 
 
 def pfn_to_page(ramdump, pfn):
+    if ramdump.arm64:
+        return pfn_to_page_vmemmap(ramdump, pfn)
     if ramdump.is_config_defined('CONFIG_SPARSEMEM'):
         return pfn_to_page_sparse(ramdump, pfn)
     else:
@@ -157,7 +180,7 @@ def sparsemem_lowmem_page_address(ramdump, page):
     membank0_size = ramdump.read_word(ramdump.addr_lookup('membank0_size'))
     # XXX currently magic
     membank0_phys_offset = ramdump.phys_offset
-    membank0_page_offset = 0xc0000000
+    membank0_page_offset = ramdump.page_offset
     membank1_phys_offset = membank1_start
     membank1_page_offset = membank0_page_offset + membank0_size
     phys = page_to_pfn(ramdump, page) << 12
@@ -178,18 +201,18 @@ def dont_map_hole_lowmem_page_address(ramdump, page):
     hole_end = ramdump.read_word(hole_end_addr)
     hole_offset = ramdump.read_word(hole_offset_addr)
     if hole_end != 0 and phys >= hole_end:
-        return phys - hole_end + hole_offset + 0xc0000000
+        return phys - hole_end + hole_offset + ramdump.page_offset
     else:
-        return phys - ramdump.phys_offset + 0xc0000000
+        return phys - ramdump.phys_offset + ramdump.page_offset
 
 
 def normal_lowmem_page_address(ramdump, page):
     phys = page_to_pfn(ramdump, page) << 12
-    return phys - ramdump.phys_offset + 0xc0000000
+    return phys - ramdump.phys_offset + ramdump.page_offset
 
 
 def lowmem_page_address(ramdump, page):
-    if ramdump.is_config_defined('CONFIG_SPARSEMEM'):
+    if ramdump.is_config_defined('CONFIG_SPARSEMEM') and not ramdump.arm64:
         return sparsemem_lowmem_page_address(ramdump, page)
     elif ramdump.is_config_defined('CONFIG_DONT_MAP_HOLE_AFTER_MEMBANK0'):
         return dont_map_hole_lowmem_page_address(ramdump, page)
