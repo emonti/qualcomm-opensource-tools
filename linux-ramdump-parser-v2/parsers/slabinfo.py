@@ -29,7 +29,7 @@ class Slabinfo(RamParser):
     def slab_index(self, ramdump, p, addr, slab):
         slab_size_offset = self.ramdump.field_offset(
             'struct kmem_cache', 'size')
-        slab_size = self.ramdump.read_word(slab + slab_size_offset)
+        slab_size = self.ramdump.read_int(slab + slab_size_offset)
         if slab_size is None:
             return -1
         return (p - addr) / slab_size
@@ -56,10 +56,10 @@ class Slabinfo(RamParser):
             'struct kmem_cache', 'offset')
         slab_inuse_offset = self.ramdump.field_offset(
             'struct kmem_cache', 'inuse')
-        slab_offset = self.ramdump.read_word(slab + slab_offset_offset)
-        slab_inuse = self.ramdump.read_word(slab + slab_inuse_offset)
+        slab_offset = self.ramdump.read_int(slab + slab_offset_offset)
+        slab_inuse = self.ramdump.read_int(slab + slab_inuse_offset)
         if slab_offset != 0:
-            p = obj + slab_offset + 4
+            p = obj + slab_offset + self.ramdump.sizeof("void *")
         else:
             p = obj + slab_inuse
         return p + track_type * track_size
@@ -68,12 +68,13 @@ class Slabinfo(RamParser):
         p = self.get_track(self.ramdump, slab, obj, track_type)
         track_addrs_offset = self.ramdump.field_offset('struct track', 'addrs')
         start = p + track_addrs_offset
+        pointer_size = self.ramdump.sizeof("unsigned long")
         if track_type == 0:
             out_file.write('   ALLOC STACK\n')
         else:
             out_file.write('   FREE STACK\n')
         for i in range(0, 16):
-            a = self.ramdump.read_word(start + 4 * i)
+            a = self.ramdump.read_word(start + pointer_size * i)
             if a == 0:
                 break
             look = self.ramdump.unwind_lookup(a)
@@ -95,7 +96,7 @@ class Slabinfo(RamParser):
             # offset is always 0. Work around this for now
             map_count_offset = self.ramdump.field_offset(
                 'struct page', '_mapcount')
-            count = self.ramdump.read_word(page + map_count_offset)
+            count = self.ramdump.read_int(page + map_count_offset)
             if count is None:
                 return None
             n_objects = (count >> 16) & 0xFFFF
@@ -110,7 +111,7 @@ class Slabinfo(RamParser):
             return
         slab_size_offset = self.ramdump.field_offset(
             'struct kmem_cache', 'size')
-        slab_size = self.ramdump.read_word(slab + slab_size_offset)
+        slab_size = self.ramdump.read_int(slab + slab_size_offset)
         if slab_size is None:
             return
         slab_max_offset = self.ramdump.field_offset('struct kmem_cache', 'max')
@@ -216,8 +217,7 @@ class Slabinfo(RamParser):
                     self.ramdump, slab, slab_node, slab_node_addr + slab_full_offset, slab_out)
 
             for i in range(0, cpus):
-                cpu_slabn_addr = cpu_slab_addr + \
-                    self.ramdump.read_word(per_cpu_offset + 4 * i)
+                cpu_slabn_addr = self.ramdump.read_word(cpu_slab_addr, cpu=i)
                 self.print_per_cpu_slab_info(
                     self.ramdump, slab, slab_node, cpu_slabn_addr + cpu_cache_page_offset, slab_out)
 
