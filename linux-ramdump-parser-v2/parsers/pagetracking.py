@@ -38,6 +38,7 @@ class PageTracking(RamParser):
         out_tracking = self.ramdump.open_file('page_tracking.txt')
         out_frequency = self.ramdump.open_file('page_frequency.txt')
         sorted_pages = {}
+        trace_entry_size = self.ramdump.sizeof("unsigned long")
 
         for pfn in range(min_pfn, max_pfn):
             page = pfn_to_page(self.ramdump, pfn)
@@ -46,7 +47,7 @@ class PageTracking(RamParser):
             if page_buddy(self.ramdump, page):
                 continue
 
-            nr_trace_entries = self.ramdump.read_word(
+            nr_trace_entries = self.ramdump.read_int(
                 page + trace_offset + nr_entries_offset)
 
             if nr_trace_entries <= 0 or nr_trace_entries > 16:
@@ -57,7 +58,7 @@ class PageTracking(RamParser):
             alloc_str = ''
             for i in range(0, nr_trace_entries):
                 addr = self.ramdump.read_word(
-                    page + trace_entries_offset + i * 4)
+                    page + trace_entries_offset + i * trace_entry_size)
 
                 if addr == 0:
                     break
