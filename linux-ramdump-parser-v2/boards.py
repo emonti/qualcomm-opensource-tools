@@ -163,7 +163,7 @@ class Board8916(Board):
         self.smem_addr = smem_addr
         self.phys_offset = 0x80000000
         self.imem_start = 0x8600000
-        self.wdog_addr = 0x8605658
+        self.wdog_addr = 0x8600658
         self.imem_file_name = 'OCIMEM.BIN'
 
 class Board8939(Board):
@@ -176,7 +176,7 @@ class Board8939(Board):
         self.smem_addr = smem_addr
         self.phys_offset = 0x80000000
         self.imem_start = 0x8600000
-        self.wdog_addr = 0x8605658
+        self.wdog_addr = 0x8600658
         self.imem_file_name = 'OCIMEM.BIN'
 
 class Board8936(Board):
@@ -189,7 +189,7 @@ class Board8936(Board):
         self.smem_addr = 0x6300000
         self.phys_offset = 0x80000000
         self.imem_start = 0x8600000
-        self.wdog_addr = 0x8605658
+        self.wdog_addr = 0x8600658
         self.imem_file_name = 'OCIMEM.BIN'
 
 class Board8994(Board):
