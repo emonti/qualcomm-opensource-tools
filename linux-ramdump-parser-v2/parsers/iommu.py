@@ -90,7 +90,7 @@ class IOMMU(RamParser):
     def print_sl_page_table(self, pg_table):
         sl_pte = pg_table
         for i in range(0, self.NUM_SL_PTE):
-            phy_addr = self.ramdump.read_word(sl_pte, False)
+            phy_addr = self.ramdump.read_u32(sl_pte, False)
             if phy_addr is not None:  # and phy_addr & self.SL_TYPE_SMALL:
                 read_write = '[R/W]'
                 if phy_addr & self.SL_AP2:
@@ -111,7 +111,7 @@ class IOMMU(RamParser):
         fl_pte = pg_table
         for i in range(0, self.NUM_FL_PTE):
         # for i in range(0,5):
-            sl_pg_table_phy_addr = self.ramdump.read_word(fl_pte)
+            sl_pg_table_phy_addr = self.ramdump.read_u32(fl_pte)
             if sl_pg_table_phy_addr is not None:
                 if sl_pg_table_phy_addr & self.FL_TYPE_TABLE:
                     self.out_file.write('FL_PTE[%d] = %x [4K/64K]\n' %
@@ -134,7 +134,7 @@ class IOMMU(RamParser):
 
     def get_mapping_info(self, pg_table, index):
         sl_pte = pg_table + (index * 4)
-        phy_addr = self.ramdump.read_word(sl_pte, False)
+        phy_addr = self.ramdump.read_u32(sl_pte, False)
         current_phy_addr = -1
         current_page_size = SZ_4K
         current_map_type = 0
@@ -201,7 +201,7 @@ class IOMMU(RamParser):
         tmp_mapping = {}
         fl_pte = pg_table
         for fl_index in range(0, self.NUM_FL_PTE):
-            fl_pg_table_entry = self.ramdump.read_word(fl_pte)
+            fl_pg_table_entry = self.ramdump.read_u32(fl_pte)
 
             if fl_pg_table_entry is not None:
                 if fl_pg_table_entry & self.FL_TYPE_SECT:
