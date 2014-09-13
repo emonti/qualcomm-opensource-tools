@@ -22,9 +22,12 @@ from qdss import QDSSDump
 from watchdog_v2 import TZRegDump_v2
 
 MEMDUMPV2_MAGIC = 0x42445953
+MAX_NUM_ENTRIES = 0x130
 
 class client(object):
     MSM_DUMP_DATA_CPU_CTX = 0x00
+    MSM_DUMP_DATA_L1_INST_TLB = 0x20
+    MSM_DUMP_DATA_L1_DATA_TLB = 0x40
     MSM_DUMP_DATA_L1_INST_CACHE = 0x60
     MSM_DUMP_DATA_L1_DATA_CACHE = 0x80
     MSM_DUMP_DATA_ETM_REG = 0xA0
@@ -36,10 +39,13 @@ class client(object):
     MSM_DUMP_DATA_TMC_ETF_REG = 0x101
     MSM_DUMP_DATA_LOG_BUF = 0x110
     MSM_DUMP_DATA_LOG_BUF_FIRST_IDX = 0x111
-    MSM_DUMP_DATA_MAX = 0x112
+    MSM_DUMP_DATA_L2_TLB = 0x120
+    MSM_DUMP_DATA_MAX = MAX_NUM_ENTRIES
 
 client_table = {
     'MSM_DUMP_DATA_CPU_CTX': 'parse_cpu_ctx',
+    'MSM_DUMP_DATA_L1_INST_TLB': 'parse_l1_inst_tlb',
+    'MSM_DUMP_DATA_L1_DATA_TLB': 'parse_l1_data_tlb',
     'MSM_DUMP_DATA_L1_INST_CACHE': 'parse_l1_inst_cache',
     'MSM_DUMP_DATA_L1_DATA_CACHE': 'parse_l1_data_cache',
     'MSM_DUMP_DATA_ETM_REG': 'parse_qdss_common',
@@ -48,6 +54,7 @@ client_table = {
     'MSM_DUMP_DATA_OCMEM': 'parse_ocmem',
     'MSM_DUMP_DATA_TMC_ETF': 'parse_qdss_common',
     'MSM_DUMP_DATA_TMC_REG': 'parse_qdss_common',
+    'MSM_DUMP_DATA_L2_TLB': 'parse_l2_tlb',
 }
 
 qdss_tag_to_field_name = {
@@ -219,9 +226,9 @@ class DebugImage_v2():
         self.dump_type_lookup_table = ram_dump.gdbmi.get_enum_lookup_table(
             'msm_dump_type', 2)
         self.dump_table_id_lookup_table = ram_dump.gdbmi.get_enum_lookup_table(
-            'msm_dump_table_ids', 0x110)
+            'msm_dump_table_ids', MAX_NUM_ENTRIES)
         self.dump_data_id_lookup_table = ram_dump.gdbmi.get_enum_lookup_table(
-            'msm_dump_data_ids', 0x112)
+            'msm_dump_data_ids', MAX_NUM_ENTRIES)
         cpu_present_bits = ram_dump.read_word('cpu_present_bits')
         cpus = bin(cpu_present_bits).count('1')
         # per cpu entries
@@ -229,6 +236,10 @@ class DebugImage_v2():
 
                 self.dump_data_id_lookup_table[
                     client.MSM_DUMP_DATA_CPU_CTX + i] = 'MSM_DUMP_DATA_CPU_CTX'
+                self.dump_data_id_lookup_table[
+                    client.MSM_DUMP_DATA_L1_INST_TLB + i] = 'MSM_DUMP_DATA_L1_INST_TLB'
+                self.dump_data_id_lookup_table[
+                    client.MSM_DUMP_DATA_L1_DATA_TLB + i] = 'MSM_DUMP_DATA_L1_DATA_TLB'
                 self.dump_data_id_lookup_table[
                     client.MSM_DUMP_DATA_L1_INST_CACHE + i] = 'MSM_DUMP_DATA_L1_INST_CACHE'
                 self.dump_data_id_lookup_table[
@@ -242,6 +253,8 @@ class DebugImage_v2():
             client.MSM_DUMP_DATA_LOG_BUF] = 'MSM_DUMP_DATA_LOG_BUF'
         self.dump_data_id_lookup_table[
             client.MSM_DUMP_DATA_LOG_BUF_FIRST_IDX] = 'MSM_DUMP_DATA_LOG_BUF_FIRST_IDX'
+        self.dump_data_id_lookup_table[
+            client.MSM_DUMP_DATA_L2_TLB] = 'MSM_DUMP_DATA_L2_TLB'
         dump_table_ptr_offset = ram_dump.field_offset(
             'struct msm_memory_dump', 'table')
         dump_table_version_offset = ram_dump.field_offset(
