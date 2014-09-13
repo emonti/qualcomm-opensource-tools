@@ -48,7 +48,6 @@ client_table = {
     'MSM_DUMP_DATA_L1_DATA_TLB': 'parse_l1_data_tlb',
     'MSM_DUMP_DATA_L1_INST_CACHE': 'parse_l1_inst_cache',
     'MSM_DUMP_DATA_L1_DATA_CACHE': 'parse_l1_data_cache',
-    'MSM_DUMP_DATA_ETM_REG': 'parse_qdss_common',
     'MSM_DUMP_DATA_L2_CACHE': 'parse_l2_cache',
     'MSM_DUMP_DATA_L3_CACHE': 'parse_l3_cache',
     'MSM_DUMP_DATA_OCMEM': 'parse_ocmem',
@@ -60,10 +59,6 @@ client_table = {
 qdss_tag_to_field_name = {
     'MSM_DUMP_DATA_TMC_REG': 'tmc_etr_start',
     'MSM_DUMP_DATA_TMC_ETF': 'etf_start',
-    'MSM_ETM0_REG': 'etm_regs0',
-    'MSM_ETM1_REG': 'etm_regs1',
-    'MSM_ETM2_REG': 'etm_regs2',
-    'MSM_ETM3_REG': 'etm_regs3',
 }
 
 class DebugImage_v2():
