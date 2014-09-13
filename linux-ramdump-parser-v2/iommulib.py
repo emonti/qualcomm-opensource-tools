@@ -39,13 +39,13 @@ class IommuLib(object):
             node + self.ramdump.field_offset('struct msm_iommu_ctx_drvdata', 'name'))
         ctxdrvdata_num_offset = self.ramdump.field_offset(
             'struct msm_iommu_ctx_drvdata', 'num')
-        num = self.ramdump.read_word(node + ctxdrvdata_num_offset)
+        num = self.ramdump.read_u32(node + ctxdrvdata_num_offset)
         if ctx_drvdata_name_ptr != 0:
             name = self.ramdump.read_cstring(ctx_drvdata_name_ptr, 100)
             ctx_list.append((num, name))
 
     def _iommu_domain_func(self, node, domain_list):
-        domain_num = self.ramdump.read_word(self.ramdump.sibling_field_addr(
+        domain_num = self.ramdump.read_u32(self.ramdump.sibling_field_addr(
             node, 'struct msm_iova_data', 'node', 'domain_num'))
         domain = self.ramdump.read_word(self.ramdump.sibling_field_addr(
             node, 'struct msm_iova_data', 'node', 'domain'))
@@ -81,13 +81,13 @@ class IommuLib(object):
         if priv_pt_offset is not None:
             pg_table = self.ramdump.read_word(
                 priv_ptr + priv_pt_offset + pgtable_offset)
-            redirect = self.ramdump.read_word(
+            redirect = self.ramdump.read_u32(
                 priv_ptr + priv_pt_offset + redirect_offset)
         else:
             # On some builds we are unable to look up the offsets so hardcode
             # the offsets.
             pg_table = self.ramdump.read_word(priv_ptr + 0)
-            redirect = self.ramdump.read_word(priv_ptr + self.ramdump.sizeof('void *'))
+            redirect = self.ramdump.read_u32(priv_ptr + self.ramdump.sizeof('void *'))
 
             # Note: On some code bases we don't have this pg_table and redirect in the priv structure (see msm_iommu_sec.c). It only
             # contains list_attached. If this is the case we can detect that by checking whether
