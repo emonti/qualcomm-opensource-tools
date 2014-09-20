@@ -16,6 +16,7 @@ import struct
 import gzip
 import functools
 import string
+import random
 from boards import get_supported_boards, get_supported_ids
 from tempfile import NamedTemporaryFile
 
@@ -703,7 +704,7 @@ class RamDump():
         launch_config.write('\n')
         launch_config.write('RCL=NETASSIST\n')
         launch_config.write('PACKLEN=1024\n')
-        launch_config.write('PORT=20000\n')
+        launch_config.write('PORT=%d\n' % random.randint(20000, 30000))
         launch_config.write('\n')
 
         launch_config.close()
