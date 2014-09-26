@@ -17,6 +17,9 @@ import gzip
 import functools
 import string
 import random
+import platform
+import stat
+
 from boards import get_supported_boards, get_supported_ids
 from tempfile import NamedTemporaryFile
 
@@ -435,7 +438,10 @@ class RamDump():
                 if urc < 0:
                     break
 
-    def __init__(self, vmlinux_path, nm_path, gdb_path, objdump_path, ebi, file_path, phys_offset, outdir, qtf_path, hw_id=None, hw_version=None, arm64=False, page_offset=None, qtf=False):
+    def __init__(self, vmlinux_path, nm_path, gdb_path, objdump_path, ebi,
+                 file_path, phys_offset, outdir, qtf_path, hw_id=None,
+                 hw_version=None, arm64=False, page_offset=None, qtf=False,
+                 t32_host_system=None):
         self.ebi_files = []
         self.phys_offset = None
         self.tz_start = 0
@@ -457,6 +463,7 @@ class RamDump():
         self.thread_size = 8192
         self.qtf_path = qtf_path
         self.qtf = qtf
+        self.t32_host_system = t32_host_system
         if ebi is not None:
             # TODO sanity check to make sure the memory regions don't overlap
             for file_path, start, end in ebi:
@@ -685,16 +692,22 @@ class RamDump():
                     (imemc, imemc_start, imemc_end, imemc_path))
         return True
 
-    # TODO support linux launcher, for when linux T32 actually happens
     def create_t32_launcher(self):
         out_path = self.outdir
+
+        t32_host_system = self.t32_host_system or platform.system()
 
         launch_config = open(out_path + '/t32_config.t32', 'wb')
         launch_config.write('OS=\n')
         launch_config.write('ID=T32_1000002\n')
-        launch_config.write('TMP=C:\\TEMP\n')
-        launch_config.write('SYS=C:\\T32\n')
-        launch_config.write('HELP=C:\\T32\\pdf\n')
+        if t32_host_system != 'Linux':
+            launch_config.write('TMP=C:\\TEMP\n')
+            launch_config.write('SYS=C:\\T32\n')
+            launch_config.write('HELP=C:\\T32\\pdf\n')
+        else:
+            launch_config.write('TMP=/tmp\n')
+            launch_config.write('SYS=/opt/t32\n')
+            launch_config.write('HELP=/opt/t32/pdf\n')
         launch_config.write('\n')
         launch_config.write('PBI=SIM\n')
         launch_config.write('SCREEN=\n')
@@ -711,7 +724,9 @@ class RamDump():
 
         startup_script = open(out_path + '/t32_startup_script.cmm', 'wb')
 
-        if self.arm64 and (self.hw_id == 8916 or self.hw_id == 8939 or self.hw_id == 8936):
+        is_cortex_a53 = self.hw_id == 8916 or self.hw_id == 8939 or self.hw_id == 8936
+
+        if self.arm64 and is_cortex_a53:
             startup_script.write('sys.cpu CORTEXA53\n'.encode('ascii', 'ignore'))
         else:
             startup_script.write('sys.cpu {0}\n'.format(self.cpu_type).encode('ascii', 'ignore'))
@@ -724,7 +739,7 @@ class RamDump():
         if self.arm64:
             startup_script.write('Register.Set NS 1\n'.encode('ascii', 'ignore'))
 
-            if self.hw_id == 8916 or self.hw_id == 8939:
+            if is_cortex_a53:
                 startup_script.write('Data.Set SPR:0x30201 %Quad 0x000000008007D000\n'.encode('ascii', 'ignore'))
                 startup_script.write('Data.Set SPR:0x30202 %Quad 0x00000012B5193519\n'.encode('ascii', 'ignore'))
                 startup_script.write('Data.Set SPR:0x30A20 %Quad 0x000000FF440C0400\n'.encode('ascii', 'ignore'))
@@ -757,16 +772,30 @@ class RamDump():
             startup_script.write('mmu.scan\n'.encode('ascii', 'ignore'))
         startup_script.write(
             ('data.load.elf ' + os.path.abspath(self.vmlinux) + ' /nocode\n').encode('ascii', 'ignore'))
-        if self.arm64:
-            startup_script.write(
-                 'task.config C:\\T32\\demo\\arm64\\kernel\\linux\\linux-3.x\\linux3.t32\n'.encode('ascii', 'ignore'))
-            startup_script.write(
-                 'menu.reprogram C:\\T32\\demo\\arm64\\kernel\\linux\\linux-3.x\\linux.men\n'.encode('ascii', 'ignore'))
+
+        if t32_host_system != 'Linux':
+            if self.arm64:
+                startup_script.write(
+                     'task.config C:\\T32\\demo\\arm64\\kernel\\linux\\linux-3.x\\linux3.t32\n'.encode('ascii', 'ignore'))
+                startup_script.write(
+                     'menu.reprogram C:\\T32\\demo\\arm64\\kernel\\linux\\linux-3.x\\linux.men\n'.encode('ascii', 'ignore'))
+            else:
+                startup_script.write(
+                    'task.config c:\\t32\\demo\\arm\\kernel\\linux\\linux.t32\n'.encode('ascii', 'ignore'))
+                startup_script.write(
+                    'menu.reprogram c:\\t32\\demo\\arm\\kernel\\linux\\linux.men\n'.encode('ascii', 'ignore'))
         else:
-            startup_script.write(
-                'task.config c:\\t32\\demo\\arm\\kernel\\linux\\linux.t32\n'.encode('ascii', 'ignore'))
-            startup_script.write(
-                'menu.reprogram c:\\t32\\demo\\arm\\kernel\\linux\\linux.men\n'.encode('ascii', 'ignore'))
+            if self.arm64:
+                startup_script.write(
+                    'task.config /opt/t32/demo/arm64/kernel/linux/linux-3.x/linux3.t32\n'.encode('ascii', 'ignore'))
+                startup_script.write(
+                    'menu.reprogram /opt/t32/demo/arm64/kernel/linux/linux-3.x/linux.men\n'.encode('ascii', 'ignore'))
+            else:
+                startup_script.write(
+                    'task.config /opt/t32/demo/arm/kernel/linux/linux.t32\n'.encode('ascii', 'ignore'))
+                startup_script.write(
+                    'menu.reprogram /opt/t32/demo/arm/kernel/linux/linux.men\n'.encode('ascii', 'ignore'))
+
         startup_script.write('task.dtask\n'.encode('ascii', 'ignore'))
         startup_script.write(
             'v.v  %ASCII %STRING linux_banner\n'.encode('ascii', 'ignore'))
@@ -778,16 +807,29 @@ class RamDump():
                 'do {0}\n'.format(out_path + '/core0_regs.cmm').encode('ascii', 'ignore'))
         startup_script.close()
 
-        t32_bat = open(out_path + '/launch_t32.bat', 'wb')
-        if self.arm64:
-            t32_binary = 'C:\\T32\\bin\\windows64\\t32MARM64.exe'
-        elif self.hw_id == 8916 or self.hw_id == 8939 or self.hw_id == 8936:
-            t32_binary = 'C:\\T32\\bin\\windows64\\t32MARM.exe'
+        if t32_host_system != 'Linux':
+            t32_bat = open(out_path + '/launch_t32.bat', 'wb')
+            if self.arm64:
+                t32_binary = 'C:\\T32\\bin\\windows64\\t32MARM64.exe'
+            elif is_cortex_a53:
+                t32_binary = 'C:\\T32\\bin\\windows64\\t32MARM.exe'
+            else:
+                t32_binary = 'c:\\t32\\t32MARM.exe'
+            t32_bat.write(('start '+ t32_binary + ' -c ' + out_path + '/t32_config.t32, ' +
+                          out_path + '/t32_startup_script.cmm').encode('ascii', 'ignore'))
         else:
-            t32_binary = 'c:\\t32\\t32MARM.exe'
+            t32_bat = open(out_path + '/launch_t32.sh', 'wb')
+            if self.arm64:
+                t32_binary = '/opt/t32/bin/pc_linux64/t32marm64-qt'
+            elif is_cortex_a53:
+                t32_binary = '/opt/t32/bin/pc_linux64/t32marm-qt'
+            else:
+                t32_binary = '/opt/t32/bin/pc_linux64/t32marm-qt'
+            t32_bat.write('#!/bin/sh\n\n')
+            t32_bat.write('cd $(dirname $0)\n')
+            t32_bat.write('{} -c t32_config.t32, t32_startup_script.cmm &\n'.format(t32_binary))
+            os.chmod(out_path + '/launch_t32.sh', stat.S_IRWXU)
 
-        t32_bat.write(('start '+ t32_binary + ' -c ' + out_path + '/t32_config.t32, ' +
-                      out_path + '/t32_startup_script.cmm').encode('ascii', 'ignore'))
         t32_bat.close()
         print_out_str(
             '--- Created a T32 Simulator launcher (run {0}/launch_t32.bat)'.format(out_path))
