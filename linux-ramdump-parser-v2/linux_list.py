@@ -32,12 +32,26 @@ class ListWalker(object):
         self.last_node = node_addr
         self.seen_nodes = []
 
+    def is_empty(self):
+        """Return True if the list is empty, False otherwise.
+
+        """
+        next_node_addr = self.last_node + self.ram_dump.field_offset('struct list_head', 'next')
+        next_node = self.ram_dump.read_word(next_node_addr)
+
+        if next_node == self.last_node:
+            return True
+        else:
+            return False
+
     def walk(self, node_addr, func, *args):
         """Walk the linked list starting at `node_addr', calling `func' on
         each node. `func' will be passed the current node and *args,
         if given.
 
         """
+        if self.is_empty() == True:
+            return
 
         while True:
             if node_addr == 0:
@@ -65,6 +79,9 @@ class ListWalker(object):
         if given.
 
         """
+        if self.is_empty() == True:
+            return
+
         node_addr = self.ram_dump.read_word(node_addr + self.ram_dump.field_offset('struct list_head', 'prev'))
         while True:
             if node_addr == 0:
