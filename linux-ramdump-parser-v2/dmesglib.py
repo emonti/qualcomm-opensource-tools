@@ -14,6 +14,8 @@ import string
 
 from parser_util import cleanupString
 
+LOG_MAGIC = 0x5d7aefca
+
 class DmesgLib(object):
 
     def __init__(self, ramdump, outfile):
@@ -46,6 +48,58 @@ class DmesgLib(object):
         else:
             return idx + msg_len
 
+    def verify_log_helper(self, msg, verbose):
+        # return early if CONFIG_LOG_BUF_MAGIC is not defined
+        log_align_addr = self.ramdump.addr_lookup('__log_align')
+        if (log_align_addr is None):
+            return True
+
+        len_offset = self.ramdump.field_offset(self.struct_name, 'len')
+        text_offset = self.ramdump.field_offset(self.struct_name, 'text_len')
+        dict_offset = self.ramdump.field_offset(self.struct_name, 'dict_len')
+        magic_offset = self.ramdump.field_offset(self.struct_name, 'magic')
+        msg_len = self.ramdump.read_u16(msg + len_offset)
+        text_len = self.ramdump.read_u16(msg + text_offset)
+        dict_len = self.ramdump.read_u16(msg + dict_offset)
+        magic = self.ramdump.read_u32(msg + magic_offset)
+        log_size = self.ramdump.sizeof(self.struct_name)
+        log_align = self.ramdump.read_u32(log_align_addr)
+        is_logwrap_marker = not bool(text_len | msg_len | dict_len)
+
+        err = []
+        if (magic != LOG_MAGIC):
+            err.append('Bad Magic')
+
+        computed_msg_len = (text_len + dict_len + log_size + log_align - 1) & ~(log_align - 1)
+        if (not is_logwrap_marker and (msg_len != computed_msg_len)):
+            err.append('Bad length')
+
+        err = ' '.join(err)
+        if (err):
+            if (verbose):
+                f = '--------- Corrupted Dmesg {} for record @ {:x} ---------\n'.format(err, msg)
+                self.outfile.write(f)
+                f = self.ramdump.hexdump(msg - 0x40, 0xC0)
+                self.outfile.write(f)
+            return False
+        return True
+
+    def verify_log(self, msg, logbuf_addr, last_idx):
+        logbuf_size = self.ramdump.sizeof('__log_buf')
+        log_size = self.ramdump.sizeof(self.struct_name)
+
+        verbose = True
+        while msg != logbuf_addr + last_idx:
+            if (self.verify_log_helper(msg, verbose)):
+                return msg
+            verbose = False
+            msg = msg + 0x4
+            if (msg > logbuf_addr + logbuf_size - log_size):
+                msg = logbuf_addr
+                self.wrap_cnt += 1
+
+        return logbuf_addr + last_idx
+
     def extract_dmesg_flat(self):
         addr = self.ramdump.read_word(self.ramdump.addr_lookup('log_buf'))
         size = self.ramdump.read_word(self.ramdump.addr_lookup('log_buf_len'))
@@ -75,6 +129,7 @@ class DmesgLib(object):
                     timestamp / 1000000000, (timestamp % 1000000000) / 1000, partial)
                 self.outfile.write(f)
             curr_idx = self.log_next(curr_idx, logbuf_addr)
+            curr_idx = self.verify_log(curr_idx, logbuf_addr, last_idx)
 
     def extract_dmesg(self):
         if re.search('3.7.\d', self.ramdump.version) is not None:
