@@ -17,6 +17,11 @@ def page_buddy(ramdump, page):
     return val == 0xffffff80
 
 
+def get_debug_flags(ramdump, page):
+    debug_flag_offset = ramdump.field_offset('struct page', 'debug_flags')
+    flagval = ramdump.read_word(page + debug_flag_offset)
+    return flagval
+
 def page_zonenum(page_flags):
     # save this in a variable somewhere...
     return (page_flags >> 26) & 3
