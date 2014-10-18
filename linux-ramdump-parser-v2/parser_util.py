@@ -180,11 +180,18 @@ def _xxd_line(addr, data):
     )
 
 def xxd(address, data, file_object=None):
-    """Dumps data to stdout, in the format of `xxd'. data should be a list
-    of integers.
+    """Dumps data to `file_object' or stdout, in the format of `xxd'. data
+    should be a list of integers.
 
     >>> xxd(0x1000, [0xde, 0xad, 0xbe, 0xef, 112, 105, 122, 122, 97, 0, 0, 42, 43, 44, 45, 90])
     00001000: dead beef 7069 7a7a 6100 002a 2b2c 2d5a  ....pizza..*+,-Z
+
+    >>> import StringIO
+    >>> sio = StringIO.StringIO()
+    >>> xxd(0x400, range(45, 76), sio)
+    >>> print(sio.getvalue().strip())
+    00000400: 2d2e 2f30 3132 3334 3536 3738 393a 3b3c  -./0123456789:;<
+    00000410: 3d3e 3f40 4142 4344 4546 4748 494a 4b    =>?@ABCDEFGHIJK
 
     """
     f = file_object or sys.stdout
