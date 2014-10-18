@@ -20,9 +20,13 @@ class DmesgLib(object):
         self.ramdump = ramdump
         self.wrap_cnt = 0
         self.outfile = outfile
+        if (self.ramdump.sizeof('struct printk_log') is None):
+           self.struct_name = 'struct log'
+        else:
+           self.struct_name = 'struct printk_log'
 
     def log_from_idx(self, idx, logbuf):
-        len_offset = self.ramdump.field_offset('struct log', 'len')
+        len_offset = self.ramdump.field_offset(self.struct_name, 'len')
 
         msg = logbuf + idx
         msg_len = self.ramdump.read_u16(msg + len_offset)
@@ -32,7 +36,7 @@ class DmesgLib(object):
             return msg
 
     def log_next(self, idx, logbuf):
-        len_offset = self.ramdump.field_offset('struct log', 'len')
+        len_offset = self.ramdump.field_offset(self.struct_name, 'len')
         msg = idx
 
         msg_len = self.ramdump.read_u16(msg + len_offset)
@@ -52,10 +56,10 @@ class DmesgLib(object):
         first_idx_addr = self.ramdump.addr_lookup('log_first_idx')
         last_idx_addr = self.ramdump.addr_lookup('log_next_idx')
         logbuf_addr = self.ramdump.read_word(self.ramdump.addr_lookup('log_buf'))
-        time_offset = self.ramdump.field_offset('struct log', 'ts_nsec')
-        len_offset = self.ramdump.field_offset('struct log', 'len')
-        text_len_offset = self.ramdump.field_offset('struct log', 'text_len')
-        log_size = self.ramdump.sizeof('struct log')
+        time_offset = self.ramdump.field_offset(self.struct_name, 'ts_nsec')
+        len_offset = self.ramdump.field_offset(self.struct_name, 'len')
+        text_len_offset = self.ramdump.field_offset(self.struct_name, 'text_len')
+        log_size = self.ramdump.sizeof(self.struct_name)
 
         first_idx = self.ramdump.read_u32(first_idx_addr)
         last_idx = self.ramdump.read_u32(last_idx_addr)
@@ -76,6 +80,8 @@ class DmesgLib(object):
         if re.search('3.7.\d', self.ramdump.version) is not None:
             self.extract_dmesg_binary()
         elif re.search('3\.10\.\d', self.ramdump.version) is not None:
+            self.extract_dmesg_binary()
+        elif re.search('3\.14\.\d', self.ramdump.version) is not None:
             self.extract_dmesg_binary()
         else:
             self.extract_dmesg_flat()
