@@ -68,12 +68,18 @@ class RTB(RamParser):
 
     def print_readlwritel(self, rtbout, rtb_ptr, logtype):
         data = self.ramdump.read_structure_field(rtb_ptr, 'struct msm_rtb_layout', 'data')
+        physical = self.ramdump.virt_to_phys(data)
+        if physical is None:
+            physical = "no translation found"
+        else:
+            physical = hex(physical).rstrip("L").lstrip("0x")
+
         caller = self.ramdump.read_structure_field(rtb_ptr, 'struct msm_rtb_layout', 'caller')
         func = self.get_fun_name(caller)
         line = self.get_caller(caller)
         timestamp = self.get_timestamp(rtb_ptr)
-        rtbout.write('[{0}] : {1} from address {2:x} called from addr {3:x} {4} {5}\n'.format(
-            timestamp, logtype, data, caller, func, line).encode('ascii', 'ignore'))
+        rtbout.write('[{0}] : {1} from address {2:x}({3}) called from addr {4:x} {5} {6}\n'.format(
+            timestamp, logtype, data, physical, caller, func, line).encode('ascii', 'ignore'))
 
     def print_logbuf(self, rtbout, rtb_ptr, logtype):
         data = self.ramdump.read_structure_field(rtb_ptr, 'struct msm_rtb_layout', 'data')
