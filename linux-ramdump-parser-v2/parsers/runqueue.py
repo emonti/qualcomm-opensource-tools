@@ -1,4 +1,4 @@
-# Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -130,13 +130,22 @@ class RunQueues(RamParser):
 
         array_addr = rt_rq_addr + active_offset
 
-        for i in range(0, 4):
-            bitmap = self.ramdump.read_word(array_addr + i * 4)
+        if self.ramdump.arm64:
+            bitmap_range = 2
+            array_wsize = 8
+            idx_size = 64
+        else:
+            bitmap_range = 4
+            array_wsize = 4
+            idx_size = 32
+
+        for i in range(0, bitmap_range):
+            bitmap = self.ramdump.read_word(array_addr + i * array_wsize)
             while True:
                 idx = self.ffs(bitmap)
-                if idx is not None and idx + i * 32 < 100:
+                if idx is not None and idx + i * idx_size < 100:
                     bitmap &= ~(1 << idx)
-                    idx = (idx + i * 32) * 4 * 2
+                    idx = (idx + i * idx_size) * array_wsize * 2
                     queue_addr = self.ramdump.read_word(
                         array_addr + queue_offset + idx)
                     while queue_addr != array_addr + queue_offset + idx:
@@ -154,7 +163,14 @@ class RunQueues(RamParser):
         stack_addr = self.ramdump.read_word(task_addr + stack_offset)
         print_out_str('current callstack is maybe:')
 
-        for i in range(stack_addr, stack_addr + 0x2000, 4):
+        if self.ramdump.arm64:
+            stack_align = 8
+            stack_size = 0x4000
+        else:
+            stack_align = 4
+            stack_size = 0x2000
+
+        for i in range(stack_addr, stack_addr + stack_size, stack_align):
             callstack_addr = self.ramdump.read_word(i)
             if text_start_addr <= callstack_addr and callstack_addr < text_end_addr:
                 wname = self.ramdump.unwind_lookup(callstack_addr)
