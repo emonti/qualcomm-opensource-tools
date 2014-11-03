@@ -129,7 +129,7 @@ class IrqParse(RamParser):
             cpu_str = cpu_str + '{0:10} '.format('CPU{0}'.format(i))
 
         print_out_str(
-            '{0:4} {1} {2:30} {3:10}'.format('IRQ', cpu_str, 'Name', 'Chip'))
+            '{0:4} {1} {2:30} {3:15} {4:20}'.format('IRQ', cpu_str, 'Name', 'Chip', 'IRQ Structure'))
 
         if nr_irqs > 50000:
             return
@@ -162,7 +162,7 @@ class IrqParse(RamParser):
                 name_addr = ram_dump.read_word(action + action_name_offset)
                 name = ram_dump.read_cstring(name_addr, 48)
                 print_out_str(
-                    '{0:4} {1} {2:30} {3:10}'.format(irqnum, irq_stats_str, name, chip_name))
+                    '{0:4} {1} {2:30} {3:15} v.v (struct irq_desc *)0x{4:<20x}'.format(irqnum, irq_stats_str, name, chip_name, irq_desc))
 
     def parse(self):
         irq_desc = self.ramdump.addr_lookup('irq_desc')
