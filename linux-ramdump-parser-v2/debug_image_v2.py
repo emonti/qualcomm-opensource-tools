@@ -17,6 +17,7 @@ import os
 import platform
 import subprocess
 
+from pmic import PmicRegDump
 from print_out import print_out_str
 from qdss import QDSSDump
 from watchdog_v2 import TZRegDump_v2
@@ -51,6 +52,7 @@ client_table = {
     'MSM_DUMP_DATA_L2_CACHE': 'parse_l2_cache',
     'MSM_DUMP_DATA_L3_CACHE': 'parse_l3_cache',
     'MSM_DUMP_DATA_OCMEM': 'parse_ocmem',
+    'MSM_DUMP_DATA_PMIC': 'parse_pmic',
     'MSM_DUMP_DATA_TMC_ETF': 'parse_qdss_common',
     'MSM_DUMP_DATA_TMC_REG': 'parse_qdss_common',
     'MSM_DUMP_DATA_L2_TLB': 'parse_l2_tlb',
@@ -80,6 +82,19 @@ class DebugImage_v2():
             print_out_str('!!! Could not get registers from TZ dump')
             return
         regs.dump_core_pc(ram_dump)
+        regs.dump_all_regs(ram_dump)
+
+    def parse_pmic(self, version, start, end, client_id, ram_dump):
+        client_name = self.dump_data_id_lookup_table[client_id]
+
+        print_out_str(
+            'Parsing {0} context start {1:x} end {2:x}'.format(client_name, start, end))
+
+        regs = PmicRegDump(start, end)
+        if regs.parse_all_regs(ram_dump) is False:
+            print_out_str('!!! Could not get registers from PMIC dump')
+            return
+
         regs.dump_all_regs(ram_dump)
 
     def parse_qdss_common(self, version, start, end, client_id, ram_dump):
