@@ -69,7 +69,7 @@ class DebugImage_v2():
         self.dump_table_id_lookup_table = []
         self.dump_data_id_lookup_table  = []
 
-    def parse_cpu_ctx(self, start, end, client_id, ram_dump):
+    def parse_cpu_ctx(self, version, start, end, client_id, ram_dump):
         core = client_id - client.MSM_DUMP_DATA_CPU_CTX
 
         print_out_str(
@@ -82,7 +82,7 @@ class DebugImage_v2():
         regs.dump_core_pc(ram_dump)
         regs.dump_all_regs(ram_dump)
 
-    def parse_qdss_common(self, start, end, client_id, ram_dump):
+    def parse_qdss_common(self, version, start, end, client_id, ram_dump):
         client_name = self.dump_data_id_lookup_table[client_id]
 
         print_out_str(
@@ -375,7 +375,7 @@ class DebugImage_v2():
                         continue
 
                     func = client_table[client_name]
-                    getattr(DebugImage_v2, func)(self, dump_data_addr, dump_data_addr + dump_data_len,
+                    getattr(DebugImage_v2, func)(self, dump_data_version, dump_data_addr, dump_data_addr + dump_data_len,
                                                  client_id, ram_dump)
 
             self.qdss.dump_all(ram_dump)
