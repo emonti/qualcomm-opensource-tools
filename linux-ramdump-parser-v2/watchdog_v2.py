@@ -14,7 +14,7 @@ import re
 from print_out import print_out_str
 
 # (name from tz dump, corresponding T32 register, whether or not to print_out_str (the function name))
-sysdbg_cpu64_register_names = [
+sysdbg_cpu64_register_names_default = [
     ('x0', 'x0', False),
     ('x1', 'x1', False),
     ('x2', 'x2', False),
@@ -64,7 +64,7 @@ sysdbg_cpu64_register_names = [
     ('__reserved4', '__reserved4', False),
 ]
 
-sysdbg_cpu64_ctxt_regs_type = ''.join([
+sysdbg_cpu64_ctxt_regs_type_default = ''.join([
     'Q',  # x0
     'Q',  # x1
     'Q',  # x2
@@ -114,7 +114,7 @@ sysdbg_cpu64_ctxt_regs_type = ''.join([
     'Q',  # __reserved4
 ])
 
-sysdbg_cpu32_register_names = [
+sysdbg_cpu32_register_names_default = [
     ('r0', 'r0', False),
     ('r1', 'r1', False),
     ('r2', 'r2', False),
@@ -158,7 +158,7 @@ sysdbg_cpu32_register_names = [
     ('__reserved4', '__reserved4', False),
 ]
 
-sysdbg_cpu32_ctxt_regs_type = ''.join([
+sysdbg_cpu32_ctxt_regs_type_default = ''.join([
     'Q',  # r0
     'Q',  # r1
     'Q',  # r2
@@ -202,6 +202,106 @@ sysdbg_cpu32_ctxt_regs_type = ''.join([
     'Q',  # __reserved4
 ])
 
+sysdbg_cpu64_register_names_v1_3 = [
+    ('x0', 'x0', False),
+    ('x1', 'x1', False),
+    ('x2', 'x2', False),
+    ('x3', 'x3', False),
+    ('x4', 'x4', False),
+    ('x5', 'x5', False),
+    ('x6', 'x6', False),
+    ('x7', 'x7', False),
+    ('x8', 'x8', False),
+    ('x9', 'x9', False),
+    ('x10', 'x10', False),
+    ('x11', 'x11', False),
+    ('x12', 'x12', False),
+    ('x13', 'x13', False),
+    ('x14', 'x14', False),
+    ('x15', 'x15', False),
+    ('x16', 'x16', False),
+    ('x17', 'x17', False),
+    ('x18', 'x18', False),
+    ('x19', 'x19', False),
+    ('x20', 'x20', False),
+    ('x21', 'x21', False),
+    ('x22', 'x22', False),
+    ('x23', 'x23', False),
+    ('x24', 'x24', False),
+    ('x25', 'x25', False),
+    ('x26', 'x26', False),
+    ('x27', 'x27', False),
+    ('x28', 'x28', False),
+    ('x29', 'x29', False),
+    ('x30', 'x30', True),
+    ('pc', 'pc', True),
+    ('currentEL', None, False),
+    ('sp_el3', 'sp_el3', False),
+    ('elr_el3', 'elr_el3', True),
+    ('spsr_el3', 'spsr_el3', False),
+    ('sp_el2', 'sp_el2', False),
+    ('elr_el2', 'elr_el2', True),
+    ('spsr_el2', 'spsr_el2', False),
+    ('sp_el1', 'sp_el1', False),
+    ('elr_el1', 'elr_el1', True),
+    ('spsr_el1', 'spsr_el1', False),
+    ('sp_el0', 'sp_el0', False),
+    ('cpumerrsr_el1', 'cpumerrsr_el1', False),
+    ('l2merrsr_el1', 'l2merrsr_el1', False),
+    ('__reserved1', '__reserved1', False),
+    ('__reserved2', '__reserved2', False),
+]
+
+sysdbg_cpu64_ctxt_regs_type_v1_3 = ''.join([
+    'Q',  # x0
+    'Q',  # x1
+    'Q',  # x2
+    'Q',  # x3
+    'Q',  # x4
+    'Q',  # x5
+    'Q',  # x6
+    'Q',  # x7
+    'Q',  # x8
+    'Q',  # x9
+    'Q',  # x10
+    'Q',  # x11
+    'Q',  # x12
+    'Q',  # x13
+    'Q',  # x14
+    'Q',  # x15
+    'Q',  # x16
+    'Q',  # x17
+    'Q',  # x18
+    'Q',  # x19
+    'Q',  # x20
+    'Q',  # x21
+    'Q',  # x22
+    'Q',  # x23
+    'Q',  # x24
+    'Q',  # x25
+    'Q',  # x26
+    'Q',  # x27
+    'Q',  # x28
+    'Q',  # x29
+    'Q',  # x30
+    'Q',  # pc
+    'Q',  # currentEL
+    'Q',  # sp_el3
+    'Q',  # elr_el3
+    'Q',  # spsr_el3
+    'Q',  # sp_el2
+    'Q',  # elr_el2
+    'Q',  # spsr_el2
+    'Q',  # sp_el1
+    'Q',  # elr_el1
+    'Q',  # spsr_el1
+    'Q',  # sp_el0
+    'Q',  # cpumerrsr_el1
+    'Q',  # l2merrsr_el1
+    'Q',  # __reserved1
+    'Q',  # __reserved2
+])
+
 cpu_name = (
     'Invalid',
     'A53',
@@ -209,23 +309,40 @@ cpu_name = (
     'Hydra',
 )
 
+sysdbg_cpu64_register_names = {}
+sysdbg_cpu64_ctxt_regs_type = {}
+sysdbg_cpu32_register_names = {}
+sysdbg_cpu32_ctxt_regs_type = {}
+
+sysdbg_cpu64_register_names['default'] = sysdbg_cpu64_register_names_default
+sysdbg_cpu64_ctxt_regs_type['default'] = sysdbg_cpu64_ctxt_regs_type_default
+sysdbg_cpu32_register_names['default'] = sysdbg_cpu32_register_names_default
+sysdbg_cpu32_ctxt_regs_type['default'] = sysdbg_cpu32_ctxt_regs_type_default
+
+# Version 1.3
+sysdbg_cpu64_register_names['1.3'] = sysdbg_cpu64_register_names_v1_3
+sysdbg_cpu64_ctxt_regs_type['1.3'] = sysdbg_cpu64_ctxt_regs_type_v1_3
+
 class TZCpuCtx_v2():
 
-    def __init__(self, regs_t, ramdump):
+    def __init__(self, version, regs_t, ramdump):
         i = 0
         self.regs = {}
+        self.version = version
+        if ramdump.arm64:
+            register_name = sysdbg_cpu64_register_names[self.version]
+        else:
+            register_name = sysdbg_cpu32_register_names[self.version]
+
         for r in regs_t:
-            if ramdump.arm64:
-                self.regs[sysdbg_cpu64_register_names[i][0]] = r
-            else:
-                self.regs[sysdbg_cpu32_register_names[i][0]] = r
+            self.regs[register_name[i][0]] = r
             i += 1
 
     def print_regs(self, outfile, ramdump):
         if ramdump.arm64:
-            register_names = sysdbg_cpu64_register_names
+            register_names = sysdbg_cpu64_register_names[self.version]
         else:
-            register_names = sysdbg_cpu32_register_names
+            register_names = sysdbg_cpu32_register_names[self.version]
         for reg_name, t32_name, print_pc in register_names:
             if re.match('(.*)reserved(.*)', reg_name):
                 continue
@@ -254,6 +371,7 @@ class TZRegDump_v2():
     def __init__(self):
         self.core_regs = None
         self.sec_regs = None
+        self.version = 0
         self.start_addr = 0
         self.end_addr = 0
         self.core = 0
@@ -303,10 +421,19 @@ class TZRegDump_v2():
         ram_dump.unwind.unwind_backtrace(bt, fp, pc, lr, '')
         print_out_str('')
 
-    def init_regs(self, start_addr, end_addr, core, ram_dump):
+    def init_regs(self, version, start_addr, end_addr, core, ram_dump):
         self.start_addr = start_addr
         self.end_addr = end_addr
         self.core = core
+
+        self.version = '{0}.{1}'.format(version >> 4, version & 0xF)
+        if ram_dump.arm64:
+            register_names = sysdbg_cpu64_register_names
+        else:
+            register_names = sysdbg_cpu32_register_names
+
+        if self.version not in register_names:
+            self.version = 'default'
 
         # uint32 status[4]; -- status fields
         # sdi_cpu_ctxt_regs_type cpu_regs; -- ctxt for all cpus
@@ -317,19 +444,19 @@ class TZRegDump_v2():
 
         if ram_dump.arm64:
             sc_regs = ram_dump.read_string(
-                self.start_addr, sysdbg_cpu64_ctxt_regs_type, False)
-            self.start_addr += struct.calcsize(sysdbg_cpu64_ctxt_regs_type)
+                self.start_addr, sysdbg_cpu64_ctxt_regs_type[self.version], False)
+            self.start_addr += struct.calcsize(sysdbg_cpu64_ctxt_regs_type[self.version])
             sc_secure = ram_dump.read_string(
-               self.start_addr, sysdbg_cpu64_ctxt_regs_type , False)
-            self.start_addr += struct.calcsize(sysdbg_cpu64_ctxt_regs_type)
+               self.start_addr, sysdbg_cpu64_ctxt_regs_type[self.version] , False)
+            self.start_addr += struct.calcsize(sysdbg_cpu64_ctxt_regs_type[self.version])
         else:
             sc_regs = ram_dump.read_string(
-                self.start_addr, sysdbg_cpu32_ctxt_regs_type, False)
-            self.start_addr += struct.calcsize(sysdbg_cpu32_ctxt_regs_type)
+                self.start_addr, sysdbg_cpu32_ctxt_regs_type[self.version], False)
+            self.start_addr += struct.calcsize(sysdbg_cpu32_ctxt_regs_type[self.version])
             sc_secure = ram_dump.read_string(
-                self.start_addr, sysdbg_cpu32_ctxt_regs_type , False)
-            self.start_addr += struct.calcsize(sysdbg_cpu32_ctxt_regs_type)
+                self.start_addr, sysdbg_cpu32_ctxt_regs_type[self.version] , False)
+            self.start_addr += struct.calcsize(sysdbg_cpu32_ctxt_regs_type[self.version])
 
-        self.core_regs = TZCpuCtx_v2(sc_regs, ram_dump)
-        self.sec_regs = TZCpuCtx_v2(sc_secure, ram_dump)
+        self.core_regs = TZCpuCtx_v2(self.version, sc_regs, ram_dump)
+        self.sec_regs = TZCpuCtx_v2(self.version, sc_secure, ram_dump)
         return True
