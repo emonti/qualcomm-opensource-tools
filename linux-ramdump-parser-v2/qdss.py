@@ -305,7 +305,7 @@ class QDSSDump():
                     start = blk
                     continue
                 elif (entry & 0x2) == 2:
-                    if blk < rwpval and rwpval < (blk + 4096):
+                    if blk <= rwpval and rwpval < (blk + 4096):
                         if not bottom_delta_read:
                             it = range(rwpval, blk + 4096)
                             bottom_delta_read = True
@@ -319,7 +319,7 @@ class QDSSDump():
                         continue
                     start += 4
                 elif (entry & 0x1) == 1:
-                    if blk < rwpval and rwpval < (blk + 4096):
+                    if blk <= rwpval and rwpval < (blk + 4096):
                         if not bottom_delta_read:
                             it = range(rwpval, blk + 4096)
                             bottom_delta_read = True
