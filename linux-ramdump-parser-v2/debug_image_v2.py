@@ -37,6 +37,7 @@ class client(object):
     MSM_DUMP_DATA_L2_CACHE = 0xC0
     MSM_DUMP_DATA_L3_CACHE = 0xD0
     MSM_DUMP_DATA_OCMEM = 0xE0
+    MSM_DUMP_DATA_DBGUI_REG = 0xE5
     MSM_DUMP_DATA_TMC_ETF = 0xF0
     MSM_DUMP_DATA_TMC_REG = 0x100
     MSM_DUMP_DATA_TMC_ETF_REG = 0x101
@@ -54,6 +55,7 @@ client_table = {
     'MSM_DUMP_DATA_L2_CACHE': 'parse_cache_common',
     'MSM_DUMP_DATA_L3_CACHE': 'parse_l3_cache',
     'MSM_DUMP_DATA_OCMEM': 'parse_ocmem',
+    'MSM_DUMP_DATA_DBGUI_REG' : 'parse_qdss_common',
     'MSM_DUMP_DATA_PMIC': 'parse_pmic',
     'MSM_DUMP_DATA_TMC_ETF': 'parse_qdss_common',
     'MSM_DUMP_DATA_TMC_REG': 'parse_qdss_common',
@@ -63,6 +65,7 @@ client_table = {
 qdss_tag_to_field_name = {
     'MSM_DUMP_DATA_TMC_REG': 'tmc_etr_start',
     'MSM_DUMP_DATA_TMC_ETF': 'etf_start',
+    'MSM_DUMP_DATA_DBGUI_REG': 'dbgui_start',
 }
 
 class DebugImage_v2():

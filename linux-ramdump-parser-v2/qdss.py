@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2014 The Linux Foundation. All rights reserved.
+# Copyright (c) 2012, 2014-2015 The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -193,6 +193,18 @@ etm_registers = {
     'ETMCIDR2': (0x3FE, 'Component ID2 Register'),
 }
 
+dbgui_registers = {
+    'DBGUI_SECURE' : (0x000, 'Secure Register'),
+    'DBGUI_CTL' : (0x004, 'Clear Register'),
+    'DBGUI_CTL_MASK' : (0x008, 'CTL Mask Register'),
+    'DBGUI_SWTRIG' : (0x00C, 'Software Trigger Register'),
+    'DBGUI_STATUS' : (0x010, 'Status Register Register'),
+    'DBGUI_HWE_MASK' : (0x014, 'Hardware Event Mask Register'),
+    'DBGUI_CTR_VAL' : (0x018, 'Timeout Counter Terminal Value Register'),
+    'DBGUI_CTR_EN' : (0x01C, 'Timeout Counter Enable Register'),
+    'DBGUI_NUM_REGS_RD' : (0x020, 'Number of Register Read Control Register'),
+    'DBGUI_ATB_REG' : (0x024, 'ATB Configuration Register'),
+}
 
 class QDSSDump():
 
@@ -204,6 +216,7 @@ class QDSSDump():
         self.etm_regs1 = None
         self.etm_regs2 = None
         self.etm_regs3 = None
+        self.dbgui_start = None
 
     # Assumptions: Any address given here has been checked for correct magic
     def print_tmc_etf(self, ram_dump):
@@ -415,9 +428,37 @@ class QDSSDump():
 
         tmc_etr.close()
 
+    def print_dbgui_registers(self, ram_dump):
+        if self.dbgui_start is None:
+            print_out_str(
+                "!!!DBGUI address has not been  set! I can't continue!")
+            return
+
+        print_out_str('Now printing DBGUI registers to file')
+        dbgui_out = ram_dump.open_file('dbgui.txt')
+        for a, b in dbgui_registers.iteritems():
+            offset, name = b
+            dbgui_out.write('{0} ({1}): {2:x}\n'.format(
+                a, name, ram_dump.read_u32(self.dbgui_start + offset, False)))
+
+        addr = ram_dump.read_word(ram_dump.addr_lookup('dbgui_drvdata'))
+        addr_offset_offset = ram_dump.field_offset('struct dbgui_drvdata', 'addr_offset')
+        data_offset_offset = ram_dump.field_offset('struct dbgui_drvdata', 'data_offset')
+        size_offset = ram_dump.field_offset('struct dbgui_drvdata', 'size')
+        addr_offset = ram_dump.read_u32(addr + addr_offset_offset, True)
+        data_offset = ram_dump.read_u32(addr + data_offset_offset, True)
+        size = ram_dump.read_u32(addr + size_offset, True)
+
+        for i in range(0, size):
+            dbgui_out.write('ADDR_{0} ({1:x}) : {2:x}\n'.format(
+                i, ram_dump.read_u32(self.dbgui_start + addr_offset + (4 * i), False),
+                ram_dump.read_u32(self.dbgui_start + data_offset + (4 * i), False)))
+        dbgui_out.close()
+
     def dump_all(self, ram_dump):
         self.print_tmc_etf(ram_dump)
         self.print_tmc_etr(ram_dump)
+        self.print_dbgui_registers(ram_dump)
         self.print_all_etm_register(ram_dump)
         self.save_etf_bin(ram_dump)
         self.save_etr_bin(ram_dump)
