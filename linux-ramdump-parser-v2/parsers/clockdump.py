@@ -1,4 +1,4 @@
-# Copyright (c) 2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -81,9 +81,9 @@ class ClockDumps(RamParser) :
         rate_address = clk + self.ramdump.field_offset('struct clk', 'rate')
         rate = self.ramdump.read_word(rate_address, True)
         count_address = clk + self.ramdump.field_offset('struct clk', 'count')
-        count = self.ramdump.read_word(count_address, True)
+        count = self.ramdump.read_u32(count_address, True)
         prepare_count_address = clk + self.ramdump.field_offset('struct clk', 'prepare_count')
-        prepare_count = self.ramdump.read_word(prepare_count_address, True)
+        prepare_count = self.ramdump.read_u32(prepare_count_address, True)
         vdd_class_address = clk + self.ramdump.field_offset('struct clk', 'vdd_class')
         vdd_class = self.ramdump.read_word(vdd_class_address, True)
         if vdd_class != 0:
@@ -140,9 +140,9 @@ class ClockDumps(RamParser) :
             rate_address = clk + self.ramdump.field_offset('struct clk', 'rate')
             rate = self.ramdump.read_word(rate_address, True)
             count_address = clk + self.ramdump.field_offset('struct clk', 'count')
-            count = self.ramdump.read_word(count_address, True)
+            count = self.ramdump.read_u32(count_address, True)
             prepare_count_address = clk + self.ramdump.field_offset('struct clk', 'prepare_count')
-            prepare_count = self.ramdump.read_word(prepare_count_address, True)
+            prepare_count = self.ramdump.read_u32(prepare_count_address, True)
             vdd_class_address = clk + self.ramdump.field_offset('struct clk', 'vdd_class')
             vdd_class = self.ramdump.read_word(vdd_class_address, True)
             if vdd_class != 0:
