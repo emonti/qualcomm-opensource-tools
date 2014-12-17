@@ -246,8 +246,8 @@ sysdbg_cpu64_register_names_v1_3 = [
     ('elr_el1', 'elr_el1', True),
     ('spsr_el1', 'spsr_el1', False),
     ('sp_el0', 'sp_el0', False),
-    ('cpumerrsr_el1', 'cpumerrsr_el1', False),
-    ('l2merrsr_el1', 'l2merrsr_el1', False),
+    ('cpumerrsr_el1', None, False),
+    ('l2merrsr_el1',  None, False),
     ('__reserved1', '__reserved1', False),
     ('__reserved2', '__reserved2', False),
 ]
