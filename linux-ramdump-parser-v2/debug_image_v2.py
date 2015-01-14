@@ -385,6 +385,8 @@ class DebugImage_v2():
 
                 dump_data_magic = ram_dump.read_u32(client_addr + dump_data_magic_offset, False)
                 dump_data_version = ram_dump.read_u32(client_addr + dump_data_version_offset, False)
+                dump_data_name = ram_dump.read_cstring(client_addr + dump_data_name_offset,
+                                            ram_dump.sizeof('((struct msm_dump_data *)0x0)->name'), False)
                 dump_data_addr = ram_dump.read_dword(client_addr + dump_data_addr_offset, False)
                 dump_data_len = ram_dump.read_dword(client_addr + dump_data_len_offset, False)
 
@@ -393,8 +395,8 @@ class DebugImage_v2():
                     print_out_str(
                          '!!! {0} Does not have an associated function. The parser needs to be updated!'.format(client_name))
                 else:
-                    print_out_str('Parsing debug information for {0}. Version: {1} Magic: {2:x}'.format(
-                       client_name, dump_data_version, dump_data_magic))
+                    print_out_str('Parsing debug information for {0}. Version: {1} Magic: {2:x} Source: {3}'.format(
+                       client_name, dump_data_version, dump_data_magic, dump_data_name))
 
                     if dump_data_magic is None:
                         print_out_str(
