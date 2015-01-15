@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -18,9 +18,11 @@ import platform
 import subprocess
 
 from pmic import PmicRegDump
-from print_out import print_out_str
+from print_out import print_out_str, print_out_exception
 from qdss import QDSSDump
 from watchdog_v2 import TZRegDump_v2
+from cachedumplib import lookup_cache_type
+
 
 MEMDUMPV2_MAGIC = 0x42445953
 MAX_NUM_ENTRIES = 0x130
@@ -47,9 +49,9 @@ client_table = {
     'MSM_DUMP_DATA_CPU_CTX': 'parse_cpu_ctx',
     'MSM_DUMP_DATA_L1_INST_TLB': 'parse_l1_inst_tlb',
     'MSM_DUMP_DATA_L1_DATA_TLB': 'parse_l1_data_tlb',
-    'MSM_DUMP_DATA_L1_INST_CACHE': 'parse_l1_inst_cache',
-    'MSM_DUMP_DATA_L1_DATA_CACHE': 'parse_l1_data_cache',
-    'MSM_DUMP_DATA_L2_CACHE': 'parse_l2_cache',
+    'MSM_DUMP_DATA_L1_INST_CACHE': 'parse_cache_common',
+    'MSM_DUMP_DATA_L1_DATA_CACHE': 'parse_cache_common',
+    'MSM_DUMP_DATA_L2_CACHE': 'parse_cache_common',
     'MSM_DUMP_DATA_L3_CACHE': 'parse_l3_cache',
     'MSM_DUMP_DATA_OCMEM': 'parse_ocmem',
     'MSM_DUMP_DATA_PMIC': 'parse_pmic',
@@ -107,6 +109,19 @@ class DebugImage_v2():
             setattr(self.qdss, 'tmc_etf_start', start)
         else:
             setattr(self.qdss, qdss_tag_to_field_name[client_name], start)
+
+    def parse_cache_common(self, version, start, end, client_id, ramdump):
+        client_name = self.dump_data_id_lookup_table[client_id]
+        core = client_id & 0xF
+        filename = '{0}_0x{1:x}'.format(client_name, core)
+        outfile = ramdump.open_file(filename)
+        cache_type = lookup_cache_type(ramdump.hw_id, client_id, version)
+        try:
+            cache_type.parse(start, end, ramdump, outfile)
+        except:
+            print_out_str('!!! Exception while running {0}'.format(client_name))
+            print_out_exception()
+        outfile.close()
 
     def ftrace_field_func(self, common_list, ram_dump):
         name_offset = ram_dump.field_offset('struct ftrace_event_field', 'name')
@@ -254,6 +269,8 @@ class DebugImage_v2():
                     client.MSM_DUMP_DATA_L1_INST_CACHE + i] = 'MSM_DUMP_DATA_L1_INST_CACHE'
                 self.dump_data_id_lookup_table[
                     client.MSM_DUMP_DATA_L1_DATA_CACHE + i] = 'MSM_DUMP_DATA_L1_DATA_CACHE'
+                self.dump_data_id_lookup_table[
+                    client.MSM_DUMP_DATA_L2_CACHE + i] = 'MSM_DUMP_DATA_L2_CACHE'
                 self.dump_data_id_lookup_table[
                     client.MSM_DUMP_DATA_ETM_REG + i] = 'MSM_DUMP_DATA_ETM_REG'
         # 0x100 - tmc-etr registers and 0x101 - for tmc-etf registers
