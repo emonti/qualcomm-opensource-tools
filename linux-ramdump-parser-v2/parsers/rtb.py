@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -68,7 +68,11 @@ class RTB(RamParser):
 
     def print_readlwritel(self, rtbout, rtb_ptr, logtype):
         data = self.ramdump.read_structure_field(rtb_ptr, 'struct msm_rtb_layout', 'data')
-        physical = self.ramdump.virt_to_phys(data)
+        try:
+            physical = self.ramdump.virt_to_phys(data)
+        except:
+            physical = None
+
         if physical is None:
             physical = "no translation found"
         else:
