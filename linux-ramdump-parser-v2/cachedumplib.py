@@ -334,3 +334,16 @@ lookuptable[(8994, 0x66, 0)] = L1_ICache_A57()
 lookuptable[(8994, 0x67, 0)] = L1_ICache_A57()
 
 lookuptable[(8994, 0xC1, 0)] = L2_Cache_A57()
+
+#8992
+lookuptable[(8992, 0x80, 0x100)] = L1_DCache_A53()
+lookuptable[(8992, 0x81, 0x100)] = L1_DCache_A53()
+lookuptable[(8992, 0x82, 0x100)] = L1_DCache_A53()
+lookuptable[(8992, 0x83, 0x100)] = L1_DCache_A53()
+lookuptable[(8992, 0x84, 0x100)] = L1_DCache_A57()
+lookuptable[(8992, 0x85, 0x100)] = L1_DCache_A57()
+
+lookuptable[(8992, 0x64, 0x100)] = L1_ICache_A57()
+lookuptable[(8992, 0x65, 0x100)] = L1_ICache_A57()
+
+lookuptable[(8992, 0xC1, 0x100)] = L2_Cache_A57()
