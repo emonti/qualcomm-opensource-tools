@@ -1,4 +1,4 @@
-# Copyright (c) 2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -147,6 +147,7 @@ class Board9635(Board):
         self.board_num = 9635
         self.cpu = 'CORTEXA7'
         self.ram_start = 0x0
+        self.imem_start = 0xfe800000
         self.smem_addr = 0x1100000
         self.phys_offset = 0
         self.wdog_addr = 0xfe805658
