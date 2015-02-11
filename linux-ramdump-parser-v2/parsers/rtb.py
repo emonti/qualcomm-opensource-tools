@@ -136,6 +136,13 @@ class RTB(RamParser):
         rtbout.write('[{0}] : {1} interrupt {2:x} handled from addr {3:x} {4} {5}\n'.format(
             timestamp, logtype, data, caller, func, line).encode('ascii', 'ignore'))
 
+    def next_rtb_entry(self, index, step_size, mask):
+        unused_buffer_size = (mask + 1) % step_size
+        #check for wraparound
+        if ((index + step_size + unused_buffer_size) & mask) < (index & mask):
+            return (index + step_size + unused_buffer_size) & mask
+        return (index + step_size) & mask
+
     def parse(self):
         rtb = self.ramdump.addr_lookup('msm_rtb')
         if rtb is None:
@@ -175,7 +182,7 @@ class RTB(RamParser):
             next_ptr = 0
             next_entry = 0
             while True:
-                next_entry = (last + step_size) & mask
+                next_entry = self.next_rtb_entry(last, step_size, mask)
                 last_ptr = rtb_read_ptr + last * rtb_entry_size + idx_offset
                 next_ptr = rtb_read_ptr + next_entry * \
                     rtb_entry_size + idx_offset
@@ -210,7 +217,7 @@ class RTB(RamParser):
                         getattr(RTB, func)(self, rtb_out, ptr, name_str)
                 if next_entry == last:
                     stop = 1
-                next_entry = (next_entry + step_size) & mask
+                next_entry = self.next_rtb_entry(next_entry, step_size, mask)
                 if (stop == 1):
                     break
             print_out_str('Wrote RTB to msm_rtb{0}.txt'.format(i))
