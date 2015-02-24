@@ -1,4 +1,4 @@
-# Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -81,7 +81,7 @@ class Armv7MMU(MMU):
         self.secondary_page_tables = [
             [0 for col in range(256)] for row in range(4096)]
 
-        msm_ttbr0 = self.ramdump.phys_offset + 0x4000
+        msm_ttbr0 = self.ramdump.phys_offset + self.ramdump.swapper_pg_dir_addr
         self.ttbr = msm_ttbr0
         virt_address = 0x0
         gb_i = 0
