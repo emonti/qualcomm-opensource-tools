@@ -1,4 +1,4 @@
-# Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -10,6 +10,7 @@
 # GNU General Public License for more details.
 
 import struct
+import string
 
 from print_out import print_out_str
 from collections import namedtuple
@@ -126,8 +127,10 @@ class ROData(RamParser):
                                     ddr_str += '{0:0>8x}'.format(ram_value)
                                     vmlinux_str += '{0:0>8x}'.format(vm_value)
                                     for j in range(4):
-                                        ddr_ascii += '{0:c}'.format(struct.unpack('B', ram_values[i + j])[0]).rstrip()
-                                        vm_ascii += '{0:c}'.format(struct.unpack('B', vm_values[i + j])[0]).rstrip()
+                                        c = '{0:c}'.format(struct.unpack('B', ram_values[i + j])[0]).rstrip()
+                                        ddr_ascii += c if c in string.printable else '.'
+                                        c = '{0:c}'.format(struct.unpack('B', vm_values[i + j])[0]).rstrip()
+                                        vm_ascii += c if c in string.printable else '.'
                                     detect += 1
                                 i = i + 4
                             if detect != 0xFFFFFFFF:
