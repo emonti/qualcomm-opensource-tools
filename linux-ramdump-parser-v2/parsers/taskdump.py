@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2013, 2015 The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -105,7 +105,8 @@ def dump_thread_group(ramdump, thread_group, task_out, check_for_panic=0):
                  0, '    ', task_out)
             task_out.write(
                 '=======================================================\n')
-        else:
+        # Panicking tasks are expected to remain in a TASK_RUNNING state
+        elif task_state == 0:
             find_panic(ramdump, addr_stack, thread_task_name)
 
         next_thr = ramdump.read_word(thread_group)
