@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -500,7 +500,14 @@ class RamDump():
         # extra 4k is needed for LPAE. If it's 0x5000 below
         # PAGE_OFFSET + TEXT_OFFSET then we know we're using LPAE. For
         # non-LPAE it should be 0x4000 below PAGE_OFFSET + TEXT_OFFSET
-        self.swapper_pg_dir_addr = self.addr_lookup('swapper_pg_dir') - self.page_offset
+        swapper_pg_dir = self.addr_lookup('swapper_pg_dir')
+        if swapper_pg_dir is None:
+            print_out_str('!!! Could not get the swapper page directory!')
+            print_out_str(
+                '!!! Your vmlinux is probably wrong for these dumps')
+            print_out_str('!!! Exiting now')
+            sys.exit(1)
+        self.swapper_pg_dir_addr =  swapper_pg_dir - self.page_offset
         self.kernel_text_offset = self.addr_lookup('stext') - self.page_offset
         pg_dir_size = self.kernel_text_offset - self.swapper_pg_dir_addr
         if self.arm64:
@@ -845,18 +852,6 @@ class RamDump():
             return self.read_word(self.tz_addr, False)
 
     def get_hw_id(self, add_offset=True):
-        heap_toc_offset = self.field_offset('struct smem_shared', 'heap_toc')
-        if heap_toc_offset is None:
-            print_out_str(
-                '!!!! Could not get a necessary offset for auto detection!')
-            print_out_str(
-                '!!!! Please check the gdb path which is used for offsets!')
-            print_out_str('!!!! Also check that the vmlinux is not stripped')
-            print_out_str('!!!! Exiting...')
-            sys.exit(1)
-
-        smem_heap_entry_size = self.sizeof('struct smem_heap_entry')
-        offset_offset = self.field_offset('struct smem_heap_entry', 'offset')
         socinfo_format = -1
         socinfo_id = -1
         socinfo_version = 0
@@ -866,6 +861,18 @@ class RamDump():
         boards = get_supported_boards()
 
         if (self.hw_id is None):
+            heap_toc_offset = self.field_offset('struct smem_shared', 'heap_toc')
+            if heap_toc_offset is None:
+                print_out_str(
+                    '!!!! Could not get a necessary offset for auto detection!')
+                print_out_str(
+                    '!!!! Please check the gdb path which is used for offsets!')
+                print_out_str('!!!! Also check that the vmlinux is not stripped')
+                print_out_str('!!!! Exiting...')
+                sys.exit(1)
+
+            smem_heap_entry_size = self.sizeof('struct smem_heap_entry')
+            offset_offset = self.field_offset('struct smem_heap_entry', 'offset')
             for board in boards:
                 trace = board.trace_soc
                 if trace:
