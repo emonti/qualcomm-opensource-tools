@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -455,4 +455,6 @@ class Workqueues(RamParser):
             if re.search('3.7.\d', ver) is not None:
                     self.print_workqueue_state_3_7(self.ramdump)
             if re.search('3.10.\d', ver) is not None:
+                    self.print_workqueue_state_3_10(self.ramdump)
+            if re.search('3.14.\d', ver) is not None:
                     self.print_workqueue_state_3_10(self.ramdump)
