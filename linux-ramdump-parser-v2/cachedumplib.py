@@ -95,7 +95,8 @@ class CacheDumpType_v1(CacheDump):
         self.tableformat.addColumn('Set', '{0:03x}')
         self.ramdump = None
         self.linefmt = None
-        self.HACK_HEADER_OFFSET = -1
+        # used for headers not matching CacheDumpType_v1 format
+        self.unsupported_header_offset = -1
 
         for key in CacheDumpKeys_v1:
             setattr(self, key, None)
@@ -119,8 +120,8 @@ class CacheDumpType_v1(CacheDump):
         """add the information from the header to this object. Returns
         number of bytes read"""
 
-        if self.HACK_HEADER_OFFSET >= 0:
-            return self.HACK_HEADER_OFFSET
+        if self.unsupported_header_offset >= 0:
+            return self.unsupported_header_offset
 
         items = self.ramdump.read_string(start, CacheDumpFormatStr_v1, virtual=False)
         if items is None:
@@ -169,7 +170,7 @@ class L1_DCache_A53(CacheDumpType_v1):
         self.tableformat.addColumn('DC', '{0:02b}')
         self.tableformat.addColumn('0A', '{0:02b}')
         self.tableformat.addColumn('0S', '{0:02b}')
-        self.HACK_HEADER_OFFSET = 0
+        self.unsupported_header_offset = 0
         self.TagSize = 2
         self.LineSize = 16
         self.NumSets = 0x80
@@ -219,7 +220,7 @@ class L1_DCache_A57(CacheDumpType_v1):
         self.tableformat.addColumn('RAW_MESI', '{0:02}')
         self.tableformat.addColumn('N')
         self.tableformat.addColumn('PA [43:14]', '{0:016x}', 16)
-        self.HACK_HEADER_OFFSET = 0xC
+        self.unsupported_header_offset = 0x0
         self.TagSize = 2
         self.LineSize = 16
         self.NumSets = 0x100
@@ -258,7 +259,7 @@ class L1_ICache_A57(CacheDumpType_v1):
         self.tableformat.addColumn('VALID')
         self.tableformat.addColumn('N')
         self.tableformat.addColumn('PA [43:12]', '{0:016x}', 16)
-        self.HACK_HEADER_OFFSET = 0
+        self.unsupported_header_offset = 0
         self.TagSize = 2
         self.LineSize = 16
         self.NumSets = 0x100
@@ -279,16 +280,16 @@ class L1_ICache_A57(CacheDumpType_v1):
 
 class L2_Cache_A57(CacheDumpType_v1):
     """Refer to ARM documentation:cortex_a57_trm"""
-    def __init__(self):
+    def __init__(self, numsets):
         super(L2_Cache_A57, self).__init__()
         self.tableformat.addColumn('MESI')
         self.tableformat.addColumn('Raw MESI', '{0:02}')
         self.tableformat.addColumn('N')
         self.tableformat.addColumn('PA [43:15]', '{0:016x}', 16)
-        self.HACK_HEADER_OFFSET = 0
+        self.unsupported_header_offset = 0
         self.TagSize = 4
         self.LineSize = 16
-        self.NumSets = 0x800
+        self.NumSets = numsets
         self.NumWays = 0x10
 
     def MOESI_to_string(self, num):
@@ -333,7 +334,24 @@ lookuptable[(8994, 0x65, 0)] = L1_ICache_A57()
 lookuptable[(8994, 0x66, 0)] = L1_ICache_A57()
 lookuptable[(8994, 0x67, 0)] = L1_ICache_A57()
 
-lookuptable[(8994, 0xC1, 0)] = L2_Cache_A57()
+lookuptable[(8994, 0xC1, 0)] = L2_Cache_A57(numsets=0x800)
+
+lookuptable[(8994, 0x80, 0x100)] = L1_DCache_A53()
+lookuptable[(8994, 0x81, 0x100)] = L1_DCache_A53()
+lookuptable[(8994, 0x82, 0x100)] = L1_DCache_A53()
+lookuptable[(8994, 0x83, 0x100)] = L1_DCache_A53()
+lookuptable[(8994, 0x84, 0x100)] = L1_DCache_A57()
+lookuptable[(8994, 0x85, 0x100)] = L1_DCache_A57()
+lookuptable[(8994, 0x86, 0x100)] = L1_DCache_A57()
+lookuptable[(8994, 0x87, 0x100)] = L1_DCache_A57()
+
+lookuptable[(8994, 0x64, 0x100)] = L1_ICache_A57()
+lookuptable[(8994, 0x65, 0x100)] = L1_ICache_A57()
+lookuptable[(8994, 0x66, 0x100)] = L1_ICache_A57()
+lookuptable[(8994, 0x67, 0x100)] = L1_ICache_A57()
+
+lookuptable[(8994, 0xC1, 0x100)] = L2_Cache_A57(numsets=0x800)
+
 
 #8992
 lookuptable[(8992, 0x80, 0x100)] = L1_DCache_A53()
@@ -346,4 +364,4 @@ lookuptable[(8992, 0x85, 0x100)] = L1_DCache_A57()
 lookuptable[(8992, 0x64, 0x100)] = L1_ICache_A57()
 lookuptable[(8992, 0x65, 0x100)] = L1_ICache_A57()
 
-lookuptable[(8992, 0xC1, 0x100)] = L2_Cache_A57()
+lookuptable[(8992, 0xC1, 0x100)] = L2_Cache_A57(numsets=0x400)
