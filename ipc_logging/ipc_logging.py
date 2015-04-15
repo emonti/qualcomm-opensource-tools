@@ -126,11 +126,17 @@ TSV_TYPE_MSG_END = 2
 #	unsigned char type;
 #	unsigned char size; /* size of data field */
 #};
-PAGE_HEADER_SIZE = 4*4 + 2*2 + 2*4
-DEFAULT_CTX_HEADER_SIZE = 0x40
+V0_PAGE_HDR_SIZE = 4*4 + 2*2 + 2*4
+V1_PAGE_HDR_SIZE = 0x40
+V1_PAGE_HDR_SIZE_64 = 0x48
 PAGE_SIZE = 4*1024
 FULL_PAGE_WRITE_OFFSET = 0xFFFF
 CTX_READ_SIZE = 64
+
+# Default header sizes by IPC Logging Version
+# V0 was 32-bit only, so it is used in the 64-bit list as a placeholder
+PAGE_HDR_SIZES = [V0_PAGE_HDR_SIZE, V1_PAGE_HDR_SIZE]
+PAGE_HDR_SIZES_64 = [V0_PAGE_HDR_SIZE, V1_PAGE_HDR_SIZE_64]
 
 class LogTSV(object):
 	"""Handles processing message/value headers"""
@@ -426,7 +432,7 @@ class LogPage(object):
 		self.nextPage = None
 		self.nextData = None
 		self.iterated = False
-		self.page_header_size = PAGE_HEADER_SIZE
+		self.page_header_size = V0_PAGE_HDR_SIZE
 		self.unknown_messages_data = None
 
 	def pack_continue(self, strPayload):
@@ -812,7 +818,7 @@ class LogPage_v1(LogPage):
 		self.headerBinaryFormat = '<IIIHHQQQq'
 		self.headerBinaryFormatSize = struct.calcsize(self.headerBinaryFormat)
 		self.context = LogContext()
-		self.context.header_size = DEFAULT_CTX_HEADER_SIZE
+		self.context.header_size = V1_PAGE_HDR_SIZE
 		self.page_header_size = self.context.header_size
 
 	def sortAndLink(self, lstPages, bSort):
@@ -1552,6 +1558,14 @@ def cmdTest(options):
 
 	# load existing files
 	lstFiles = options.args
+
+	try:
+		version = int(lstFiles.pop())
+	except ValueError as e:
+		strMsg = "Version must be provided! Exiting..."
+		logging.error("Exception: %s\n%s\n" % (str(e), strMsg))
+		raise
+
 	for f in lstFiles:
 		data = open(f, 'rb').read()
 
@@ -1561,17 +1575,25 @@ def cmdTest(options):
 		if page.isVersionOneOrGreater(data):
 			page = LogPage_v1()
 			page.unpack(data)
-			version = 1
 		else:
 			page = LogPage_v0()
 			page.unpack(data)
-			version = 0
 
 		numPages += 1
 		dictPages[page.page_num] = page
 		logging.info("Loaded '%s' log id %d, page %d" % \
 				(f, page.log_id, page.page_num))
 		page.log_info()
+
+		try:
+			if options.arch_64:
+				page.page_header_size = PAGE_HDR_SIZES_64[version]
+			else:
+				page.page_header_size = PAGE_HDR_SIZES[version]
+		except IndexError as e:
+			strMsg = "Invalid version! Exiting..."
+			logging.error("Exception: %s\n%s\n" % (str(e), strMsg))
+			raise
 
 	# Use only the last pathname component, as the rest of the path is
 	# added in dumpLogWithRetry()
@@ -1633,14 +1655,24 @@ hexadecimal.
 
 test
 ----
-%prog test LOG_PAGE_FILE(s)
+%prog test [--64-bit] LOG_PAGE_FILE(s) VERSION
 
 Parses the provided log pages files in order and extracts the logs.  This is
 useful for testing and for dealing with failure cases (such as duplicate logs
 due to left-over log pages from previous boot cycles).
 
-Example:
-\t%prog test log-1-0.bin log-1-1.bin log-1-2.bin
+The test command must be provided with the IPC Logging version in order to
+determine the right log page header size to use when parsing. During normal
+parsing, this information is gained from the log context, which is not provided
+to the test command.
+
+The --64-bit option denotes whether or not to interpret the provided log pages
+as 64-bit dumps. This is also necessary to determine the log page header size.
+
+Examples:
+\t%prog test log-1-0.bin log-1-1.bin log-1-2.bin 0
+\t%prog test --64-bit log-1-0.bin log-1-1.bin log-1-2.bin 1
+\t%prog test log-1-0.bin log-1-1.bin log-1-2.bin 1
 
 ===================================================
 General Options
@@ -1670,6 +1702,12 @@ output directory. The ipc_logging script will create the directory if it
 doesn't exist. All output will go to that directory. The script's own logging
 will go to stdout as well as a file in the specified directory.
 
+64-bit
+------
+This option is only to be used with the test command. It is a no-op otherwise.
+If used with the test command, the test command will interpret the log pages
+given to it as 64-bit dumps.
+
 Examples:
 \t%prog parse -o ~/test_output DDRCS0.BIN DDRCS1.BIN
 \t%prog test -v -o ~/test_output LOG_PAGE_FILE(s)
@@ -1695,6 +1733,11 @@ Examples:
 			help="If the current directory can't be written to, specify \
 					a path for an output directory. The path is \
 					OS-independent, and can be absolute or relative.")
+
+	parser.add_option("", "--64-bit",
+			action="store_true", dest="arch_64",
+			help="For use with the test command. Interpret the log pages as \
+			64-bit dumps.")
 
 	(options, args) = parser.parse_args(sys.argv[2:])
 	options.cmd = strCmd
