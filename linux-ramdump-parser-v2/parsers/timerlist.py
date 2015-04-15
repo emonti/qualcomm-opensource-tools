@@ -9,6 +9,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
+import sys
 import linux_list
 from print_out import print_out_str
 from parser_util import register_parser, RamParser
@@ -21,7 +22,7 @@ class TimerList(RamParser) :
         self.vectors = {'tv1': 256, 'tv2': 64, 'tv3': 64, 'tv4': 64, 'tv5': 64}
         self.output = []
 
-    def timer_list_walker(self, node, index, base):
+    def timer_list_walker(self, node, type, index, base):
         if node == self.head:
             return
 
@@ -33,7 +34,12 @@ class TimerList(RamParser) :
 
         function =  self.ramdump.unwind_lookup(self.ramdump.read_word(function_addr))[0]
         expires = self.ramdump.read_word(expires_addr)
-        data = hex(self.ramdump.read_word(data_addr)).rstrip('L')
+        try:
+            data = hex(self.ramdump.read_word(data_addr)).rstrip('L')
+        except TypeError:
+            self.output_file.write("+ Corruption detected at index {0} in {1} list, found corrupted value: {2:x}\n".format(index, type, data_addr))
+            return
+
         timer_base = self.ramdump.read_word(timer_base_addr) & ~3
 
         if function == "delayed_work_timer_fn":
@@ -56,7 +62,7 @@ class TimerList(RamParser) :
             self.head = index
             node_offset = self.ramdump.field_offset('struct list_head', 'next')
             timer_list_walker = linux_list.ListWalker(self.ramdump, index, node_offset)
-            timer_list_walker.walk(index, self.timer_list_walker, i, base)
+            timer_list_walker.walk(index, self.timer_list_walker, type, i, base)
 
     def print_vec(self, type):
         if len(self.output):
