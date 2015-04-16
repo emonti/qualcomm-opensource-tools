@@ -461,6 +461,11 @@ class RamDump():
         self.qtf_path = options.qtf_path
         self.qtf = options.qtf
         self.t32_host_system = options.t32_host_system or None
+        self.ipc_log_test = options.ipc_test
+        self.ipc_log_skip = options.ipc_skip
+        self.ipc_log_debug = options.ipc_debug
+        self.ipc_log_help = options.ipc_help
+        self.use_stdout = options.stdout
         if options.ram_addr is not None:
             # TODO sanity check to make sure the memory regions don't overlap
             for file_path, start, end in options.ram_addr:

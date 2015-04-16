@@ -129,6 +129,17 @@ if __name__ == '__main__':
                       help='Use QTF tool to parse and save QDSS trace data')
     parser.add_option('', '--qtf-path', dest='qtf_path',
                       help='QTF tool executable')
+    parser.add_option('', '--ipc-help', dest='ipc_help',
+                      help='Help for IPC Logging', action='store_true',
+                      default=False)
+    parser.add_option('', '--ipc-test', dest='ipc_test',
+                      help='List of test files for the IPC Logging test command (name1, name2, ..., nameN, <version>)',
+                      action='append', default=[])
+    parser.add_option('', '--ipc-skip', dest='ipc_skip', action='store_true',
+                      help='Skip IPC Logging when parsing everything',
+					  default=False)
+    parser.add_option('', '--ipc-debug', dest='ipc_debug', action='store_true',
+                      help='Debug Mode for IPC Logging', default=False)
 
     for p in parser_util.get_parsers():
         parser.add_option(p.shortopt or '',
