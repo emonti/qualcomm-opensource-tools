@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 
-# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -273,12 +273,7 @@ if __name__ == '__main__':
     if options.everything:
         options.qtf = True
 
-    dump = RamDump(options.vmlinux, nm_path, gdb_path, objdump_path, options.ram_addr,
-                   options.autodump, options.phys_offset, options.outdir, options.qtf_path,
-                   options.force_hardware, options.force_hardware_version,
-                   arm64=options.arm64,
-                   page_offset=options.page_offset, qtf=options.qtf,
-                   t32_host_system=options.t32_host_system)
+    dump = RamDump(options, nm_path, gdb_path, objdump_path)
 
     if options.shell or options.classic_shell:
         print("Entering interactive shell mode.")

@@ -438,35 +438,32 @@ class RamDump():
                 if urc < 0:
                     break
 
-    def __init__(self, vmlinux_path, nm_path, gdb_path, objdump_path, ebi,
-                 file_path, phys_offset, outdir, qtf_path, hw_id=None,
-                 hw_version=None, arm64=False, page_offset=None, qtf=False,
-                 t32_host_system=None):
+    def __init__(self, options, nm_path, gdb_path, objdump_path):
         self.ebi_files = []
         self.phys_offset = None
         self.tz_start = 0
         self.ebi_start = 0
         self.cpu_type = None
-        self.hw_id = hw_id
-        self.hw_version = hw_version
+        self.hw_id = options.force_hardware or None
+        self.hw_version = options.force_hardware_version or None
         self.offset_table = []
-        self.vmlinux = vmlinux_path
+        self.vmlinux = options.vmlinux
         self.nm_path = nm_path
         self.gdb_path = gdb_path
         self.objdump_path = objdump_path
-        self.outdir = outdir
+        self.outdir = options.outdir
         self.imem_fname = None
         self.gdbmi = gdbmi.GdbMI(self.gdb_path, self.vmlinux)
         self.gdbmi.open()
-        self.arm64 = arm64
+        self.arm64 = options.arm64
         self.page_offset = 0xc0000000
         self.thread_size = 8192
-        self.qtf_path = qtf_path
-        self.qtf = qtf
-        self.t32_host_system = t32_host_system
-        if ebi is not None:
+        self.qtf_path = options.qtf_path
+        self.qtf = options.qtf
+        self.t32_host_system = options.t32_host_system or None
+        if options.ram_addr is not None:
             # TODO sanity check to make sure the memory regions don't overlap
-            for file_path, start, end in ebi:
+            for file_path, start, end in options.ram_addr:
                 fd = open(file_path, 'rb')
                 if not fd:
                     print_out_str(
@@ -474,25 +471,26 @@ class RamDump():
                     continue
                 self.ebi_files.append((fd, start, end, file_path))
         else:
-            if not self.auto_parse(file_path):
+            if not self.auto_parse(options.autodump):
                 return None
         if self.ebi_start == 0:
             self.ebi_start = self.ebi_files[0][1]
         if self.phys_offset is None:
             self.get_hw_id()
-        if phys_offset is not None:
+        if options.phys_offset is not None:
             print_out_str(
-                '[!!!] Phys offset was set to {0:x}'.format(phys_offset))
-            self.phys_offset = phys_offset
+                '[!!!] Phys offset was set to {0:x}'.format(\
+                    options.phys_offset))
+            self.phys_offset = options.phys_offset
         self.lookup_table = []
         self.config = []
         if self.arm64:
             self.page_offset = 0xffffffc000000000
             self.thread_size = 16384
-        if page_offset is not None:
+        if options.page_offset is not None:
             print_out_str(
                 '[!!!] Page offset was set to {0:x}'.format(page_offset))
-            self.page_offset = page_offset
+            self.page_offset = options.page_offset
         self.setup_symbol_tables()
 
         # The address of swapper_pg_dir can be used to determine
