@@ -15,24 +15,58 @@ from mm import page_address, pfn_to_page
 from print_out import print_out_str
 from parser_util import register_parser, RamParser
 
+class kmem_cache(object):
+    def __init__(self, ramdump, addr):
+        self.valid = False
+
+        offset = ramdump.field_offset(
+            'struct kmem_cache', 'flags')
+        self.flags = ramdump.read_word(addr + offset)
+        if self.flags is None:
+            return
+
+        offset = ramdump.field_offset(
+            'struct kmem_cache', 'size')
+        self.size = ramdump.read_int(addr + offset)
+        if self.size is None:
+            return
+
+        offset = ramdump.field_offset(
+            'struct kmem_cache', 'object_size')
+        self.object_size = ramdump.read_int(addr + offset)
+        if self.object_size is None:
+            return
+
+        offset = ramdump.field_offset(
+            'struct kmem_cache', 'offset')
+        self.offset = ramdump.read_int(addr + offset)
+        if self.offset is None:
+            return
+
+        offset = ramdump.field_offset(
+            'struct kmem_cache', 'max')
+        self.max = ramdump.read_word(addr + offset)
+        if self.max is None:
+            return
+
+        offset = ramdump.field_offset(
+            'struct kmem_cache', 'inuse')
+        self.inuse = ramdump.read_int(addr + offset)
+        if self.inuse is None:
+            return
+
+        self.addr = addr
+        self.valid = True
 
 @register_parser('--slabinfo', 'print information about slabs', optional=True)
 class Slabinfo(RamParser):
 
     def get_free_pointer(self, ramdump, s, obj):
         # just like validate_slab_slab!
-        slab_offset_offset = self.ramdump.field_offset(
-            'struct kmem_cache', 'offset')
-        slab_offset = self.ramdump.read_word(s + slab_offset_offset)
-        return self.ramdump.read_word(obj + slab_offset)
+        return self.ramdump.read_word(obj + s.offset)
 
     def slab_index(self, ramdump, p, addr, slab):
-        slab_size_offset = self.ramdump.field_offset(
-            'struct kmem_cache', 'size')
-        slab_size = self.ramdump.read_int(slab + slab_size_offset)
-        if slab_size is None:
-            return -1
-        return (p - addr) / slab_size
+        return (p - addr) / slab.size
 
     def get_map(self, ramdump, slab, page, bitarray):
         freelist_offset = self.ramdump.field_offset('struct page', 'freelist')
@@ -109,25 +143,16 @@ class Slabinfo(RamParser):
         n_objects = self.get_nobjects(self.ramdump, page)
         if n_objects is None:
             return
-        slab_size_offset = self.ramdump.field_offset(
-            'struct kmem_cache', 'size')
-        slab_size = self.ramdump.read_int(slab + slab_size_offset)
-        if slab_size is None:
-            return
-        slab_max_offset = self.ramdump.field_offset('struct kmem_cache', 'max')
-        slab_max = self.ramdump.read_word(slab + slab_max_offset)
-        if slab_max is None:
-            return
-        bitarray = [0] * slab_max
+        bitarray = [0] * slab.max
         addr = page_address(self.ramdump, page)
         self.get_map(self.ramdump, slab, page, bitarray)
-        while p < slab_start + n_objects * slab_size:
+        while p < slab_start + n_objects * slab.size:
             idx = self.slab_index(self.ramdump, p, addr, slab)
             bitidx = self.slab_index(self.ramdump, p, addr, slab)
             if bitidx >= len(bitarray) or bitidx < 0:
                 return
             map_fn(p, bitarray[bitidx], slab, page, out_file)
-            p = p + slab_size
+            p = p + slab.size
 
     def print_slab_page_info(self, ramdump, slab, slab_node, start, out_file, map_fn):
         page = self.ramdump.read_word(start)
@@ -136,8 +161,6 @@ class Slabinfo(RamParser):
             return
         slab_lru_offset = self.ramdump.field_offset('struct page', 'lru')
         page_flags_offset = self.ramdump.field_offset('struct page', 'flags')
-        slab_node_offset = self.ramdump.field_offset(
-            'struct kmem_cache', 'size')
         max_pfn_addr = self.ramdump.addr_lookup('max_pfn')
         max_pfn = self.ramdump.read_word(max_pfn_addr)
         max_page = pfn_to_page(ramdump, max_pfn)
@@ -167,18 +190,12 @@ class Slabinfo(RamParser):
         self.print_slab(self.ramdump, page_addr, slab, page, out_file, map_fn)
 
     def print_all_objects(self, p, free, slab, page, out_file):
-        slab_size_offset = self.ramdump.field_offset(
-            'struct kmem_cache', 'size')
-        slab_size = self.ramdump.read_int(slab + slab_size_offset)
-        if slab_size is None:
-            return
-
         if free:
             out_file.write(
-                '   Object {0:x}-{1:x} FREE\n'.format(p, p + slab_size))
+                '   Object {0:x}-{1:x} FREE\n'.format(p, p + slab.size))
         else:
             out_file.write(
-                '   Object {0:x}-{1:x} ALLOCATED\n'.format(p, p + slab_size))
+                '   Object {0:x}-{1:x} ALLOCATED\n'.format(p, p + slab.size))
         if self.ramdump.is_config_defined('CONFIG_SLUB_DEBUG_ON'):
             self.print_track(self.ramdump, slab, p, 0, out_file)
             self.print_track(self.ramdump, slab, p, 1, out_file)
@@ -207,6 +224,9 @@ class Slabinfo(RamParser):
         slab = self.ramdump.read_word(original_slab)
         while slab != original_slab:
             slab = slab - slab_list_offset
+            slab_obj = kmem_cache(self.ramdump, slab)
+            if not slab_obj.valid:
+                continue
             slab_name_addr = self.ramdump.read_word(slab + slab_name_offset)
             # actually an array but again, no numa
             slab_node_addr = self.ramdump.read_word(slab + slab_node_offset)
@@ -217,17 +237,17 @@ class Slabinfo(RamParser):
             slab_out.write(
                 '{0:x} slab {1} {2:x}\n'.format(slab, slab_name, slab_node_addr))
             self.print_slab_page_info(
-                self.ramdump, slab, slab_node, slab_node_addr + slab_partial_offset, slab_out, map_fn)
+                self.ramdump, slab_obj, slab_node, slab_node_addr + slab_partial_offset, slab_out, map_fn)
             if self.ramdump.is_config_defined('CONFIG_SLUB_DEBUG'):
                slab_full_offset = self.ramdump.field_offset(
                     'struct kmem_cache_node', 'full')
                self.print_slab_page_info(
-                    self.ramdump, slab, slab_node, slab_node_addr + slab_full_offset, slab_out, map_fn)
+                    self.ramdump, slab_obj, slab_node, slab_node_addr + slab_full_offset, slab_out, map_fn)
 
             for i in range(0, cpus):
                 cpu_slabn_addr = self.ramdump.read_word(cpu_slab_addr, cpu=i)
                 self.print_per_cpu_slab_info(
-                    self.ramdump, slab, slab_node, cpu_slabn_addr + cpu_cache_page_offset, slab_out, map_fn)
+                    self.ramdump, slab_obj, slab_node, cpu_slabn_addr + cpu_cache_page_offset, slab_out, map_fn)
 
             slab = self.ramdump.read_word(slab + slab_list_offset)
 
