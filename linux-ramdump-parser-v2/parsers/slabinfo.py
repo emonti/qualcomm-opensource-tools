@@ -15,6 +15,17 @@ from mm import page_address, pfn_to_page
 from print_out import print_out_str
 from parser_util import register_parser, RamParser
 
+SLAB_RED_ZONE = 0x400
+SLAB_POISON = 0x800
+SLAB_STORE_USER = 0x10000
+OBJECT_POISON = 0x80000000
+
+SLUB_RED_INACTIVE = 0xbb
+SLUB_RED_ACTIVE = 0xcc
+POISON_INUSE = 0x5a
+POISON_FREE = 0x6b
+POISON_END = 0xa5
+
 class kmem_cache(object):
     def __init__(self, ramdump, addr):
         self.valid = False
@@ -136,6 +147,110 @@ class Slabinfo(RamParser):
             n_objects = (count >> 16) & 0xFFFF
             return n_objects
 
+    def print_section(self, text, addr, length, out_file):
+        out_file.write('{}\n'.format(text))
+        output = self.ramdump.hexdump(addr, length)
+        out_file.write(output)
+
+    def print_trailer(self, s, page, p, out_file):
+        addr = page_address(self.ramdump, page)
+
+        if self.ramdump.is_config_defined('CONFIG_SLUB_DEBUG_ON'):
+            self.print_track(self.ramdump, s.addr, p, 0, out_file)
+            self.print_track(self.ramdump, s.addr, p, 1, out_file)
+
+        out_file.write('INFO: Object 0x{:x} @offset=0x{:x} fp=0x{:x}\n\n'.format(
+            p, p - addr, self.get_free_pointer(self.ramdump, s, p)))
+
+        if (p > addr + 16):
+            self.print_section('Bytes b4 ', p - 16, 16, out_file)
+
+        self.print_section('Object ', p, min(s.object_size, 4096), out_file)
+        if (s.flags & SLAB_RED_ZONE):
+            self.print_section('Redzone ', p + s.object_size,
+                s.inuse - s.object_size, out_file)
+
+        if (s.offset):
+            off = s.offset + self.ramdump.sizeof('void *')
+        else:
+            off = s.inuse
+
+        if (s.flags & SLAB_STORE_USER):
+            off += 2 * self.ramdump.sizeof('struct track')
+
+        if (off != s.size):
+            # Beginning of the filler is the free pointer
+            self.print_section('Padding ', p + off, s.size - off, out_file)
+
+    def memchr_inv(self, addr, value, size):
+        data = self.read_byte_array(addr, size)
+        if data is None:
+            return 0
+        for i in range(len(data)):
+            if data[i] != value:
+                return i + addr
+        return 0
+
+    def check_bytes_and_report(self, s, page, object, what, start,
+             value, bytes, out_file):
+        fault = self.memchr_inv(start, value, bytes)
+        if (not fault):
+            return True
+
+        end = start + bytes
+        while (end > fault and (self.read_byte_array(end - 1, 1)[0]) == value):
+            end -= 1
+
+        out_file.write('{0} overwritten\n'.format(what))
+        out_file.write('INFO: 0x{:x}-0x{:x}. First byte 0x{:x} instead of 0x{:x}\n'.format(
+            fault, end - 1, self.ramdump.read_byte(fault), value))
+
+        self.print_trailer(s, page, object, out_file)
+        return False
+
+    def check_pad_bytes(self, s, page, p, out_file):
+        off = s.inuse
+
+        if (s.offset):
+            # Freepointer is placed after the object
+            off += self.ramdump.sizeof('void *')
+
+        if (s.flags & SLAB_STORE_USER):
+            # We also have user information there
+            off += 2 * self.ramdump.sizeof('struct track')
+
+        if (s.size == off):
+            return True
+
+        return self.check_bytes_and_report(s, page, p, 'Object padding',
+            p + off, POISON_INUSE, s.size - off, out_file)
+
+    def check_object(self, s, page, object, val, out_file):
+        p = object
+        endobject = object + s.object_size
+
+        if (s.flags & SLAB_RED_ZONE):
+            if (not self.check_bytes_and_report(s, page, object, 'Redzone',
+                endobject, val, s.inuse - s.object_size, out_file)):
+                return
+        else:
+            if ((s.flags & SLAB_POISON) and s.object_size < s.inuse):
+                self.check_bytes_and_report(s, page, p, 'Alignment padding',
+                    endobject, POISON_INUSE,
+                    s.inuse - s.object_size, out_file)
+
+        if (s.flags & SLAB_POISON):
+            if (val != SLUB_RED_ACTIVE and (s.flags & OBJECT_POISON) and
+                (not self.check_bytes_and_report(s, page, p, 'Poison', p,
+                    POISON_FREE, s.object_size - 1, out_file) or
+                not self.check_bytes_and_report(s, page, p, 'Poison',
+                    p + s.object_size - 1, POISON_END, 1, out_file))):
+                return
+
+            # check_pad_bytes cleans up on its own.
+            self.check_pad_bytes(s, page, p, out_file)
+
+
     def print_slab(self, ramdump, slab_start, slab, page, out_file, map_fn):
         p = slab_start
         if page is None:
@@ -200,6 +315,12 @@ class Slabinfo(RamParser):
             self.print_track(self.ramdump, slab, p, 0, out_file)
             self.print_track(self.ramdump, slab, p, 1, out_file)
 
+    def print_check_poison(self, p, free, slab, page, out_file):
+        if free:
+            self.check_object(slab, page, p, SLUB_RED_INACTIVE, out_file)
+        else:
+            self.check_object(slab, page, p, SLUB_RED_ACTIVE, out_file)
+
     # based on validate_slab_cache. Currently assuming there is only one numa node
     # in the system because the code to do that correctly is a big pain. This will
     # need to be changed if we ever do NUMA properly.
@@ -255,3 +376,36 @@ class Slabinfo(RamParser):
         slab_out = self.ramdump.open_file('slabs.txt')
         self.validate_slab_cache(slab_out, self.print_all_objects)
         print_out_str('---wrote slab information to slabs.txt')
+
+@register_parser('--slabpoison', 'check slab poison', optional=True)
+class Slabpoison(Slabinfo):
+    """Note that this will NOT find any slab errors which are printed out by the
+    kernel, because the slab object is removed from the freelist while being
+    processed"""
+
+    # since slabs are relatively "packed", caching has a large
+    # performance benefit
+    def read_byte_array(self, addr, size):
+        page_addr = addr & -0x1000
+        end_page_addr = (addr + size) & -0x1000
+        # in cache
+        if page_addr == end_page_addr and page_addr == self.cache_addr:
+            idx = addr - self.cache_addr
+            return self.cache[idx:idx + size]
+        # accessing only one page
+        elif page_addr == end_page_addr:
+            fmtstr = '<{}B'.format(4096)
+            self.cache = self.ramdump.read_string(page_addr, fmtstr)
+            self.cache_addr = page_addr
+            idx = addr - self.cache_addr
+            return self.cache[idx:idx + size]
+        else:
+            fmtstr = '<{}B'.format(size)
+            return self.ramdump.read_string(addr, fmtstr)
+
+    def parse(self):
+        self.cache = None
+        self.cache_addr = None
+        slab_out = self.ramdump.open_file('slabpoison.txt')
+        self.validate_slab_cache(slab_out, self.print_check_poison)
+        print_out_str('---wrote slab information to slabpoison.txt')
