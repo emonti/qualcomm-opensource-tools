@@ -1441,8 +1441,17 @@ def cmdParse(options):
 				if page.unpack(data):
 					if versionIsOneOrGreater:
 						if not page.log_id in dictContexts:
-							context = get_context(start_of_page, fIn, page,
-									dictContexts, lstFiles, fileCount)
+							try:
+								context = get_context(start_of_page, fIn, page,
+										dictContexts, lstFiles, fileCount)
+							except:
+								msg = "Context not found - skipping page " + \
+										"and trying to " + \
+										"continue with unknown log page version"
+								logging.debug(msg)
+								page = LogPageVersionUnknown()
+								continue
+
 						else:
 							context = dictContexts[page.log_id]
 							page.setContext(context)
