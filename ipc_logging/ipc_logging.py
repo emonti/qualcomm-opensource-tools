@@ -699,7 +699,7 @@ class LogPage_v0(LogPage):
 		logging.debug("\tread index:  %x" % (self.read_offset))
 		logging.debug("\twrite index: %x" % (self.write_offset))
 
-	def debug_save_log_pages(self, fIn, filename, data):
+	def debug_save_log_pages(self, fIn, filename, data, options):
 		"""
 		Writes a binary file containing the data for the current page. This
 		is a helper to :func:`cmdParse`, and is particularly useful in
@@ -708,6 +708,8 @@ class LogPage_v0(LogPage):
 		:param fIn: The input file currently being processed by the caller
 		:param filename: The name of the input file currently being processed
 		:param data: The binary data for the current page
+		:param options: Configuration options containing options.output_dir for
+						the output directory
 
 		**Side Effects**: Writes an output file containing the binary data \
 				for the current page.
@@ -911,7 +913,7 @@ class LogPage_v1(LogPage):
 		logging.debug("\tend_time (seconds): %f" % (self.end_time * math.pow(10, -9)))
 		logging.debug("\tcontext_offset: %x" % (self.context_offset))
 
-	def debug_save_log_pages(self, fIn, filename, data, name):
+	def debug_save_log_pages(self, fIn, filename, data, name, options):
 		"""
 		If DEBUG logging is turned on, writes a binary file containing the data
 		for the current page. This is a helper to :func:`cmdParse`.
@@ -919,6 +921,8 @@ class LogPage_v1(LogPage):
 		:param fIn: The input file currently being processed by the caller
 		:param filename: The name of the input file currently being processed
 		:param data: The binary data for the current page
+		:param options: Configuration options containing options.output_dir for
+						the output directory
 
 		**Side Effects**: Writes an output file containing the binary data \
 				for the current page.
@@ -1119,7 +1123,7 @@ def dumpLogHelper(fout, pages, numPages, bSort):
 
 	return True
 
-def dumpLogWithRetry(logId, name, version, pages, numPages, test):
+def dumpLogWithRetry(logId, name, version, pages, numPages, test, options):
 	"""
 	This function is called by :func:`dumpLogs()` and :func:`cmdTest()`. It
 	handles creating output files for the parsed logs and writing data to them.
@@ -1131,6 +1135,8 @@ def dumpLogWithRetry(logId, name, version, pages, numPages, test):
 	:param pages: List of pages to process and dump to the output file
 	:param numPages: The number of pages in the current log
 	:param test: True if this function was called by cmdTest
+	:param options: Configuration options containing options.output_dir for the
+					output directory
 	"""
 	if version >= 1:
 		strFileName = "ipc-log-%s.txt" % (str(name))
@@ -1405,7 +1411,12 @@ def cmdParse(options):
 	this function calls :func:`dumpLogs()` to dump the parsed logs to output
 	files.
 
-	:param options: Contains the list of input files
+	:param options: Configuration options containing options.output_dir for the
+					output directory, options.debug_enabled, a flag for
+					discerning whether the extraction script is running in debug
+					mode, and options.args, the list of input files. All
+					configuration options are passed through to helper
+					functions.
 	"""
 	dictLogs = {}
 	dictContexts = {}
@@ -1498,9 +1509,10 @@ def cmdParse(options):
 					if options.debug_enabled:
 						if version >= 1:
 							page.debug_save_log_pages(fIn, fileName, data,
-									context.name)
+									context.name, options)
 						else:
-							page.debug_save_log_pages(fIn, fileName, data)
+							page.debug_save_log_pages(fIn, fileName, data,
+									options)
 
 					page = LogPageVersionUnknown()
 
@@ -1510,13 +1522,13 @@ def cmdParse(options):
 	# Check that log_ids received from contexts and from pages match
 	if versionIsOneOrGreater:
 		check_log_consistency(dictLogs, dictContexts)
-		dumpLogs(dictLogs, version)
+		dumpLogs(dictLogs, version, options)
 	else:
-		dumpLogs(dictLogs, 0)
+		dumpLogs(dictLogs, 0, options)
 
 	logging.debug("lstFiles: " + str(lstFiles))
 
-def dumpLogs(dictLogs, version):
+def dumpLogs(dictLogs, version, options):
 	"""
 	Dump logs from the dictionary of log IDs to logs built by
 	:func:`cmdParse()`. This is called at the end of :func:`cmdParse()`,
@@ -1524,6 +1536,7 @@ def dumpLogs(dictLogs, version):
 
 	:param dictLogs: The dictionary built by :func:`cmdParse()`.
 	:param version: The IPC Logging version.
+	:param options: Configuration options passed through to helper functions
 
 	**Side Effects**: The :func:`dumpLogWithRetry()` function is called, \
 			which dumps the parsed logs to output files.
@@ -1542,7 +1555,7 @@ def dumpLogs(dictLogs, version):
 		else:
 			name = None
 
-		dumpLogWithRetry(key, name, version, pages, numPages, False)
+		dumpLogWithRetry(key, name, version, pages, numPages, False, options)
 
 def cmdTest(options):
 	"""
@@ -1550,7 +1563,12 @@ def cmdTest(options):
 	useful for testing and for dealing with failure cases (such as duplicate
 	logs due to left-over log pages from previous boot cycles).
 
-	:param options: Contains the list of input files.
+	:param options: Configuration options containing options.output_dir for
+					the output directory, and options.args, the list of input
+					files, and options.arch_64, the flag indicating if the log
+					pages should be interpreted as 64-bit dumps or not. All
+					configuration options are passed through to helper
+					functions.
 	"""
 	dictPages = {}
 	version = 0
@@ -1604,7 +1622,7 @@ def cmdTest(options):
 
 	# dump the logs (in the same order provided)
 	dumpLogWithRetry(page.log_id, 'test-log-%s' % (filename),
-			version, dictPages, numPages, True)
+			version, dictPages, numPages, True, options)
 
 class LoggingFormatter(logging.Formatter):
 	"""
@@ -1625,6 +1643,69 @@ class LoggingFormatter(logging.Formatter):
 		else:
 			self._fmt = self.defaultFormat
 		return logging.Formatter.format(self, record)
+
+def configure_logging(options, stdout):
+	"""
+	Configure the logging options.
+
+	:param options: The options object, which contains options.verbosity for
+					the logging verbosity and options.debug_enabled to indicate
+					whether the extraction script is running in debug mode.
+	:param stdout:	Whether or not to create a logging handler for stdout
+	"""
+
+	if stdout:
+		loggingHandler = logging.StreamHandler(sys.stdout)
+		loggingHandler.setFormatter(LoggingFormatter())
+		logging.root.addHandler(loggingHandler)
+
+	# Set Log level
+	LOG_LEVELS = {	3: logging.DEBUG,
+					2: logging.INFO,
+					1: logging.WARNING,
+					0: logging.ERROR,
+				  }
+	assert LOG_LEVELS.has_key(options.verbosity), "Unknown log level %d" % \
+			(options.verbosity)
+	logging.root.setLevel(LOG_LEVELS[options.verbosity])
+
+	if logging.root.getEffectiveLevel >= 2 and options.quiet:
+		logging.root.setLevel(LOG_LEVELS[1])
+
+	options.debug_enabled = False
+	if options.verbosity >= 3:
+		options.debug_enabled = True
+
+def set_output_directory(options):
+	"""
+	Set up the output directory.
+
+	:param options: Configuration options containing options.output_dir for the
+					output directory
+
+	:return: The output logging handler object, or None if no output directory
+			was provided by the user.
+	"""
+	if not options.output_dir:
+		return None
+
+	options.output_dir = \
+			os.path.abspath(os.path.expanduser(options.output_dir))
+
+	# Create output directory if it does not exist
+	if not os.path.isdir(options.output_dir):
+		os.makedirs(options.output_dir)
+
+	# Create logging handler to take output in this directory
+	output_logging_handler = \
+			logging.FileHandler(\
+			os.path.join(options.output_dir, "ipc_extraction_report.txt"),
+			"w")
+	output_logging_handler.setFormatter(LoggingFormatter())
+	logging.root.addHandler(output_logging_handler)
+
+	logging.info("Output path: " + options.output_dir)
+	return output_logging_handler
 
 #------------------------------------------------------------------------
 # Main Program Entry Point
@@ -1747,48 +1828,13 @@ Examples:
 		options.args = args
 
 	# Configure logging format
-	loggingHandler = logging.StreamHandler(sys.stdout)
-	loggingHandler.setFormatter(LoggingFormatter())
-	logging.root.addHandler(loggingHandler)
-
-	# Set Log level
-	LOG_LEVELS = {	3: logging.DEBUG,
-					2: logging.INFO,
-					1: logging.WARNING,
-					0: logging.ERROR,
-				  }
-	assert LOG_LEVELS.has_key(options.verbosity), "Unknown log level %d" % \
-			(options.verbosity)
-	logging.root.setLevel(LOG_LEVELS[options.verbosity])
-
-	if logging.root.getEffectiveLevel >= 2 and options.quiet:
-		logging.root.setLevel(LOG_LEVELS[1])
-
-	options.debug_enabled = False
-	if options.verbosity >= 3:
-		options.debug_enabled = True
+	configure_logging(options, True)
 
 	if not options.cmd or options.cmd == "help":
 			parser.error('No command/help specified')
 			exit(1)
 
-	if options.output_dir:
-		options.output_dir = \
-				os.path.abspath(os.path.expanduser(options.output_dir))
-
-		# Create output directory if it does not exist
-		if not os.path.isdir(options.output_dir):
-			os.makedirs(options.output_dir)
-
-		# Create logging handler to take output in this directory
-		output_logging_handler = \
-				logging.FileHandler(\
-				os.path.join(options.output_dir, "logging_output.txt"),
-				"w")
-		output_logging_handler.setFormatter(LoggingFormatter())
-		logging.root.addHandler(output_logging_handler)
-
-		logging.info("Output path: " + options.output_dir)
+	output_logging_handler = set_output_directory(options)
 
 	dictCmds = {'parse': cmdParse,
 				'test': cmdTest,
