@@ -16,7 +16,9 @@ import shutil
 import os
 import platform
 import subprocess
+import sys
 
+from dcc import DccRegDump, DccSramDump
 from pmic import PmicRegDump
 from print_out import print_out_str, print_out_exception
 from qdss import QDSSDump
@@ -57,6 +59,8 @@ client_table = {
     'MSM_DUMP_DATA_OCMEM': 'parse_ocmem',
     'MSM_DUMP_DATA_DBGUI_REG' : 'parse_qdss_common',
     'MSM_DUMP_DATA_PMIC': 'parse_pmic',
+    'MSM_DUMP_DATA_DCC_REG':'parse_dcc_reg',
+    'MSM_DUMP_DATA_DCC_SRAM':'parse_dcc_sram',
     'MSM_DUMP_DATA_TMC_ETF': 'parse_qdss_common',
     'MSM_DUMP_DATA_TMC_REG': 'parse_qdss_common',
     'MSM_DUMP_DATA_L2_TLB': 'parse_l2_tlb',
@@ -101,6 +105,33 @@ class DebugImage_v2():
             return
 
         regs.dump_all_regs(ram_dump)
+
+    def parse_dcc_reg(self, version, start, end, client_id, ram_dump):
+        client_name = self.dump_data_id_lookup_table[client_id]
+
+        print_out_str(
+            'Parsing {0} context start {1:x} end {2:x}'.format(client_name, start, end))
+
+        regs = DccRegDump(start, end)
+        if regs.parse_all_regs(ram_dump) is False:
+            print_out_str('!!! Could not get registers from DCC register dump')
+            return
+
+        regs.dump_all_regs(ram_dump)
+        return
+
+    def parse_dcc_sram(self, version, start, end, client_id, ram_dump):
+        client_name = self.dump_data_id_lookup_table[client_id]
+
+        print_out_str(
+            'Parsing {0} context start {1:x} end {2:x}'.format(client_name, start, end))
+
+        regs = DccSramDump(start, end)
+        if regs.dump_sram_img(ram_dump) is False:
+            print_out_str('!!! Could not dump SRAM')
+        else:
+            ram_dump.dcc = True
+        return
 
     def parse_qdss_common(self, version, start, end, client_id, ram_dump):
         client_name = self.dump_data_id_lookup_table[client_id]
@@ -249,6 +280,30 @@ class DebugImage_v2():
         subprocess.call('{0} -c {1} stream trace table {2}'.format(qtf_path, port, qtf_out))
         subprocess.call('{0} -c {1} exit'.format(qtf_path, port))
         p.communicate('quit')
+
+    def parse_dcc(self, ram_dump):
+        out_dir = ram_dump.outdir
+
+        dcc_parser_path = os.path.join(os.path.dirname(__file__), '..', 'dcc_parser', 'dcc_parser.py')
+
+        if dcc_parser_path is None:
+            print_out_str("!!! Incorrect path for DCC specified.")
+            return
+
+        if not os.path.exists(dcc_parser_path):
+            print_out_str("!!! dcc_parser_path {0} does not exist! Check your settings!".format(dcc_parser_path))
+            return
+
+        if os.path.getsize(os.path.join(out_dir, 'sram.bin')) > 0:
+            sram_file = os.path.join(out_dir, 'sram.bin')
+        else:
+            return
+
+        p = subprocess.Popen([sys.executable, dcc_parser_path, '-s', sram_file, '--out-dir', out_dir],
+                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+        print_out_str('--------')
+        print_out_str(p.communicate()[0])
 
     def parse_dump_v2(self, ram_dump):
         self.dump_type_lookup_table = ram_dump.gdbmi.get_enum_lookup_table(
@@ -418,3 +473,5 @@ class DebugImage_v2():
             self.qdss.dump_all(ram_dump)
             if ram_dump.qtf:
                 self.parse_qtf(ram_dump)
+            if ram_dump.dcc:
+                self.parse_dcc(ram_dump)

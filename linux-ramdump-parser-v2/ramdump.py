@@ -460,6 +460,7 @@ class RamDump():
         self.thread_size = 8192
         self.qtf_path = options.qtf_path
         self.qtf = options.qtf
+        self.dcc = False
         self.t32_host_system = options.t32_host_system or None
         self.ipc_log_test = options.ipc_test
         self.ipc_log_skip = options.ipc_skip
