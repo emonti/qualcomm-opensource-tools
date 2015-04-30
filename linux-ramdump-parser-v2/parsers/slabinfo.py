@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -102,7 +102,7 @@ class Slabinfo(RamParser):
             n_objects = (count >> 16) & 0xFFFF
             return n_objects
 
-    def print_slab(self, ramdump, slab_start, slab, page, out_file):
+    def print_slab(self, ramdump, slab_start, slab, page, out_file, map_fn):
         p = slab_start
         if page is None:
             return
@@ -126,18 +126,10 @@ class Slabinfo(RamParser):
             bitidx = self.slab_index(self.ramdump, p, addr, slab)
             if bitidx >= len(bitarray) or bitidx < 0:
                 return
-            if bitarray[bitidx] == 1:
-                out_file.write(
-                    '   Object {0:x}-{1:x} FREE\n'.format(p, p + slab_size))
-            else:
-                out_file.write(
-                    '   Object {0:x}-{1:x} ALLOCATED\n'.format(p, p + slab_size))
-            if self.ramdump.is_config_defined('CONFIG_SLUB_DEBUG_ON'):
-                self.print_track(self.ramdump, slab, p, 0, out_file)
-                self.print_track(self.ramdump, slab, p, 1, out_file)
+            map_fn(p, bitarray[bitidx], slab, page, out_file)
             p = p + slab_size
 
-    def print_slab_page_info(self, ramdump, slab, slab_node, start, out_file):
+    def print_slab_page_info(self, ramdump, slab, slab_node, start, out_file, map_fn):
         page = self.ramdump.read_word(start)
         seen = []
         if page == 0:
@@ -160,10 +152,10 @@ class Slabinfo(RamParser):
             page = page - slab_lru_offset
             page_flags = self.ramdump.read_word(page + page_flags_offset)
             page_addr = page_address(self.ramdump, page)
-            self.print_slab(self.ramdump, page_addr, slab, page, out_file)
+            self.print_slab(self.ramdump, page_addr, slab, page, out_file, map_fn)
             page = self.ramdump.read_word(page + slab_lru_offset)
 
-    def print_per_cpu_slab_info(self, ramdump, slab, slab_node, start, out_file):
+    def print_per_cpu_slab_info(self, ramdump, slab, slab_node, start, out_file, map_fn):
         page = self.ramdump.read_word(start)
         if page == 0:
             return
@@ -172,13 +164,29 @@ class Slabinfo(RamParser):
             return
         page_flags = self.ramdump.read_word(page + page_flags_offset)
         page_addr = page_address(self.ramdump, page)
-        self.print_slab(self.ramdump, page_addr, slab, page, out_file)
+        self.print_slab(self.ramdump, page_addr, slab, page, out_file, map_fn)
+
+    def print_all_objects(self, p, free, slab, page, out_file):
+        slab_size_offset = self.ramdump.field_offset(
+            'struct kmem_cache', 'size')
+        slab_size = self.ramdump.read_int(slab + slab_size_offset)
+        if slab_size is None:
+            return
+
+        if free:
+            out_file.write(
+                '   Object {0:x}-{1:x} FREE\n'.format(p, p + slab_size))
+        else:
+            out_file.write(
+                '   Object {0:x}-{1:x} ALLOCATED\n'.format(p, p + slab_size))
+        if self.ramdump.is_config_defined('CONFIG_SLUB_DEBUG_ON'):
+            self.print_track(self.ramdump, slab, p, 0, out_file)
+            self.print_track(self.ramdump, slab, p, 1, out_file)
 
     # based on validate_slab_cache. Currently assuming there is only one numa node
     # in the system because the code to do that correctly is a big pain. This will
     # need to be changed if we ever do NUMA properly.
-    def parse(self):
-        slab_out = self.ramdump.open_file('slabs.txt')
+    def validate_slab_cache(self, slab_out, map_fn):
         original_slab = self.ramdump.addr_lookup('slab_caches')
         per_cpu_offset = self.ramdump.addr_lookup('__per_cpu_offset')
         cpu_present_bits_addr = self.ramdump.addr_lookup('cpu_present_bits')
@@ -209,17 +217,21 @@ class Slabinfo(RamParser):
             slab_out.write(
                 '{0:x} slab {1} {2:x}\n'.format(slab, slab_name, slab_node_addr))
             self.print_slab_page_info(
-                self.ramdump, slab, slab_node, slab_node_addr + slab_partial_offset, slab_out)
+                self.ramdump, slab, slab_node, slab_node_addr + slab_partial_offset, slab_out, map_fn)
             if self.ramdump.is_config_defined('CONFIG_SLUB_DEBUG'):
                slab_full_offset = self.ramdump.field_offset(
                     'struct kmem_cache_node', 'full')
                self.print_slab_page_info(
-                    self.ramdump, slab, slab_node, slab_node_addr + slab_full_offset, slab_out)
+                    self.ramdump, slab, slab_node, slab_node_addr + slab_full_offset, slab_out, map_fn)
 
             for i in range(0, cpus):
                 cpu_slabn_addr = self.ramdump.read_word(cpu_slab_addr, cpu=i)
                 self.print_per_cpu_slab_info(
-                    self.ramdump, slab, slab_node, cpu_slabn_addr + cpu_cache_page_offset, slab_out)
+                    self.ramdump, slab, slab_node, cpu_slabn_addr + cpu_cache_page_offset, slab_out, map_fn)
 
             slab = self.ramdump.read_word(slab + slab_list_offset)
+
+    def parse(self):
+        slab_out = self.ramdump.open_file('slabs.txt')
+        self.validate_slab_cache(slab_out, self.print_all_objects)
         print_out_str('---wrote slab information to slabs.txt')
