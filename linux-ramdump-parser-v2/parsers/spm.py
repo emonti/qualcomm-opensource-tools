@@ -18,32 +18,34 @@ class spm(RamParser):
         super(spm, self).__init__(*args)
         self.head = ''
         self.output = []
-        self.spm_reg_2_1 = ('MSM_SPM_REG_SAW2_SECURE', 'MSM_SPM_REG_SAW2_ID',
-                        'MSM_SPM_REG_SAW2_CFG', 'MSM_SPM_REG_SAW2_SPM_STS',
-                        'MSM_SPM_REG_SAW2_AVS_STS', 'MSM_SPM_REG_SAW2_PMIC_STS',
-                        'MSM_SPM_REG_SAW2_RST', 'MSM_SPM_REG_SAW2_VCTL',
-                        'MSM_SPM_REG_SAW2_AVS_CTL', 'MSM_SPM_REG_SAW2_AVS_LIMIT',
-                        'MSM_SPM_REG_SAW2_AVS_DLY', 'MSM_SPM_REG_SAW2_AVS_HYSTERESIS',
-                        'MSM_SPM_REG_SAW2_SPM_CTL', 'MSM_SPM_REG_SAW2_SPM_DLY',
-                        'MSM_SPM_REG_SAW2_PMIC_DATA_0', 'MSM_SPM_REG_SAW2_PMIC_DATA_1',
-                        'MSM_SPM_REG_SAW2_PMIC_DATA_2', 'MSM_SPM_REG_SAW2_PMIC_DATA_3',
-                        'MSM_SPM_REG_SAW2_PMIC_DATA_4', 'MSM_SPM_REG_SAW2_PMIC_DATA_5',
-                        'MSM_SPM_REG_SAW2_PMIC_DATA_6', 'MSM_SPM_REG_SAW2_PMIC_DATA_7',
-                        'MSM_SPM_REG_SAW2_SEQ_ENTRY', 'MSM_SPM_REG_SAW2_VERSION')
-
-        self.spm_reg_3_0 = ('MSM_SPM_REG_SAW2_SECURE', 'MSM_SPM_REG_SAW2_ID',
-                        'MSM_SPM_REG_SAW2_CFG', 'MSM_SPM_REG_SAW2_SPM_STS',
-                        'MSM_SPM_REG_SAW2_AVS_STS', 'MSM_SPM_REG_SAW2_PMIC_STS',
-                        'MSM_SPM_REG_SAW2_RST', 'MSM_SPM_REG_SAW2_VCTL',
-                        'MSM_SPM_REG_SAW2_AVS_CTL', 'MSM_SPM_REG_SAW2_AVS_LIMIT',
-                        'MSM_SPM_REG_SAW2_AVS_DLY', 'MSM_SPM_REG_SAW2_AVS_HYSTERESIS',
-                        'MSM_SPM_REG_SAW2_SPM_CTL', 'MSM_SPM_REG_SAW2_SPM_DLY',
-                        'MSM_SPM_REG_SAW2_STS2', 'MSM_SPM_REG_SAW2_PMIC_DATA_0',
-                        'MSM_SPM_REG_SAW2_PMIC_DATA_1', 'MSM_SPM_REG_SAW2_PMIC_DATA_2',
-                        'MSM_SPM_REG_SAW2_PMIC_DATA_3', 'MSM_SPM_REG_SAW2_PMIC_DATA_4',
-                        'MSM_SPM_REG_SAW2_PMIC_DATA_5', 'MSM_SPM_REG_SAW2_PMIC_DATA_6',
-                        'MSM_SPM_REG_SAW2_PMIC_DATA_7', 'MSM_SPM_REG_SAW2_SEQ_ENTRY',
-                        'MSM_SPM_REG_SAW2_VERSION')
+        self.spm_shadow_reg = ('MSM_SPM_REG_SAW2_CFG',
+            'MSM_SPM_REG_SAW2_AVS_CTL',
+            'MSM_SPM_REG_SAW2_AVS_HYSTERESIS',
+            'MSM_SPM_REG_SAW2_SPM_CTL',
+            'MSM_SPM_REG_SAW2_PMIC_DLY',
+            'MSM_SPM_REG_SAW2_AVS_LIMIT',
+            'MSM_SPM_REG_SAW2_AVS_DLY',
+            'MSM_SPM_REG_SAW2_SPM_DLY',
+            'MSM_SPM_REG_SAW2_PMIC_DATA_0',
+            'MSM_SPM_REG_SAW2_PMIC_DATA_1',
+            'MSM_SPM_REG_SAW2_PMIC_DATA_2',
+            'MSM_SPM_REG_SAW2_PMIC_DATA_3',
+            'MSM_SPM_REG_SAW2_PMIC_DATA_4',
+            'MSM_SPM_REG_SAW2_PMIC_DATA_5',
+            'MSM_SPM_REG_SAW2_PMIC_DATA_6',
+            'MSM_SPM_REG_SAW2_PMIC_DATA_7',
+            'MSM_SPM_REG_SAW2_RST',
+            'MSM_SPM_REG_SAW2_ID',
+            'MSM_SPM_REG_SAW2_SECURE',
+            'MSM_SPM_REG_SAW2_STS0',
+            'MSM_SPM_REG_SAW2_STS1',
+            'MSM_SPM_REG_SAW2_STS2',
+            'MSM_SPM_REG_SAW2_VCTL',
+            'MSM_SPM_REG_SAW2_SEQ_ENTRY',
+            'MSM_SPM_REG_SAW2_SPM_STS',
+            'MSM_SPM_REG_SAW2_AVS_STS',
+            'MSM_SPM_REG_SAW2_PMIC_STS',
+            'MSM_SPM_REG_SAW2_VERSION')
 
     def spm_walker(self, spm):
         if spm == self.head:
@@ -71,18 +73,14 @@ class spm(RamParser):
         self.output.append(".{}\n".format(minor))
 
         self.output.append("\n{}\n".format("Shadow Registers"))
+        self.output.append("{}{}".format("-" * 20, "\n"))
 
         offset = self.ramdump.field_offset('struct msm_spm_driver_data', 'reg_shadow')
 
-        if major is 2 and minor is 1:
-                rList = self.spm_reg_2_1
-        else:
-                rList = self.spm_reg_3_0
-
-        for i in range(len(rList)):
+        for i in range(len(self.spm_shadow_reg)):
                 addr = reg_data + offset + i * self.ramdump.sizeof('uint32_t')
                 val = self.ramdump.read_int(addr)
-                self.output.append("{:35}:{}\n".format(rList[i], hex(val).rstrip("L")))
+                self.output.append("{:35}:{}\n".format(self.spm_shadow_reg[i], hex(val).rstrip("L")))
 
         self.output.append("{}{}".format("-" * 81, "\n\n"))
 
