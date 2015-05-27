@@ -466,6 +466,7 @@ class RamDump():
         self.ipc_log_debug = options.ipc_debug
         self.ipc_log_help = options.ipc_help
         self.use_stdout = options.stdout
+        self.major = [0, 0, 0]
         if options.ram_addr is not None:
             # TODO sanity check to make sure the memory regions don't overlap
             for file_path, start, end in options.ram_addr:
@@ -631,6 +632,12 @@ class RamDump():
                 print_out_str('!!! Could not match version! {0}'.format(b))
                 return False
             self.version = v.group(1)
+            match = re.search('(\d+)\.(\d+)\.(\d+)', self.version)
+            if match is not None:
+                self.major[0], self.major[1], self.major[2] = map(int, match.groups())
+            else:
+                print_out_str('!!! Could not extract version info! {0}'.format(self.version))
+
             print_out_str('Linux Banner: ' + b.rstrip())
             print_out_str('version = {0}'.format(self.version))
             return True
