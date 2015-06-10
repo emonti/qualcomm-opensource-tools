@@ -460,6 +460,7 @@ boards.append(Board8992(socid=251))
 boards.append(Board8992(socid=252))
 
 boards.append(Board8996(socid=246))
+boards.append(Board8996(socid=291))
 
 boards.append(Board8952(socid=264))
 
