@@ -441,9 +441,11 @@ class Workqueues(RamParser):
 
     def parse(self):
             ver = self.ramdump.version
-            if re.search('3.0.\d', ver) is not None:
+            match = re.search('(\d+)\.(\d+)\.(\d+)', ver)
+            major, minor, patch = map(int, match.groups())
+            if (major, minor) == (3, 0):
                     print_workqueue_state_3_0(self.ramdump)
-            if re.search('3.4.\d', ver) is not None:
+            elif (major, minor) == (3, 4):
                     # somebody did a backport of 3.7 workqueue patches to msm so
                     # need to detect new vs. old versions
                     idle_list_offset = self.ramdump.field_offset(
@@ -452,9 +454,9 @@ class Workqueues(RamParser):
                         self.print_workqueue_state_3_7(self.ramdump)
                     else:
                         self.print_workqueue_state_3_0(self.ramdump)
-            if re.search('3.7.\d', ver) is not None:
+            elif (major, minor) == (3, 7):
                     self.print_workqueue_state_3_7(self.ramdump)
-            if re.search('3.10.\d', ver) is not None:
+            elif (major, minor) >= (3, 10):
                     self.print_workqueue_state_3_10(self.ramdump)
-            if re.search('3.14.\d', ver) is not None:
-                    self.print_workqueue_state_3_10(self.ramdump)
+            else:
+                    print_out_str('Kernel version {0}.{1} is not yet supported for parsing workqueues'.format(major, minor))

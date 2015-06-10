@@ -132,11 +132,10 @@ class DmesgLib(object):
             curr_idx = self.verify_log(curr_idx, logbuf_addr, last_idx)
 
     def extract_dmesg(self):
-        if re.search('3.7.\d', self.ramdump.version) is not None:
-            self.extract_dmesg_binary()
-        elif re.search('3\.10\.\d', self.ramdump.version) is not None:
-            self.extract_dmesg_binary()
-        elif re.search('3\.14\.\d', self.ramdump.version) is not None:
-            self.extract_dmesg_binary()
-        else:
-            self.extract_dmesg_flat()
+        match = re.search('(\d+)\.(\d+)\.(\d+)', self.ramdump.version)
+        if match is not None:
+            major, minor, patch = map(int, match.groups())
+            if (major, minor) >= (3, 7):
+                self.extract_dmesg_binary()
+                return
+        self.extract_dmesg_flat()
