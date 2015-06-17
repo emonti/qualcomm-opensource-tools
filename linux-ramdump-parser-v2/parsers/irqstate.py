@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -139,8 +139,8 @@ class IrqParse(RamParser):
                 ram_dump, irq_desc_tree, i)
             if irq_desc is None:
                 continue
-            irqnum = ram_dump.read_word(irq_desc + irq_num_offset)
-            irqcount = ram_dump.read_word(irq_desc + irq_count_offset)
+            irqnum = ram_dump.read_int(irq_desc + irq_data_offset + irq_num_offset)
+            irqcount = ram_dump.read_int(irq_desc + irq_count_offset)
             action = ram_dump.read_word(irq_desc + irq_action_offset)
             kstat_irqs_addr = ram_dump.read_word(irq_desc + kstat_irqs_offset)
             irq_stats_str = ''
