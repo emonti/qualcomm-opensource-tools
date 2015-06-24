@@ -28,6 +28,7 @@ from cachedumplib import lookup_cache_type
 
 MEMDUMPV2_MAGIC = 0x42445953
 MAX_NUM_ENTRIES = 0x130
+TRACE_EVENT_FL_TRACEPOINT = 0x40
 
 class client(object):
     MSM_DUMP_DATA_CPU_CTX = 0x00
@@ -181,16 +182,26 @@ class DebugImage_v2():
             self.formats_out.write("\tfield:{0} {1};\toffset:{2};\tsize:{3};\tsigned:{4};\n".format(type_str, field_name, offset, size, signed))
 
     def ftrace_events_func(self, ftrace_list, ram_dump):
-        name_offset = ram_dump.field_offset('struct ftrace_event_call', 'name')
         event_offset = ram_dump.field_offset('struct ftrace_event_call', 'event')
         fmt_offset = ram_dump.field_offset('struct ftrace_event_call', 'print_fmt')
         class_offset = ram_dump.field_offset('struct ftrace_event_call', 'class')
+        flags_offset = ram_dump.field_offset('struct ftrace_event_call', 'flags')
+        flags = ram_dump.read_word(ftrace_list + flags_offset)
+
+        if (ram_dump.kernel_version >= (3, 18) and (flags & TRACE_EVENT_FL_TRACEPOINT)):
+            tp_offset = ram_dump.field_offset('struct ftrace_event_call', 'tp')
+            tp_name_offset = ram_dump.field_offset('struct tracepoint', 'name')
+            tp = ram_dump.read_word(ftrace_list + tp_offset)
+            name = ram_dump.read_word(tp + tp_name_offset)
+        else:
+            name_offset = ram_dump.field_offset('struct ftrace_event_call', 'name')
+            name = ram_dump.read_word(ftrace_list + name_offset)
+
         type_offset = ram_dump.field_offset('struct trace_event', 'type')
         fields_offset = ram_dump.field_offset('struct ftrace_event_class', 'fields')
         common_field_list = ram_dump.addr_lookup('ftrace_common_fields')
         field_next_offset = ram_dump.field_offset('struct ftrace_event_field', 'link')
 
-        name = ram_dump.read_word(ftrace_list + name_offset)
         name_str = ram_dump.read_cstring(name, 512)
         event_id = ram_dump.read_word(ftrace_list + event_offset + type_offset)
         fmt = ram_dump.read_word(ftrace_list + fmt_offset)
