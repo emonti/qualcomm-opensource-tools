@@ -1,4 +1,4 @@
-# Copyright (c) 2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -132,10 +132,8 @@ class DmesgLib(object):
             curr_idx = self.verify_log(curr_idx, logbuf_addr, last_idx)
 
     def extract_dmesg(self):
-        match = re.search('(\d+)\.(\d+)\.(\d+)', self.ramdump.version)
-        if match is not None:
-            major, minor, patch = map(int, match.groups())
-            if (major, minor) >= (3, 7):
-                self.extract_dmesg_binary()
-                return
+        major, minor, patch = self.ramdump.kernel_version
+        if (major, minor) >= (3, 7):
+            self.extract_dmesg_binary()
+            return
         self.extract_dmesg_flat()

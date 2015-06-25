@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -120,8 +120,8 @@ class Vmalloc(RamParser):
 
     def parse(self):
         out_path = self.ramdump.outdir
-        ver = self.ramdump.version
-        if re.search('3\.10\.\d', ver) is not None:
+        major, minor, patch = self.ramdump.kernel_version
+        if (major, minor) == (3, 10):
             self.print_vmalloc_info_3_10(out_path)
         else:
             self.print_vmalloc_info(out_path)
