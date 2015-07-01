@@ -139,6 +139,7 @@ class RunQueues(RamParser):
             array_wsize = 4
             idx_size = 32
 
+        seen_nodes = set()
         for i in range(0, bitmap_range):
             bitmap = self.ramdump.read_word(array_addr + i * array_wsize)
             while True:
@@ -149,6 +150,9 @@ class RunQueues(RamParser):
                     queue_addr = self.ramdump.read_word(
                         array_addr + queue_offset + idx)
                     while queue_addr != array_addr + queue_offset + idx:
+                        if queue_addr in seen_nodes:
+                            break
+                        seen_nodes.add(queue_addr)
                         task_addr = queue_addr - rt_offset
                         self.print_task_state('pend', task_addr)
                         queue_addr = self.ramdump.read_word(queue_addr)
