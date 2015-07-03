@@ -74,7 +74,7 @@ class IrqParse(RamParser):
 
     def radix_tree_lookup_element(self, ram_dump, root_addr, index):
         rnode_offset = ram_dump.field_offset('struct radix_tree_root', 'rnode')
-        if (ram_dump.major[0], ram_dump.major[1]) >= (3, 18):
+        if (ram_dump.kernel_version[0], ram_dump.kernel_version[1]) >= (3, 18):
             rnode_height_offset = ram_dump.field_offset(
                 'struct radix_tree_node', 'path')
         else:
@@ -98,7 +98,7 @@ class IrqParse(RamParser):
         node_addr = ram_dump.read_word(root_addr + rnode_offset) & 0xfffffffffffffffe
         height = ram_dump.read_int(node_addr + rnode_height_offset)
 
-        if (ram_dump.major[0], ram_dump.major[1]) >= (3, 18):
+        if (ram_dump.kernel_version[0], ram_dump.kernel_version[1]) >= (3, 18):
             height = height & radix_tree_height_mask
 
         if height > len(height_to_maxindex):

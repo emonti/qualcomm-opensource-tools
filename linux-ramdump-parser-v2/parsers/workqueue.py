@@ -440,9 +440,7 @@ class Workqueues(RamParser):
                 pending_list.walk(self.ramdump.read_word(worklist_addr), self.pending_list_walk)
 
     def parse(self):
-            ver = self.ramdump.version
-            match = re.search('(\d+)\.(\d+)\.(\d+)', ver)
-            major, minor, patch = map(int, match.groups())
+            major, minor, patch = self.ramdump.kernel_version
             if (major, minor) == (3, 0):
                     print_workqueue_state_3_0(self.ramdump)
             elif (major, minor) == (3, 4):
