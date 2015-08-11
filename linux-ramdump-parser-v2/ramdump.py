@@ -115,7 +115,12 @@ class RamDump():
             mask = (self.ramdump.thread_size) - 1
             high = (low + mask) & (~mask)
 
-            if (fp < low or fp > high or fp & 0xf):
+            # Ignore NON HLOS addresses and return from the function without
+            # unwinding the frame pointer. HLOS addresses are expected to be
+            # greater than or equal to page_offset. NON HLOS addresses have 1-1
+            # virtual to physical mapping and may not have physical addresses
+            # equal to or greater than page_offset anytime soon.
+            if (fp < low or fp > high or fp & 0xf or fp < self.ramdump.page_offset):
                 return
 
             frame.sp = fp + 0x10
