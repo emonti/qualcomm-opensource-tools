@@ -255,9 +255,9 @@ def dump_thread_group_timestamps(ramdump, thread_group, t):
         if next_thread_start != thread_info_task:
             print_out_str('!!!! Task list or Thread info corruption\n{0}  {1}'.format(next_thread_start,thread_info_task))
             return False
-        t[cpu_no].append([thread_task_name, thread_task_pid, ramdump.read_word(next_thread_last_arrival),
-            ramdump.read_int(next_thread_last_queued),
-            ramdump.read_int(next_thread_run_delay),ramdump.read_int(next_thread_pcount)])
+        t[cpu_no].append([thread_task_name, thread_task_pid, ramdump.read_u64(next_thread_last_arrival),
+            ramdump.read_u64(next_thread_last_queued),
+            ramdump.read_u64(next_thread_run_delay),ramdump.read_word(next_thread_pcount)])
         next_thr = ramdump.read_word(thread_group)
         if (next_thr == thread_group) and (next_thr != orig_thread_group):
             print_out_str('!!!! Cycle in thread group! The list is corrupt!\n')
