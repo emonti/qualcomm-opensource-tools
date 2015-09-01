@@ -120,7 +120,9 @@ if __name__ == '__main__':
     parser.add_option('', '--parse-qdss', action='store_true',
                       dest='qdss', help='Parse QDSS (deprecated)')
     parser.add_option('', '--64-bit', action='store_true', dest='arm64',
-                      help='Parse dumps as 64-bit dumps')
+                      help='Parse dumps as 64-bit dumps (default)')
+    parser.add_option('', '--32-bit', action='store_true', dest='arm32',
+                      help='Parse dumps as 32-bit dumps')
     parser.add_option('', '--shell', action='store_true',
                       help='Run an interactive python interpreter with the ramdump loaded')
     parser.add_option('', '--classic-shell', action='store_true',
@@ -229,6 +231,12 @@ if __name__ == '__main__':
     gdb_path = options.gdb
     nm_path = options.nm
     objdump_path = options.objdump
+
+    if options.arm64:
+        print_out_str('--64-bit is deprecated. Dumps are assumed to be 64-bit by default.')
+        print_out_str('For 32-bit dumps, use --32-bit.')
+    else:
+        options.arm64 = not options.arm32
 
     try:
         import local_settings
