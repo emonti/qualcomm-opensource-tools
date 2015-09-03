@@ -1086,10 +1086,7 @@ class RamDump():
 
     def read_dword(self, address, virtual=True, cpu=None):
         s = self.read_string(address, '<Q', virtual, cpu)
-        if s is None:
-            return None
-        else:
-            return s[0]
+        return s[0] if s is not None else None
 
     # returns a word size (pointer) read from ramdump
     def read_word(self, address, virtual=True, cpu=None):
@@ -1097,10 +1094,7 @@ class RamDump():
             s = self.read_string(address, '<Q', virtual, cpu)
         else:
             s = self.read_string(address, '<I', virtual, cpu)
-        if s is None:
-            return None
-        else:
-            return s[0]
+        return s[0] if s is not None else None
 
     # returns a value corresponding to half the word size
     def read_halfword(self, address, virtual=True, cpu=None):
@@ -1108,48 +1102,30 @@ class RamDump():
             s = self.read_string(address, '<I', virtual, cpu)
         else:
             s = self.read_string(address, '<H', virtual, cpu)
-        if s is None:
-            return None
-        else:
-            return s[0]
+        return s[0] if s is not None else None
 
     def read_byte(self, address, virtual=True, cpu=None):
         s = self.read_string(address, '<B', virtual, cpu)
-        if s is None:
-            return None
-        else:
-            return s[0]
+        return s[0] if s is not None else None
 
     def read_bool(self, address, virtual=True, cpu=None):
         s = self.read_string(address, '<?', virtual, cpu)
-        if s is None:
-            return None
-        else:
-            return s[0]
+        return s[0] if s is not None else None
 
     # returns a value guaranteed to be 64 bits
     def read_u64(self, address, virtual=True, cpu=None):
         s = self.read_string(address, '<Q', virtual, cpu)
-        if s is None:
-            return None
-        else:
-            return s[0]
+        return s[0] if s is not None else None
 
     # returns a value guaranteed to be 32 bits
     def read_s32(self, address, virtual=True, cpu=None):
         s = self.read_string(address, '<i', virtual, cpu)
-        if s is None:
-            return None
-        else:
-            return s[0]
+        return s[0] if s is not None else None
 
     # returns a value guaranteed to be 32 bits
     def read_u32(self, address, virtual=True, cpu=None):
         s = self.read_string(address, '<I', virtual, cpu)
-        if s is None:
-            return None
-        else:
-            return s[0]
+        return s[0] if s is not None else None
 
     def read_int(self, address, virtual=True,  cpu=None):
         return self.read_u32(address, virtual, cpu)
@@ -1157,10 +1133,7 @@ class RamDump():
     # returns a value guaranteed to be 16 bits
     def read_u16(self, address, virtual=True, cpu=None):
         s = self.read_string(address, '<H', virtual, cpu)
-        if s is None:
-            return None
-        else:
-            return s[0]
+        return s[0] if s is not None else None
 
     # reads a 4 or 8 byte field from a structure
     def read_structure_field(self, address, struct_name, field):
