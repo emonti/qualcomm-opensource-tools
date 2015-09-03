@@ -1142,6 +1142,16 @@ class RamDump():
         s = self.read_string(addr_or_name, '<H', virtual, cpu)
         return s[0] if s is not None else None
 
+    def read_pointer(self, addr_or_name, virtual=True, cpu=None):
+        """Reads `addr_or_name' as a pointer variable.
+
+        The read length is either 32-bit or 64-bit depending on the
+        architecture.  This returns the *value* of the pointer variable
+        (i.e. the address it contains), not the data it points to.
+        """
+        fn = self.read_u32 if self.sizeof('void *') == 4 else self.read_u64
+        return fn(addr_or_name, virtual, cpu)
+
     def read_structure_field(self, addr_or_name, struct_name, field):
         """reads a 4 or 8 byte field from a structure"""
         size = self.sizeof("(({0} *)0)->{1}".format(struct_name, field))
