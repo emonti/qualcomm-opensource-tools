@@ -959,14 +959,18 @@ class RamDump():
         self.imem_fname = board.imem_file_name
         return True
 
+    def resolve_virt(self, virt_or_name):
+        """Takes a virtual address or variable name, returns a virtual
+        address
+        """
+        if not isinstance(virt_or_name, basestring):
+            return virt_or_name
+        return self.addr_lookup(virt_or_name)
+
     def virt_to_phys(self, virt_or_name):
         """Does a virtual-to-physical address lookup of the virtual address or
         variable name."""
-        if isinstance(virt_or_name, basestring):
-            virt_or_name = self.addr_lookup(virt_or_name)
-            if virt_or_name is None:
-                return
-        return self.mmu.virt_to_phys(virt_or_name)
+        return self.mmu.virt_to_phys(self.resolve_virt(virt_or_name))
 
     def setup_symbol_tables(self):
         stream = os.popen(self.nm_path + ' -n ' + self.vmlinux)
@@ -1141,11 +1145,12 @@ class RamDump():
     def read_structure_field(self, addr_or_name, struct_name, field):
         """reads a 4 or 8 byte field from a structure"""
         size = self.sizeof("(({0} *)0)->{1}".format(struct_name, field))
+        virt = self.resolve_virt(addr_or_name)
         if size == 4:
-            return self.read_u32(addr_or_name + self.field_offset(struct_name,
+            return self.read_u32(virt + self.field_offset(struct_name,
                                                                   field))
         if size == 8:
-            return self.read_u64(addr_or_name + self.field_offset(struct_name,
+            return self.read_u64(virt + self.field_offset(struct_name,
                                                                   field))
         return None
 
@@ -1154,6 +1159,7 @@ class RamDump():
         if virtual:
             if cpu is not None:
                 pcpu_offset = self.per_cpu_offset(cpu)
+                addr_or_name = self.resolve_virt(addr_or_name)
                 addr_or_name += pcpu_offset + self.per_cpu_offset(cpu)
             addr = self.virt_to_phys(addr_or_name)
         s = self.read_physical(addr, max_length)
@@ -1176,6 +1182,7 @@ class RamDump():
         if virtual:
             if cpu is not None:
                 pcpu_offset = self.per_cpu_offset(cpu)
+                addr_or_name = self.resolve_virt(addr_or_name)
                 addr_or_name += pcpu_offset
                 per_cpu_string = ' with per-cpu offset of ' + hex(pcpu_offset)
             addr = self.virt_to_phys(addr_or_name)
