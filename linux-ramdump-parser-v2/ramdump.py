@@ -109,7 +109,7 @@ class RamDump():
                     stop = mid
             return stop
 
-        def unwind_frame_generic64(self, frame, trace=False):
+        def unwind_frame_generic64(self, frame):
             fp = frame.fp
             low = frame.sp
             mask = (self.ramdump.thread_size) - 1
@@ -128,7 +128,7 @@ class RamDump():
             frame.pc = self.ramdump.read_word(fp + 8)
             return 0
 
-        def unwind_frame_generic(self, frame, trace=False):
+        def unwind_frame_generic(self, frame):
             high = 0
             fp = frame.fp
 
@@ -229,19 +229,13 @@ class RamDump():
 
             return ret
 
-        def unwind_exec_insn(self, ctrl, trace=False):
+        def unwind_exec_insn(self, ctrl):
             insn = self.unwind_get_byte(ctrl)
 
             if ((insn & 0xc0) == 0x00):
                 ctrl.vrs[SP] += ((insn & 0x3f) << 2) + 4
-                if trace:
-                    print_out_str(
-                        '    add {0} to stack'.format(((insn & 0x3f) << 2) + 4))
             elif ((insn & 0xc0) == 0x40):
                 ctrl.vrs[SP] -= ((insn & 0x3f) << 2) + 4
-                if trace:
-                    print_out_str(
-                        '    subtract {0} from stack'.format(((insn & 0x3f) << 2) + 4))
             elif ((insn & 0xf0) == 0x80):
                 vsp = ctrl.vrs[SP]
                 reg = 4
@@ -257,9 +251,6 @@ class RamDump():
                 while (mask):
                     if (mask & 1):
                         ctrl.vrs[reg] = self.ramdump.read_word(vsp)
-                        if trace:
-                            print_out_str(
-                                '    pop r{0} from stack'.format(reg))
                         if ctrl.vrs[reg] is None:
                             return -1
                         vsp += 4
@@ -269,9 +260,6 @@ class RamDump():
                     ctrl.vrs[SP] = vsp
 
             elif ((insn & 0xf0) == 0x90 and (insn & 0x0d) != 0x0d):
-                if trace:
-                    print_out_str(
-                        '    set SP with the value from {0}'.format(insn & 0x0f))
                 ctrl.vrs[SP] = ctrl.vrs[insn & 0x0f]
             elif ((insn & 0xf0) == 0xa0):
                 vsp = ctrl.vrs[SP]
@@ -280,23 +268,16 @@ class RamDump():
                 # pop R4-R[4+bbb] */
                 for reg in (a):
                     ctrl.vrs[reg] = self.ramdump.read_word(vsp)
-                    if trace:
-                        print_out_str('    pop r{0} from stack'.format(reg))
-
                     if ctrl.vrs[reg] is None:
                         return -1
                     vsp += 4
                 if (insn & 0x80):
-                    if trace:
-                        print_out_str('    set LR from the stack')
                     ctrl.vrs[14] = self.ramdump.read_word(vsp)
                     if ctrl.vrs[14] is None:
                         return -1
                     vsp += 4
                 ctrl.vrs[SP] = vsp
             elif (insn == 0xb0):
-                if trace:
-                    print_out_str('    set pc = lr')
                 if (ctrl.vrs[PC] == 0):
                     ctrl.vrs[PC] = ctrl.vrs[LR]
                 ctrl.entries = 0
@@ -313,9 +294,6 @@ class RamDump():
                 while mask:
                     if (mask & 1):
                         ctrl.vrs[reg] = self.ramdump.read_word(vsp)
-                        if trace:
-                            print_out_str(
-                                '    pop r{0} from stack'.format(reg))
                         if ctrl.vrs[reg] is None:
                             return -1
                         vsp += 4
@@ -324,10 +302,6 @@ class RamDump():
                 ctrl.vrs[SP] = vsp
             elif (insn == 0xb2):
                 uleb128 = self.unwind_get_byte(ctrl)
-                if trace:
-                    print_out_str(
-                        '    Adjust sp by {0}'.format(0x204 + (uleb128 << 2)))
-
                 ctrl.vrs[SP] += 0x204 + (uleb128 << 2)
             else:
                 print_out_str('unwind: Unhandled instruction')
@@ -350,15 +324,13 @@ class RamDump():
             temp = addr + offset
             return (temp & 0xffffffff) + ((temp >> 32) & 0xffffffff)
 
-        def unwind_frame_tables(self, frame, trace=False):
+        def unwind_frame_tables(self, frame):
             low = frame.sp
             high = ((low + (self.ramdump.thread_size - 1)) & \
                 ~(self.ramdump.thread_size - 1)) + self.ramdump.thread_size
             idx = self.search_idx(frame.pc)
 
             if (idx is None):
-                if trace:
-                    print_out_str("can't find %x" % frame.pc)
                 return -1
 
             ctrl = self.UnwindCtrlBlock()
@@ -391,7 +363,7 @@ class RamDump():
                 return -1
 
             while (ctrl.entries > 0):
-                urc = self.unwind_exec_insn(ctrl, trace)
+                urc = self.unwind_exec_insn(ctrl)
                 if (urc < 0):
                     return urc
                 if (ctrl.vrs[SP] < low or ctrl.vrs[SP] >= high):
@@ -411,7 +383,8 @@ class RamDump():
 
             return 0
 
-        def unwind_backtrace(self, sp, fp, pc, lr, extra_str='', out_file=None, trace=False):
+        def unwind_backtrace(self, sp, fp, pc, lr, extra_str='',
+                             out_file=None):
             offset = 0
             frame = self.Stackframe(fp, sp, lr, pc)
             frame.fp = fp
@@ -439,7 +412,7 @@ class RamDump():
                 else:
                     print_out_str(pstring)
 
-                urc = self.unwind_frame(frame, trace)
+                urc = self.unwind_frame(frame)
                 if urc < 0:
                     break
 
@@ -922,33 +895,18 @@ class RamDump():
             smem_heap_entry_size = self.sizeof('struct smem_heap_entry')
             offset_offset = self.field_offset('struct smem_heap_entry', 'offset')
             for board in boards:
-                trace = board.trace_soc
-                if trace:
-                    print_out_str('board_num = {0}'.format(board.board_num))
-                    print_out_str('smem_addr = {0:x}'.format(board.smem_addr))
-
                 socinfo_start_addr = board.smem_addr + heap_toc_offset + smem_heap_entry_size * SMEM_HW_SW_BUILD_ID + offset_offset
                 if add_offset:
                     socinfo_start_addr += board.ram_start
                 soc_start = self.read_int(socinfo_start_addr, False)
-                if trace is True:
-                    print_out_str('Read from {0:x}'.format(socinfo_start_addr))
-                    if soc_start is None:
-                        print_out_str('Result is None! Not this!')
-                    else:
-                        print_out_str('soc_start {0:x}'.format(soc_start))
                 if soc_start is None:
                     continue
 
                 socinfo_start = board.smem_addr + soc_start
                 if add_offset:
                     socinfo_start += board.ram_start
-                if trace:
-                    print_out_str('socinfo_start {0:x}'.format(socinfo_start))
 
                 socinfo_id = self.read_int(socinfo_start + 4, False)
-                if trace:
-                   print_out_str('socinfo_id = {0} check against {1}'.format(socinfo_id, board.socid))
                 if socinfo_id != board.socid:
                     continue
 
@@ -1112,7 +1070,7 @@ class RamDump():
         else:
             return (self.lookup_table[mid][1], self.lookup_table[mid + 1][0] - self.lookup_table[mid][0])
 
-    def read_physical(self, addr, length, trace=False):
+    def read_physical(self, addr, length):
         ebi = (-1, -1, -1)
         for a in self.ebi_files:
             fd, start, end, path = a
@@ -1120,118 +1078,85 @@ class RamDump():
                 ebi = a
                 break
         if ebi[0] is -1:
-            if trace:
-                if addr is None:
-                    print_out_str('None was passed to read_physical')
-                else:
-                    print_out_str('addr {0:x} out of bounds'.format(addr))
             return None
-        if trace:
-            print_out_str('reading from {0}'.format(ebi[0]))
-            print_out_str('start = {0:x}'.format(ebi[1]))
-            print_out_str('end = {0:x}'.format(ebi[2]))
-            print_out_str('length = {0:x}'.format(length))
         offset = addr - ebi[1]
-        if trace:
-            print_out_str('offset = {0:x}'.format(offset))
         ebi[0].seek(offset)
         a = ebi[0].read(length)
-        if trace:
-            print_out_str('result = {0}'.format(parser_util.cleanupString(a)))
-            print_out_str('lenght = {0}'.format(len(a)))
         return a
 
-    def read_dword(self, address, virtual=True, trace=False, cpu=None):
-        if trace:
-            print_out_str('reading {0:x}'.format(address))
-        s = self.read_string(address, '<Q', virtual, trace, cpu)
+    def read_dword(self, address, virtual=True, cpu=None):
+        s = self.read_string(address, '<Q', virtual, cpu)
         if s is None:
             return None
         else:
             return s[0]
 
     # returns a word size (pointer) read from ramdump
-    def read_word(self, address, virtual=True, trace=False, cpu=None):
-        if trace:
-            print_out_str('reading {0:x}'.format(address))
+    def read_word(self, address, virtual=True, cpu=None):
         if self.arm64:
-            s = self.read_string(address, '<Q', virtual, trace, cpu)
+            s = self.read_string(address, '<Q', virtual, cpu)
         else:
-            s = self.read_string(address, '<I', virtual, trace, cpu)
+            s = self.read_string(address, '<I', virtual, cpu)
         if s is None:
             return None
         else:
             return s[0]
 
     # returns a value corresponding to half the word size
-    def read_halfword(self, address, virtual=True, trace=False, cpu=None):
-        if trace:
-            print_out_str('reading {0:x}'.format(address))
+    def read_halfword(self, address, virtual=True, cpu=None):
         if self.arm64:
-            s = self.read_string(address, '<I', virtual, trace, cpu)
+            s = self.read_string(address, '<I', virtual, cpu)
         else:
-            s = self.read_string(address, '<H', virtual, trace, cpu)
+            s = self.read_string(address, '<H', virtual, cpu)
         if s is None:
             return None
         else:
             return s[0]
 
-    def read_byte(self, address, virtual=True, trace=False, cpu=None):
-        if trace:
-            print_out_str('reading {0:x}'.format(address))
-        s = self.read_string(address, '<B', virtual, trace, cpu)
+    def read_byte(self, address, virtual=True, cpu=None):
+        s = self.read_string(address, '<B', virtual, cpu)
         if s is None:
             return None
         else:
             return s[0]
 
-    def read_bool(self, address, virtual=True, trace=False, cpu=None):
-        if trace:
-            print_out_str('reading {0:x}'.format(address))
-        s = self.read_string(address, '<?', virtual, trace, cpu)
+    def read_bool(self, address, virtual=True, cpu=None):
+        s = self.read_string(address, '<?', virtual, cpu)
         if s is None:
             return None
         else:
             return s[0]
 
     # returns a value guaranteed to be 64 bits
-    def read_u64(self, address, virtual=True, trace=False, cpu=None):
-        if trace:
-            print_out_str('reading {0:x}'.format(address))
-        s = self.read_string(address, '<Q', virtual, trace, cpu)
+    def read_u64(self, address, virtual=True, cpu=None):
+        s = self.read_string(address, '<Q', virtual, cpu)
         if s is None:
             return None
         else:
             return s[0]
 
     # returns a value guaranteed to be 32 bits
-    def read_s32(self, address, virtual=True, trace=False, cpu=None):
-        if trace:
-            print_out_str('reading {0:x}'.format(address))
-        s = self.read_string(address, '<i', virtual, trace, cpu)
+    def read_s32(self, address, virtual=True, cpu=None):
+        s = self.read_string(address, '<i', virtual, cpu)
         if s is None:
             return None
         else:
             return s[0]
 
     # returns a value guaranteed to be 32 bits
-    def read_u32(self, address, virtual=True, trace=False, cpu=None):
-        if trace:
-            print_out_str('reading {0:x}'.format(address))
-        s = self.read_string(address, '<I', virtual, trace, cpu)
+    def read_u32(self, address, virtual=True, cpu=None):
+        s = self.read_string(address, '<I', virtual, cpu)
         if s is None:
             return None
         else:
             return s[0]
 
-    def read_int(self, address, virtual=True, trace=False,  cpu=None):
-        return self.read_u32(address, virtual, trace, cpu)
+    def read_int(self, address, virtual=True,  cpu=None):
+        return self.read_u32(address, virtual, cpu)
 
     # returns a value guaranteed to be 16 bits
-    def read_u16(self, address, virtual=True, trace=False, cpu=None):
-        if trace:
-            print_out_str('reading {0:x}'.format(address))
-        s = self.read_string(address, '<H', virtual, trace, cpu)
+    def read_u16(self, address, virtual=True, cpu=None):
+        s = self.read_string(address, '<H', virtual, cpu)
         if s is None:
             return None
         else:
@@ -1246,20 +1171,13 @@ class RamDump():
             return self.read_u64(address + self.field_offset(struct_name, field))
         return None
 
-    def read_cstring(self, address, max_length, virtual=True, cpu=None, trace=False):
+    def read_cstring(self, address, max_length, virtual=True, cpu=None):
         addr = address
         if virtual:
             if cpu is not None:
                 address += pcpu_offset + self.per_cpu_offset(cpu)
             addr = self.virt_to_phys(address)
-            if trace:
-                if address is None:
-                    print_out_str('None was passed as address')
-                elif addr is None:
-                    print_out_str('virt to phys failed on {0:x}'.format(address))
-                else:
-                    print_out_str('addr {0:x} -> {1:x}'.format(address, addr))
-        s = self.read_physical(addr, max_length, trace)
+        s = self.read_physical(addr, max_length)
         if s is not None:
             a = s.decode('ascii', 'ignore')
             return a.split('\0')[0]
@@ -1268,7 +1186,7 @@ class RamDump():
 
     # returns a tuple of the result from reading from the specified fromat string
     # return None on failure
-    def read_string(self, address, format_string, virtual=True, trace=False, cpu=None):
+    def read_string(self, address, format_string, virtual=True, cpu=None):
         addr = address
         per_cpu_string = ''
         if virtual:
@@ -1277,15 +1195,8 @@ class RamDump():
                 address += pcpu_offset
                 per_cpu_string = ' with per-cpu offset of ' + hex(pcpu_offset)
             addr = self.virt_to_phys(address)
-        if trace:
-            if addr is not None:
-                print_out_str('reading from phys {0:x}{1}'.format(addr,
-                                                              per_cpu_string))
-        s = self.read_physical(addr, struct.calcsize(format_string), trace)
+        s = self.read_physical(addr, struct.calcsize(format_string))
         if (s is None) or (s == ''):
-            if trace and addr is not None:
-                print_out_str(
-                    'address {0:x} failed hard core (v {1} t{2})'.format(addr, virtual, trace))
             return None
         return struct.unpack(format_string, s)
 

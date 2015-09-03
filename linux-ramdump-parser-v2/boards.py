@@ -20,8 +20,6 @@ class Board(object):
     phys_offset = physical offset of the board (CONFIG_PHYS_OFFSET)
     wdog_addr = absolute physical address to check for FIQs
     imem_file_name = file name corresponding to imem_start
-    trace_soc = Turn on additional debugging information for socinfo detection
-                (useful when adding a new board and you want to verify values)
 
     It is not recommended to create instances of this class directly.
     Instead, classes should derive from this class and set fiels appropriately
@@ -38,7 +36,6 @@ class Board(object):
          self.phys_offset = 0
          self.wdog_addr = 0
          self.imem_file_name = None
-         self.trace_soc = False
 
 class Board8960(Board):
     def __init__(self, socid, board_num, phys_offset=0x80200000, ram_start=0x80000000):
