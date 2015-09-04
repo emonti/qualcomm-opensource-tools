@@ -987,7 +987,7 @@ class RamDump():
         except gdbmi.GdbMIException:
             pass
 
-    def symbol_lookup(self, addr):
+    def symbol_at(self, addr):
         try:
             return self.gdbmi.symbol_at(addr).symbol
         except gdbmi.GdbMIException:
