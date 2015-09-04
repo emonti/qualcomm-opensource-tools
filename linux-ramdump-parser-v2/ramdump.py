@@ -665,6 +665,22 @@ class RamDump():
             print_out_str('!!! Could not lookup saved command line address')
             return False
 
+    def get_ddr_base_addr(self, file_path):
+        if os.path.exists(os.path.join(file_path, 'load.cmm')):
+            with open (os.path.join(file_path, 'load.cmm'), "r") as myfile:
+                for line in myfile.readlines():
+                    words = line.split()
+                    if words[0] == "d.load.binary" and words[1].startswith("DDRCS"):
+                        if words[2][0:2].lower() == '0x':
+                            return int(words[2], 16)
+        elif os.path.exists(os.path.join(file_path, 'dump_info.txt')):
+            with open (os.path.join(file_path, 'dump_info.txt'), "r") as myfile:
+                for line in myfile.readlines():
+                    words = line.split()
+                    if words[-1].startswith("DDRCS"):
+                        if words[1][0:2].lower() == '0x':
+                            return int(words[1], 16)
+
     def auto_parse(self, file_path):
         first_mem_path = None
 
@@ -683,6 +699,14 @@ class RamDump():
         self.ebi_files = [(first_mem, 0, 0xffff0000, first_mem_path)]
         if not self.get_hw_id(add_offset=False):
             return False
+
+        base_addr = self.get_ddr_base_addr(file_path)
+        if base_addr is not None:
+            self.ebi_start = base_addr
+            self.phys_offset = base_addr
+        else:
+            print_out_str('!!! WARNING !!! Using Static DDR Base Addresses.')
+
         first_mem_end = self.ebi_start + os.path.getsize(first_mem_path) - 1
         self.ebi_files = [
             (first_mem, self.ebi_start, first_mem_end, first_mem_path)]
