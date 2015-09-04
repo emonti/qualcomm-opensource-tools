@@ -54,7 +54,7 @@ class ClockDumps(RamParser) :
                 self.output_file.write('P ' + clocks)
 
     def get_clocks(self):
-        clocks = self.ramdump.addr_lookup('clocks')
+        clocks = self.ramdump.address_of('clocks')
         if clocks is None:
             self.output_file.write("NOTE: 'clocks' list not found to extract the clocks information")
             return
@@ -103,7 +103,7 @@ class ClockDumps(RamParser) :
             self.disabled_clocks.append(output)
 
     def get_clk_providers(self):
-        clocks = self.ramdump.addr_lookup('of_clk_providers')
+        clocks = self.ramdump.address_of('of_clk_providers')
         if clocks is None:
             self.output_file.write("NOTE: 'of_clk_providers' list not found to extract the clocks information")
             return

@@ -1,4 +1,4 @@
-# Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -176,7 +176,7 @@ class GdbMI(object):
             int quanitity = 42;
             struct pizza mypizza = {.price = 10, .qty = &quanitity};
 
-        qtyp = dump.addr_lookup('quantity')
+        qtyp = dump.address_of('quantity')
         price = dump.read_int(gdbmi.sibling_field_addr(qtyp, 'struct pizza', 'qty', 'price'))
 
         """

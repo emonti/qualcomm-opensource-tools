@@ -1,4 +1,4 @@
-# Copyright (c) 2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -21,7 +21,7 @@ class GPUinfo(RamParser):
                 print_out_str(
                     'No GPU support detected... Skipping GPUinfo parser.')
                 return
-            adreno_dev_addr = self.ramdump.addr_lookup('device_3d0')
+            adreno_dev_addr = self.ramdump.address_of('device_3d0')
             kgsl_dev_addr = adreno_dev_addr + self.ramdump.field_offset(
                 'struct adreno_device', 'dev')
             snapshot = self.ramdump.read_word(kgsl_dev_addr + self.ramdump.field_offset(

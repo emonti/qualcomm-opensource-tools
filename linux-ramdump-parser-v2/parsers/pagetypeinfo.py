@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -22,7 +22,7 @@ class Pagetypeinfo(RamParser):
         free_area_size = ramdump.sizeof('struct free_area')
         free_list_offset = ramdump.field_offset(
             'struct free_area', 'free_list')
-        migratetype_names = ramdump.addr_lookup('migratetype_names')
+        migratetype_names = ramdump.address_of('migratetype_names')
         zone_name_offset = ramdump.field_offset('struct zone', 'name')
         zname_addr = ramdump.read_word(zone + zone_name_offset)
         zname = ramdump.read_cstring(zname_addr, 12)
@@ -82,7 +82,7 @@ class Pagetypeinfo(RamParser):
         migrate_types = self.ramdump.gdbmi.get_value_of('MIGRATE_TYPES')
         max_nr_zones = self.ramdump.gdbmi.get_value_of('__MAX_NR_ZONES')
 
-        contig_page_data = self.ramdump.addr_lookup('contig_page_data')
+        contig_page_data = self.ramdump.address_of('contig_page_data')
         node_zones_offset = self.ramdump.field_offset(
             'struct pglist_data', 'node_zones')
         present_pages_offset = self.ramdump.field_offset(

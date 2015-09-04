@@ -134,7 +134,7 @@ def do_dump_stacks(ramdump, check_for_panic=0):
     offset_state = ramdump.field_offset('struct task_struct', 'state')
     offset_exit_state = ramdump.field_offset(
         'struct task_struct', 'exit_state')
-    init_addr = ramdump.addr_lookup('init_task')
+    init_addr = ramdump.address_of('init_task')
     init_next_task = init_addr + offset_tasks
     orig_init_next_task = init_next_task
     init_thread_group = init_addr + offset_thread_group
@@ -175,7 +175,7 @@ def do_dump_task_timestamps(ramdump):
     offset_thread_group = ramdump.field_offset(
         'struct task_struct', 'thread_group')
     offset_pid = ramdump.field_offset('struct task_struct', 'pid')
-    init_addr = ramdump.addr_lookup('init_task')
+    init_addr = ramdump.address_of('init_task')
     init_next_task = init_addr + offset_tasks
     orig_init_next_task = init_next_task
     init_thread_group = init_addr + offset_thread_group
@@ -288,7 +288,7 @@ class DumpTasksTimeStamps(RamParser):
 class CheckForPanic(RamParser):
 
     def parse(self):
-        addr = self.ramdump.addr_lookup('in_panic')
+        addr = self.ramdump.address_of('in_panic')
 
         result = self.ramdump.read_word(addr)
 

@@ -67,8 +67,8 @@ class RamDump():
                 self.index = 0
 
         def __init__(self, ramdump):
-            start = ramdump.addr_lookup('__start_unwind_idx')
-            end = ramdump.addr_lookup('__stop_unwind_idx')
+            start = ramdump.address_of('__start_unwind_idx')
+            end = ramdump.address_of('__stop_unwind_idx')
             self.ramdump = ramdump
             if (start is None) or (end is None):
                 if ramdump.arm64:
@@ -484,7 +484,7 @@ class RamDump():
         # extra 4k is needed for LPAE. If it's 0x5000 below
         # PAGE_OFFSET + TEXT_OFFSET then we know we're using LPAE. For
         # non-LPAE it should be 0x4000 below PAGE_OFFSET + TEXT_OFFSET
-        swapper_pg_dir = self.addr_lookup('swapper_pg_dir')
+        swapper_pg_dir = self.address_of('swapper_pg_dir')
         if swapper_pg_dir is None:
             print_out_str('!!! Could not get the swapper page directory!')
             print_out_str(
@@ -492,7 +492,7 @@ class RamDump():
             print_out_str('!!! Exiting now')
             sys.exit(1)
         self.swapper_pg_dir_addr =  swapper_pg_dir - self.page_offset
-        self.kernel_text_offset = self.addr_lookup('stext') - self.page_offset
+        self.kernel_text_offset = self.address_of('stext') - self.page_offset
         pg_dir_size = self.kernel_text_offset - self.swapper_pg_dir_addr
         if self.arm64:
             print_out_str('Using 64bit MMU')
@@ -566,7 +566,7 @@ class RamDump():
         return f
 
     def get_config(self):
-        kconfig_addr = self.addr_lookup('kernel_config_data')
+        kconfig_addr = self.address_of('kernel_config_data')
         if kconfig_addr is None:
             return
         kconfig_size = self.sizeof('kernel_config_data')
@@ -605,7 +605,7 @@ class RamDump():
         return s in self.config
 
     def get_version(self):
-        banner_addr = self.addr_lookup('linux_banner')
+        banner_addr = self.address_of('linux_banner')
         if banner_addr is not None:
             # Don't try virt to phys yet, compute manually
             banner_addr = banner_addr - self.page_offset + self.phys_offset
@@ -632,7 +632,7 @@ class RamDump():
             return False
 
     def print_command_line(self):
-        command_addr = self.addr_lookup('saved_command_line')
+        command_addr = self.address_of('saved_command_line')
         if command_addr is not None:
             command_addr = self.read_word(command_addr)
             b = self.read_cstring(command_addr, 2048)
@@ -965,7 +965,7 @@ class RamDump():
         """
         if not isinstance(virt_or_name, basestring):
             return virt_or_name
-        return self.addr_lookup(virt_or_name)
+        return self.address_of(virt_or_name)
 
     def virt_to_phys(self, virt_or_name):
         """Does a virtual-to-physical address lookup of the virtual address or
@@ -981,7 +981,7 @@ class RamDump():
                 self.lookup_table.append((int(s[0], 16), s[2].rstrip()))
         stream.close()
 
-    def addr_lookup(self, symbol):
+    def address_of(self, symbol):
         try:
             return self.gdbmi.address_of(symbol)
         except gdbmi.GdbMIException:
@@ -1012,7 +1012,7 @@ class RamDump():
 
             The following:
 
-                my_arr_addr = dump.addr_lookup("my_arr")
+                my_arr_addr = dump.address_of("my_arr")
                 dump.read_word(dump.array_index(my_arr_addr, "int", 2))
 
         will return 42.
@@ -1209,7 +1209,8 @@ class RamDump():
         Example (intentionally not in doctest format since it would require
         a specific dump to be loaded to pass as a doctest):
 
-        PY>> print(dump.hexdump(dump.addr_lookup('linux_banner') - 0x100, 0x200))
+        PY>> addr = dump.address_of('linux_banner') - 0x100
+             print(dump.hexdump(addr, 0x200))
              c0afff6b: 0000 0000 0000 0000 0000 0000 0000 0000  ................
              c0afff7b: 0000 0000 0000 0000 0000 0000 0000 0000  ................
              c0afff8b: 0000 0000 0000 0000 0000 0000 0000 0000  ................
@@ -1256,7 +1257,7 @@ class RamDump():
         return ret
 
     def per_cpu_offset(self, cpu):
-        per_cpu_offset_addr = self.addr_lookup('__per_cpu_offset')
+        per_cpu_offset_addr = self.address_of('__per_cpu_offset')
         if per_cpu_offset_addr is None:
             return 0
         per_cpu_offset_addr_indexed = self.array_index(
@@ -1264,7 +1265,7 @@ class RamDump():
         return self.read_word(per_cpu_offset_addr_indexed)
 
     def get_num_cpus(self):
-        cpu_present_bits_addr = self.addr_lookup('cpu_present_bits')
+        cpu_present_bits_addr = self.address_of('cpu_present_bits')
         cpu_present_bits = self.read_word(cpu_present_bits_addr)
         return bin(cpu_present_bits).count('1')
 

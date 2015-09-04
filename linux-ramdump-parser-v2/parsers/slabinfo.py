@@ -276,7 +276,7 @@ class Slabinfo(RamParser):
             return
         slab_lru_offset = self.ramdump.field_offset('struct page', 'lru')
         page_flags_offset = self.ramdump.field_offset('struct page', 'flags')
-        max_pfn_addr = self.ramdump.addr_lookup('max_pfn')
+        max_pfn_addr = self.ramdump.address_of('max_pfn')
         max_pfn = self.ramdump.read_word(max_pfn_addr)
         max_page = pfn_to_page(ramdump, max_pfn)
         while page != start:
@@ -325,9 +325,8 @@ class Slabinfo(RamParser):
     # in the system because the code to do that correctly is a big pain. This will
     # need to be changed if we ever do NUMA properly.
     def validate_slab_cache(self, slab_out, map_fn):
-        original_slab = self.ramdump.addr_lookup('slab_caches')
-        per_cpu_offset = self.ramdump.addr_lookup('__per_cpu_offset')
-        cpu_present_bits_addr = self.ramdump.addr_lookup('cpu_present_bits')
+        original_slab = self.ramdump.address_of('slab_caches')
+        cpu_present_bits_addr = self.ramdump.address_of('cpu_present_bits')
         cpu_present_bits = self.ramdump.read_word(cpu_present_bits_addr)
         cpus = bin(cpu_present_bits).count('1')
         slab_list_offset = self.ramdump.field_offset(

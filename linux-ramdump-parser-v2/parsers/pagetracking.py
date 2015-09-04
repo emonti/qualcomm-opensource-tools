@@ -1,4 +1,4 @@
-# Copyright (c) 2012,2014 The Linux Foundation. All rights reserved.
+# Copyright (c) 2012,2014-2015 The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -20,8 +20,8 @@ class PageTracking(RamParser):
         if not self.ramdump.is_config_defined('CONFIG_PAGE_OWNER'):
             return
 
-        min_pfn_addr = self.ramdump.addr_lookup('min_low_pfn')
-        max_pfn_addr = self.ramdump.addr_lookup('max_pfn')
+        min_pfn_addr = self.ramdump.address_of('min_low_pfn')
+        max_pfn_addr = self.ramdump.address_of('max_pfn')
         min_pfn = self.ramdump.read_word(
             min_pfn_addr) + (self.ramdump.phys_offset >> 12)
         max_pfn = self.ramdump.read_word(

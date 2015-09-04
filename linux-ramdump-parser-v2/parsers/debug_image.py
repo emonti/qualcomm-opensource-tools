@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -146,7 +146,7 @@ class DebugImage(RamParser):
             'struct msm_client_dump', 'end_addr')
         client_dump_entry_size = self.ramdump.sizeof('struct msm_client_dump')
 
-        mem_dump_data = self.ramdump.addr_lookup('mem_dump_data')
+        mem_dump_data = self.ramdump.address_of('mem_dump_data')
 
         dump_table = self.ramdump.read_word(
             mem_dump_data + dump_table_ptr_offset)
@@ -196,9 +196,9 @@ class DebugImage(RamParser):
         # use the mem_dump_data variable to detect if debug image feature was compiled in,
         # and memdump data variable for debug image v2 feature, rather than relying on
         # configuration option.
-        if self.ramdump.addr_lookup('mem_dump_data'):
+        if self.ramdump.address_of('mem_dump_data'):
             self.parse_dump()
-        elif self.ramdump.addr_lookup('memdump'):
+        elif self.ramdump.address_of('memdump'):
             regs = DebugImage_v2()
             regs.parse_dump_v2(self.ramdump)
         else:

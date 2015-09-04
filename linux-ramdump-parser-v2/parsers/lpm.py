@@ -25,7 +25,7 @@ class lpm(RamParser):
         self.lpm_debug = []
 
     def get_bits(self):
-        bits_addr = self.ramdump.addr_lookup('cpu_possible_bits')
+        bits_addr = self.ramdump.address_of('cpu_possible_bits')
         if bits_addr is None:
                 self.output.append("NOTE: 'cpu_possible_bits' not found")
                 return
@@ -37,7 +37,7 @@ class lpm(RamParser):
                 self.output.append("{:10}{}:{}\n".format("", "CPU", i))
         self.output.append("\n")
 
-        bits_addr = self.ramdump.addr_lookup('cpu_online_bits')
+        bits_addr = self.ramdump.address_of('cpu_online_bits')
         if bits_addr is None:
                 self.output.append("NOTE: 'cpu_online_bits' not found")
                 return
@@ -129,7 +129,8 @@ class lpm(RamParser):
         self.clusters.append(lpm_cluster)
 
     def get_clusters(self):
-        lpm_root_node = self.ramdump.read_word(self.ramdump.addr_lookup('lpm_root_node'), True)
+        lpm_root_node = self.ramdump.read_word(
+            self.ramdump.address_of('lpm_root_node'), True)
         if lpm_root_node is None:
                 self.output_file.write("NOTE: 'lpm_root_node' not found\n")
                 return
@@ -160,7 +161,7 @@ class lpm(RamParser):
 
         self.output.append("\n")
 
-        cpu_level_available = self.ramdump.addr_lookup('cpu_level_available')
+        cpu_level_available = self.ramdump.address_of('cpu_level_available')
         if cpu_level_available is None:
                 self.output.append("NOTE: 'cpu_level_available' not found\n")
                 return
@@ -199,7 +200,7 @@ class lpm(RamParser):
                 self.get_cluster_level_info(i)
                 self.output.append("{}{}".format("-" * 81, "\n"))
 
-        cpu_cluster_base = self.ramdump.addr_lookup('cpu_cluster')
+        cpu_cluster_base = self.ramdump.address_of('cpu_cluster')
         if cpu_cluster_base is None:
                 self.output.append("NOTE: 'cpu_cluster' not found\n")
                 return
@@ -259,7 +260,7 @@ class lpm(RamParser):
         for i in self.clusters:
                 self.get_cluster_stats(i)
 
-        cpu_stats_base = self.ramdump.addr_lookup('cpu_stats')
+        cpu_stats_base = self.ramdump.address_of('cpu_stats')
         if cpu_stats_base is None:
                 self.output.append("NOTE: 'cpu_stats' not found\n")
                 return
@@ -269,7 +270,7 @@ class lpm(RamParser):
                 self.get_cpu_stats(cpu_stats_base, i)
 
     def get_debug_phys(self):
-        lpm_debug_phys = self.ramdump.addr_lookup('lpm_debug_phys')
+        lpm_debug_phys = self.ramdump.address_of('lpm_debug_phys')
         if lpm_debug_phys is None:
                 self.output.append("NOTE: 'lpm_debug data' not found\n")
                 return

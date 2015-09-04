@@ -85,7 +85,8 @@ class spm(RamParser):
         self.output.append("{}{}".format("-" * 81, "\n\n"))
 
     def get_spm(self):
-        lpm_root_node = self.ramdump.read_word(self.ramdump.addr_lookup('lpm_root_node'), True)
+        lpm_root_node = self.ramdump.read_word(
+            self.ramdump.address_of('lpm_root_node'), True)
         if lpm_root_node is None:
                 self.output_file.write("NOTE: 'lpm_root_node' not found\n")
                 return

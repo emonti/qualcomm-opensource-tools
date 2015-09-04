@@ -32,8 +32,6 @@ LUMP_SIZE=4096
 class ROData(RamParser):
 
     def parse(self):
-        stext = self.ramdump.addr_lookup('stext')
-        etext = self.ramdump.addr_lookup('_etext')
 
         with self.ramdump.open_file('roareadiff.txt') as roarea_out:
 

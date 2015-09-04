@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -306,7 +306,7 @@ class TZRegDump(RamParser):
         return True
 
     def parse(self):
-        if self.ramdump.addr_lookup('memdump'):
+        if self.ramdump.address_of('memdump'):
             return None
 
         ebi_addr = self.ramdump.read_tz_offset()
@@ -328,11 +328,11 @@ class TZRegDump(RamParser):
 
 
 def get_wdog_timing(ramdump):
-    jiffies_addr = ramdump.addr_lookup('jiffies')
-    last_ns_addr = ramdump.addr_lookup('last_ns')
-    last_pet_addr = ramdump.addr_lookup('last_pet')
-    pet_delay_time_addr = ramdump.addr_lookup('delay_time')
-    dogstruct_addr = ramdump.addr_lookup('dogwork_struct')
+    jiffies_addr = ramdump.address_of('jiffies')
+    last_ns_addr = ramdump.address_of('last_ns')
+    last_pet_addr = ramdump.address_of('last_pet')
+    pet_delay_time_addr = ramdump.address_of('delay_time')
+    dogstruct_addr = ramdump.address_of('dogwork_struct')
 
     timer_offset = ramdump.field_offset('struct delayed_work', 'timer')
     timer_expires_offset = ramdump.field_offset(

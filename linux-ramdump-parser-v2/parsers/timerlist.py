@@ -77,7 +77,7 @@ class TimerList(RamParser) :
     def get_timer_list(self):
         self.output_file.write("Timer List Dump\n\n")
 
-        tvec_bases_addr = self.ramdump.addr_lookup('tvec_bases')
+        tvec_bases_addr = self.ramdump.address_of('tvec_bases')
         for cpu in range(0, self.ramdump.get_num_cpus()):
             title = "CPU {0}".format(cpu)
 

@@ -160,8 +160,8 @@ class RunQueues(RamParser):
                     break
 
     def print_latest_callstack_maybe(self, task_addr):
-        text_start_addr = self.ramdump.addr_lookup('_text')
-        text_end_addr = self.ramdump.addr_lookup('_etext')
+        text_start_addr = self.ramdump.address_of('_text')
+        text_end_addr = self.ramdump.address_of('_etext')
         stack_offset = self.ramdump.field_offset('struct task_struct', 'stack')
 
         stack_addr = self.ramdump.read_word(task_addr + stack_offset)
@@ -184,7 +184,7 @@ class RunQueues(RamParser):
     def parse(self):
         print_out_str(
             '======================= RUNQUEUE STATE ============================')
-        runqueues_addr = self.ramdump.addr_lookup('runqueues')
+        runqueues_addr = self.ramdump.address_of('runqueues')
         nr_running_offset = self.ramdump.field_offset(
             'struct rq', 'nr_running')
         curr_offset = self.ramdump.field_offset('struct rq', 'curr')

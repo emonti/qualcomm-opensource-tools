@@ -19,11 +19,11 @@ class IrqParse(RamParser):
     def print_irq_state_3_0(self, ram_dump):
         print_out_str(
             '=========================== IRQ STATE ===============================')
-        per_cpu_offset_addr = ram_dump.addr_lookup('__per_cpu_offset')
-        cpu_present_bits_addr = ram_dump.addr_lookup('cpu_present_bits')
+        per_cpu_offset_addr = ram_dump.address_of('__per_cpu_offset')
+        cpu_present_bits_addr = ram_dump.address_of('cpu_present_bits')
         cpu_present_bits = ram_dump.read_word(cpu_present_bits_addr)
         cpus = bin(cpu_present_bits).count('1')
-        irq_desc = ram_dump.addr_lookup('irq_desc')
+        irq_desc = ram_dump.address_of('irq_desc')
         foo, irq_desc_size = ram_dump.unwind_lookup(irq_desc, 1)
         h_irq_offset = ram_dump.field_offset('struct irq_desc', 'handle_irq')
         irq_num_offset = ram_dump.field_offset('struct irq_data', 'irq')
@@ -130,8 +130,8 @@ class IrqParse(RamParser):
         chip_name_offset = ram_dump.field_offset('struct irq_chip', 'name')
         cpu_str = ''
 
-        irq_desc_tree = ram_dump.addr_lookup('irq_desc_tree')
-        nr_irqs = ram_dump.read_int(ram_dump.addr_lookup('nr_irqs'))
+        irq_desc_tree = ram_dump.address_of('irq_desc_tree')
+        nr_irqs = ram_dump.read_int(ram_dump.address_of('nr_irqs'))
 
         for i in ram_dump.iter_cpus():
             cpu_str = cpu_str + '{0:10} '.format('CPU{0}'.format(i))
@@ -173,7 +173,7 @@ class IrqParse(RamParser):
                     '{0:4} {1} {2:30} {3:15} v.v (struct irq_desc *)0x{4:<20x}'.format(irqnum, irq_stats_str, name, chip_name, irq_desc))
 
     def parse(self):
-        irq_desc = self.ramdump.addr_lookup('irq_desc')
+        irq_desc = self.ramdump.address_of('irq_desc')
         if self.ramdump.is_config_defined('CONFIG_SPARSE_IRQ'):
             self.print_irq_state_sparse_irq(self.ramdump)
 

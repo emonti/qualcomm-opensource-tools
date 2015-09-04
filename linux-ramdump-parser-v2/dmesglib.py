@@ -50,7 +50,7 @@ class DmesgLib(object):
 
     def verify_log_helper(self, msg, verbose):
         # return early if CONFIG_LOG_BUF_MAGIC is not defined
-        log_align_addr = self.ramdump.addr_lookup('__log_align')
+        log_align_addr = self.ramdump.address_of('__log_align')
         if (log_align_addr is None):
             return True
 
@@ -101,15 +101,16 @@ class DmesgLib(object):
         return logbuf_addr + last_idx
 
     def extract_dmesg_flat(self):
-        addr = self.ramdump.read_word(self.ramdump.addr_lookup('log_buf'))
-        size = self.ramdump.read_word(self.ramdump.addr_lookup('log_buf_len'))
+        addr = self.ramdump.read_word(self.ramdump.address_of('log_buf'))
+        size = self.ramdump.read_word(self.ramdump.address_of('log_buf_len'))
         dmesg = self.ramdump.read_physical(self.ramdump.virt_to_phys(addr), size)
         self.outfile.write(cleanupString(dmesg.decode('ascii', 'ignore')) + '\n')
 
     def extract_dmesg_binary(self):
-        first_idx_addr = self.ramdump.addr_lookup('log_first_idx')
-        last_idx_addr = self.ramdump.addr_lookup('log_next_idx')
-        logbuf_addr = self.ramdump.read_word(self.ramdump.addr_lookup('log_buf'))
+        first_idx_addr = self.ramdump.address_of('log_first_idx')
+        last_idx_addr = self.ramdump.address_of('log_next_idx')
+        logbuf_addr = self.ramdump.read_word(
+            self.ramdump.address_of('log_buf'))
         time_offset = self.ramdump.field_offset(self.struct_name, 'ts_nsec')
         len_offset = self.ramdump.field_offset(self.struct_name, 'len')
         text_len_offset = self.ramdump.field_offset(self.struct_name, 'text_len')

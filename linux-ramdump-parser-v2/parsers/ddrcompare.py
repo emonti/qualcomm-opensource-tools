@@ -1,4 +1,4 @@
-# Copyright (c) 2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -66,10 +66,10 @@ class DDRCompare(RamParser) :
             self.output_file.write("No Corruption found in the lock values\n\n")
 
     def validate_sched_class(self, address):
-        sc_stop = self.ramdump.addr_lookup('stop_sched_class')
-        sc_rt = self.ramdump.addr_lookup('rt_sched_class')
-        sc_idle = self.ramdump.addr_lookup('idle_sched_class')
-        sc_fair = self.ramdump.addr_lookup('fair_sched_class')
+        sc_stop = self.ramdump.address_of('stop_sched_class')
+        sc_rt = self.ramdump.address_of('rt_sched_class')
+        sc_idle = self.ramdump.address_of('idle_sched_class')
+        sc_fair = self.ramdump.address_of('fair_sched_class')
 
         sched_class_offset = address + self.ramdump.field_offset('struct task_struct', 'sched_class');
         sched_class_pointer = self.ramdump.read_word(sched_class_offset, True)
@@ -136,7 +136,7 @@ class DDRCompare(RamParser) :
         self.output_file.write("Checking for task list corruption.\n")
         self.output_file.write("----------------------------------------------------------------------------------------\n")
 
-        init_task = self.ramdump.addr_lookup('init_task')
+        init_task = self.ramdump.address_of('init_task')
         self.output_file.write("Init Task Address = {0}\n".format(hex(init_task)))
         tasks_offset = self.ramdump.field_offset('struct task_struct', 'tasks')
         self.output_file.write("Task Offset {0}\n".format(hex(tasks_offset).rstrip("L")))

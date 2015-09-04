@@ -1,4 +1,4 @@
-# Copyright (c) 2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -19,7 +19,7 @@ from print_out import print_out_str
 class CpuState(RamParser):
 
     def parse(self):
-        regs_before_stop_addr = self.ramdump.addr_lookup('regs_before_stop')
+        regs_before_stop_addr = self.ramdump.address_of('regs_before_stop')
         if regs_before_stop_addr is None:
             print_out_str('regs_before_stop not found. Nothing to do.')
             return

@@ -218,7 +218,7 @@ class DebugImage_v2():
 
         type_offset = ram_dump.field_offset('struct trace_event', 'type')
         fields_offset = ram_dump.field_offset('struct ftrace_event_class', 'fields')
-        common_field_list = ram_dump.addr_lookup('ftrace_common_fields')
+        common_field_list = ram_dump.address_of('ftrace_common_fields')
         field_next_offset = ram_dump.field_offset('struct ftrace_event_field', 'link')
 
         name_str = ram_dump.read_cstring(name, 512)
@@ -246,7 +246,7 @@ class DebugImage_v2():
         formats_out = ram_dump.open_file(formats)
         self.formats_out = formats_out
 
-        ftrace_events_list = ram_dump.addr_lookup('ftrace_events')
+        ftrace_events_list = ram_dump.address_of('ftrace_events')
         next_offset = ram_dump.field_offset('struct ftrace_event_call', 'list')
         list_walker = llist.ListWalker(ram_dump, ftrace_events_list, next_offset)
         list_walker.walk_prev(ftrace_events_list, self.ftrace_events_func, ram_dump)
@@ -426,7 +426,7 @@ class DebugImage_v2():
         dump_entry_size = ram_dump.sizeof('struct msm_dump_entry')
         dump_data_size = ram_dump.sizeof('struct msm_dump_data')
 
-        mem_dump_data = ram_dump.addr_lookup('memdump')
+        mem_dump_data = ram_dump.address_of('memdump')
 
         mem_dump_table = ram_dump.read_word(
             mem_dump_data + dump_table_ptr_offset)

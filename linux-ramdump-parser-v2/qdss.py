@@ -441,7 +441,7 @@ class QDSSDump():
             dbgui_out.write('{0} ({1}): {2:x}\n'.format(
                 a, name, ram_dump.read_u32(self.dbgui_start + offset, False)))
 
-        addr = ram_dump.read_word(ram_dump.addr_lookup('dbgui_drvdata'))
+        addr = ram_dump.read_word(ram_dump.address_of('dbgui_drvdata'))
         addr_offset_offset = ram_dump.field_offset('struct dbgui_drvdata', 'addr_offset')
         data_offset_offset = ram_dump.field_offset('struct dbgui_drvdata', 'data_offset')
         size_offset = ram_dump.field_offset('struct dbgui_drvdata', 'size')

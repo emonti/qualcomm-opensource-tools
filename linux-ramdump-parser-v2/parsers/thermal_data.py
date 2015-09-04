@@ -42,7 +42,7 @@ class Thermal_info(RamParser):
         sensor_mapping = []
         self.output_file.write("Thermal sensor data \n")
 
-        tmdev = self.ramdump.addr_lookup('tmdev')
+        tmdev = self.ramdump.address_of('tmdev')
         tmdev_address = self.ramdump.read_word(tmdev, True)
         sensor_dbg_info_size = ram_dump.sizeof('struct tsens_sensor_dbg_info')
         sensor_dbg_info = self.ramdump.field_offset(
@@ -51,7 +51,7 @@ class Thermal_info(RamParser):
         time_stamp = self.ramdump.field_offset(
             'struct tsens_sensor_dbg_info',
             'time_stmp')
-        cpus_sensor = self.ramdump.addr_lookup('cpus')
+        cpus_sensor = self.ramdump.address_of('cpus')
         cpus_sensor_size = ram_dump.sizeof('struct cpu_info')
         sensor_id_offset = self.ramdump.field_offset(
             'struct cpu_info',

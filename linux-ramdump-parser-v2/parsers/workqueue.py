@@ -19,9 +19,8 @@ from parser_util import register_parser, RamParser
 class Workqueues(RamParser):
 
     def print_workqueue_state_3_0(self, ram_dump):
-        per_cpu_offset_addr = ram_dump.addr_lookup('__per_cpu_offset')
-        global_cwq_sym_addr = ram_dump.addr_lookup('global_cwq')
-        system_wq_addr = ram_dump.addr_lookup('system_long_wq')
+        per_cpu_offset_addr = ram_dump.address_of('__per_cpu_offset')
+        global_cwq_sym_addr = ram_dump.address_of('global_cwq')
 
         idle_list_offset = ram_dump.field_offset(
             'struct global_cwq', 'idle_list')
@@ -41,7 +40,7 @@ class Workqueues(RamParser):
             'struct worker', 'current_work')
         cpu_wq_offset = ram_dump.field_offset(
             'struct workqueue_struct', 'cpu_wq')
-        unbound_gcwq_addr = ram_dump.addr_lookup('unbound_global_cwq')
+        unbound_gcwq_addr = ram_dump.address_of('unbound_global_cwq')
 
         if per_cpu_offset_addr is None:
             per_cpu_offset0 = 0
@@ -188,8 +187,8 @@ class Workqueues(RamParser):
                     break
 
     def print_workqueue_state_3_7(self, ram_dump):
-        per_cpu_offset_addr = ram_dump.addr_lookup('__per_cpu_offset')
-        global_cwq_sym_addr = ram_dump.addr_lookup('global_cwq')
+        per_cpu_offset_addr = ram_dump.address_of('__per_cpu_offset')
+        global_cwq_sym_addr = ram_dump.address_of('global_cwq')
 
         pools_offset = ram_dump.field_offset('struct global_cwq', 'pools')
         worklist_offset = ram_dump.field_offset(
@@ -213,8 +212,7 @@ class Workqueues(RamParser):
         worker_pool_size = ram_dump.sizeof('struct worker_pool')
         pending_work_offset = ram_dump.field_offset(
             'struct worker_pool', 'worklist')
-        unbound_gcwq_addr = ram_dump.addr_lookup('unbound_global_cwq')
-        cpu_present_bits_addr = ram_dump.addr_lookup('cpu_present_bits')
+        cpu_present_bits_addr = ram_dump.address_of('cpu_present_bits')
         cpu_present_bits = ram_dump.read_word(cpu_present_bits_addr)
         cpus = bin(cpu_present_bits).count('1')
 
@@ -385,7 +383,7 @@ class Workqueues(RamParser):
             pass
 
     def print_workqueue_state_3_10(self, ram_dump):
-        cpu_worker_pools_addr = ram_dump.addr_lookup('cpu_worker_pools')
+        cpu_worker_pools_addr = ram_dump.address_of('cpu_worker_pools')
 
         busy_hash_offset = ram_dump.field_offset(
             'struct worker_pool', 'busy_hash')

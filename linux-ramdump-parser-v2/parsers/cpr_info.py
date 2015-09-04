@@ -1,4 +1,4 @@
-# Copyright (c) 2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -63,7 +63,7 @@ class CPRInfo(RamParser):
 
     def get_cpr(self):
         # Return if the cpr_regulator_list is not available
-        cpr = self.ramdump.addr_lookup('cpr_regulator_list')
+        cpr = self.ramdump.address_of('cpr_regulator_list')
         if cpr is None:
             self.output_file.write("NOTE: 'cpr_regulator_list' list not found to extract cpr information")
             return

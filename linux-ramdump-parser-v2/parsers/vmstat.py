@@ -1,4 +1,4 @@
-# Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -46,7 +46,7 @@ class ZoneInfo(RamParser):
             'zone_stat_item', max_zone_stats)
         max_nr_zones = self.ramdump.gdbmi.get_value_of('__MAX_NR_ZONES')
 
-        contig_page_data = self.ramdump.addr_lookup('contig_page_data')
+        contig_page_data = self.ramdump.address_of('contig_page_data')
         node_zones_offset = self.ramdump.field_offset(
             'struct pglist_data', 'node_zones')
         present_pages_offset = self.ramdump.field_offset(
@@ -62,8 +62,9 @@ class ZoneInfo(RamParser):
             zone = zone + sizeofzone
 
         print_out_str('\nGlobal Stats')
-        vmstats_addr = self.ramdump.addr_lookup('vm_stat')
+        vmstats_addr = self.ramdump.address_of('vm_stat')
         for i in xrange(0, max_zone_stats):
             print_out_str('{0:30}: {1:8}'.format(vmstat_names[i], self.ramdump.read_word(
                 self.ramdump.array_index(vmstats_addr, 'atomic_long_t', i))))
-        print_out_str('Total system pages: {0}'.format(self.ramdump.read_word(self.ramdump.addr_lookup('totalram_pages'))))
+        print_out_str('Total system pages: {0}'.format(self.ramdump.read_word(
+            self.ramdump.address_of('totalram_pages'))))

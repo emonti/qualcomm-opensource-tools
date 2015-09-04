@@ -144,7 +144,7 @@ class RTB(RamParser):
         return (index + step_size) & mask
 
     def parse(self):
-        rtb = self.ramdump.addr_lookup('msm_rtb')
+        rtb = self.ramdump.address_of('msm_rtb')
         if rtb is None:
             print_out_str(
                 '[!] RTB was not enabled in this build. No RTB files will be generated')
@@ -173,9 +173,9 @@ class RTB(RamParser):
             mask = self.ramdump.read_int(rtb + nentries_offset) - 1
             if step_size == 1:
                 last = self.ramdump.read_int(
-                    self.ramdump.addr_lookup('msm_rtb_idx'))
+                    self.ramdump.address_of('msm_rtb_idx'))
             else:
-                last = self.ramdump.read_int(self.ramdump.addr_lookup(
+                last = self.ramdump.read_int(self.ramdump.address_of(
                     'msm_rtb_idx_cpu'), cpu=i )
             last = last & mask
             last_ptr = 0

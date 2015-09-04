@@ -1,4 +1,4 @@
-# Copyright (c) 2012,2014 The Linux Foundation. All rights reserved.
+# Copyright (c) 2012,2014-2015 The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -21,7 +21,7 @@ class PageallocCorruption(RamParser):
            return
         out_corruption_summary = self.ramdump.open_file('page_corruption_summary.txt')
         out_pfn_ranges = self.ramdump.open_file('page_ranges.txt')
-        memblock_addr = self.ramdump.addr_lookup('memblock')
+        memblock_addr = self.ramdump.address_of('memblock')
         memblock_memory_offset = self.ramdump.field_offset('struct memblock', 'memory')
         memblock_memory_cnt_offset = self.ramdump.field_offset('struct memblock_type', 'cnt')
         cnt = self.ramdump.read_word(memblock_addr + memblock_memory_offset + memblock_memory_cnt_offset)

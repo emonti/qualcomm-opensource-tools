@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -118,7 +118,7 @@ class CacheDump(RamParser):
                 '!!! Cache dumping was not enabled. No cache will be dumped')
             return
 
-        cache_base_addr = self.ramdump.addr_lookup('l2_dump')
+        cache_base_addr = self.ramdump.address_of('l2_dump')
         cache_base = self.ramdump.read_word(cache_base_addr)
 
         parse_cache_dump(self.ramdump, cache_base)

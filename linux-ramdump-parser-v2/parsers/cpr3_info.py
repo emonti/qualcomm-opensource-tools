@@ -34,7 +34,7 @@ class CPR3Info(RamParser):
 
     def get_cpr(self):
         # Return if the cpr3_regulator_list is not available
-        cpr = self.ramdump.addr_lookup('cpr3_controller_list')
+        cpr = self.ramdump.address_of('cpr3_controller_list')
         if cpr is None:
             self.output_file.write(
                 "NOTE: 'cpr3_regulator_list' list " +
@@ -49,7 +49,7 @@ class CPR3Info(RamParser):
         c_w.walk(head, self.cpr_walker)
 
     def get_kryo(self):
-        kryo_addr = self.ramdump.addr_lookup('kryo_regulator_list')
+        kryo_addr = self.ramdump.address_of('kryo_regulator_list')
         if kryo_addr is None:
             print(
                 "NOTE: 'kryo_regulator_list' list " +
