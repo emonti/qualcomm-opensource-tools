@@ -1164,6 +1164,16 @@ class RamDump():
                                                                   field))
         return None
 
+    def read_structure_cstring(self, addr_or_name, struct_name, field,
+                               max_length=100):
+        """reads a C string from a structure field.  The C string field will be
+        dereferenced before reading, so it should be a `char *', not a
+        `char []'.
+        """
+        virt = self.resolve_virt(addr_or_name)
+        cstring_addr = virt + self.field_offset(struct_name, field)
+        return self.read_cstring(self.read_pointer(cstring_addr), max_length)
+
     def read_cstring(self, addr_or_name, max_length, virtual=True, cpu=None):
         addr = addr_or_name
         if virtual:
