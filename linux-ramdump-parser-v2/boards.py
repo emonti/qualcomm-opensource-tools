@@ -41,15 +41,15 @@ class Board(object):
          self.trace_soc = False
 
 class Board8960(Board):
-    def __init__(self, socid, board_num):
+    def __init__(self, socid, board_num, phys_offset=0x80200000, ram_start=0x80000000):
         super(Board8960, self).__init__()
         self.socid = socid
         self.board_num = board_num
         self.cpu = 'KRAIT'
-        self.ram_start = 0x80000000
+        self.ram_start = ram_start
         self.imem_start = 0x2a03f000
         self.smem_addr = 0x0
-        self.phys_offset = 0x80200000
+        self.phys_offset = phys_offset
         self.wdog_addr = 0x2a03f658
         self.imem_file_name = 'IMEM_C.BIN'
 
@@ -417,6 +417,7 @@ boards.append(Board8960(socid=122, board_num=8960))
 boards.append(Board8960(socid=123, board_num=8260))
 boards.append(Board8960(socid=124, board_num=8060))
 
+boards.append(Board8960(socid=244, board_num=8064, phys_offset=0x40200000, ram_start=0x40000000))
 boards.append(Board8960(socid=109, board_num=8064))
 boards.append(Board8960(socid=130, board_num=8064))
 boards.append(Board8960(socid=153, board_num=8064))
