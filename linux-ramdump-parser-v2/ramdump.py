@@ -989,7 +989,7 @@ class RamDump():
 
     def symbol_at(self, addr):
         try:
-            return self.gdbmi.symbol_at(addr).symbol
+            return self.gdbmi.symbol_at(addr)
         except gdbmi.GdbMIException:
             pass
 
