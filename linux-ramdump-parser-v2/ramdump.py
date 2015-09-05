@@ -1174,7 +1174,8 @@ class RamDump():
         cstring_addr = virt + self.field_offset(struct_name, field)
         return self.read_cstring(self.read_pointer(cstring_addr), max_length)
 
-    def read_cstring(self, addr_or_name, max_length, virtual=True, cpu=None):
+    def read_cstring(self, addr_or_name, max_length=100, virtual=True,
+                     cpu=None):
         addr = addr_or_name
         if virtual:
             if cpu is not None:
