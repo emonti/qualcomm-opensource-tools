@@ -24,7 +24,7 @@ from print_out import print_out_str, print_out_exception
 from qdss import QDSSDump
 from watchdog_v2 import TZRegDump_v2
 from cachedumplib import lookup_cache_type
-
+from vsens import VsensData
 
 MEMDUMPV2_MAGIC = 0x42445953
 MAX_NUM_ENTRIES = 0x130
@@ -41,6 +41,7 @@ class client(object):
     MSM_DUMP_DATA_L3_CACHE = 0xD0
     MSM_DUMP_DATA_OCMEM = 0xE0
     MSM_DUMP_DATA_DBGUI_REG = 0xE5
+    MSM_DUMP_DATA_VSENSE = 0xE9
     MSM_DUMP_DATA_TMC_ETF = 0xF0
     MSM_DUMP_DATA_TMC_REG = 0x100
     MSM_DUMP_DATA_TMC_ETF_REG = 0x101
@@ -59,6 +60,7 @@ client_table = {
     'MSM_DUMP_DATA_L3_CACHE': 'parse_l3_cache',
     'MSM_DUMP_DATA_OCMEM': 'parse_ocmem',
     'MSM_DUMP_DATA_DBGUI_REG' : 'parse_qdss_common',
+    'MSM_DUMP_DATA_VSENSE': 'parse_vsens',
     'MSM_DUMP_DATA_PMIC': 'parse_pmic',
     'MSM_DUMP_DATA_DCC_REG':'parse_dcc_reg',
     'MSM_DUMP_DATA_DCC_SRAM':'parse_dcc_sram',
@@ -133,6 +135,18 @@ class DebugImage_v2():
         else:
             ram_dump.dcc = True
         return
+
+    def parse_vsens(self, version, start, end, client_id, ram_dump):
+        client_name = self.dump_data_id_lookup_table[client_id]
+
+        print_out_str(
+            'Parsing {0} context start {1:x} end {2:x}'.format(client_name, start, end))
+
+        regs = VsensData()
+        if regs.init_dump_regs(start, end, ram_dump) is False:
+            print_out_str('!!! Could not get registers from Vsens Dump')
+            return
+        regs.print_vsens_regs(ram_dump)
 
     def parse_qdss_common(self, version, start, end, client_id, ram_dump):
         client_name = self.dump_data_id_lookup_table[client_id]
