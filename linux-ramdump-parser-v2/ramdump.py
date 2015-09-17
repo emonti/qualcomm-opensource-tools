@@ -1212,7 +1212,7 @@ class RamDump():
             return None
         return struct.unpack(format_string, s)
 
-    def hexdump(self, address, length, virtual=True, file_object=None):
+    def hexdump(self, addr_or_name, length, virtual=True, file_object=None):
         """Returns a string with a hexdump (in the format of `xxd').
 
         `length' is in bytes.
@@ -1220,44 +1220,19 @@ class RamDump():
         Example (intentionally not in doctest format since it would require
         a specific dump to be loaded to pass as a doctest):
 
-        PY>> addr = dump.address_of('linux_banner') - 0x100
-             print(dump.hexdump(addr, 0x200))
-             c0afff6b: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-             c0afff7b: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-             c0afff8b: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-             c0afff9b: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-             c0afffab: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-             c0afffbb: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-             c0afffcb: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-             c0afffdb: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-             c0afffeb: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-             c0affffb: 0000 0000 0069 6e69 7463 616c 6c5f 6465  .....initcall_de
-             c0b0000b: 6275 6700 646f 5f6f 6e65 5f69 6e69 7463  bug.do_one_initc
-             c0b0001b: 616c 6c5f 6465 6275 6700 2573 2076 6572  all_debug.%s ver
-             c0b0002b: 7369 6f6e 2025 7320 286c 6e78 6275 696c  sion %s (lnxbuil
-             c0b0003b: 6440 6162 6169 7431 3532 2d73 642d 6c6e  d@abait152-sd-ln
-             c0b0004b: 7829 2028 6763 6320 7665 7273 696f 6e20  x) (gcc version
-             c0b0005b: 342e 3720 2847 4343 2920 2920 2573 0a00  4.7 (GCC) ) %s..
-             c0b0006b: 4c69 6e75 7820 7665 7273 696f 6e20 332e  Linux version 3.
-             c0b0007b: 3130 2e30 2d67 6137 3362 3831 622d 3030  10.0-ga73b81b-00
-             c0b0008b: 3030 392d 6732 6262 6331 3235 2028 6c6e  009-g2bbc125 (ln
-             c0b0009b: 7862 7569 6c64 4061 6261 6974 3135 322d  xbuild@abait152-
-             c0b000ab: 7364 2d6c 6e78 2920 2867 6363 2076 6572  sd-lnx) (gcc ver
-             c0b000bb: 7369 6f6e 2034 2e37 2028 4743 4329 2029  sion 4.7 (GCC) )
-             c0b000cb: 2023 3120 534d 5020 5052 4545 4d50 5420   #1 SMP PREEMPT
-             c0b000db: 5765 6420 4170 7220 3136 2031 333a 3037  Wed Apr 16 13:07
-             c0b000eb: 3a30 3420 5044 5420 3230 3134 0a00 7c2f  :04 PDT 2014..|/
-             c0b000fb: 2d5c 0000 0000 0000 00d4 7525 c0c8 7625  -\........u%..v%
-             c0b0010b: c000 0000 0000 0000 0000 0000 0000 0000  ................
-             c0b0011b: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-             c0b0012b: 00e0 0b10 c000 0000 0094 7025 c000 0000  ..........p%....
-             c0b0013b: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-             c0b0014b: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-             c0b0015b: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-
+        >>> print(dump.hexdump('linux_banner', 0x80))
+        ffffffc000c610a8: 4c69 6e75 7820 7665 7273 696f 6e20 332e  Linux version 3.
+        ffffffc000c610b8: 3138 2e32 302d 6761 3762 3238 6539 2d31  18.20-ga7b28e9-1
+        ffffffc000c610c8: 3333 3830 2d67 3036 3032 6531 3020 286c  3380-g0602e10 (l
+        ffffffc000c610d8: 6e78 6275 696c 6440 6162 6169 7431 3532  nxbuild@abait152
+        ffffffc000c610e8: 2d73 642d 6c6e 7829 2028 6763 6320 7665  -sd-lnx) (gcc ve
+        ffffffc000c610f8: 7273 696f 6e20 342e 392e 782d 676f 6f67  rsion 4.9.x-goog
+        ffffffc000c61108: 6c65 2032 3031 3430 3832 3720 2870 7265  le 20140827 (pre
+        ffffffc000c61118: 7265 6c65 6173 6529 2028 4743 4329 2029  release) (GCC) )
         """
         import StringIO
         sio = StringIO.StringIO()
+        address = self.resolve_virt(addr_or_name)
         parser_util.xxd(
             address,
             [self.read_byte(address + i, virtual=virtual) or 0
