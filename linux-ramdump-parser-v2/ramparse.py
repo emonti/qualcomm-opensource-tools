@@ -142,6 +142,8 @@ if __name__ == '__main__':
 					  default=False)
     parser.add_option('', '--ipc-debug', dest='ipc_debug', action='store_true',
                       help='Debug Mode for IPC Logging', default=False)
+    parser.add_option('', '--eval',
+                      help='Evaluate some python code directly, or from stdin if "-" is passed. The "dump" variable will be available, as it is with the --shell option.')  # noqa
 
     for p in parser_util.get_parsers():
         parser.add_option(p.shortopt or '',
@@ -293,6 +295,14 @@ if __name__ == '__main__':
         options.qtf = True
 
     dump = RamDump(options, nm_path, gdb_path, objdump_path)
+
+    if options.eval:
+        if options.eval == '-':
+            code = sys.stdin.read()
+        else:
+            code = options.eval
+        exec(code)
+        sys.exit(0)
 
     if options.shell or options.classic_shell:
         print("Entering interactive shell mode.")
