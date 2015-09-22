@@ -1,4 +1,4 @@
-# Copyright (c) 2013, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -18,3 +18,10 @@ def bm(msb, lsb):
 def bvalsel(msb, lsb, val):
     'Masks and returns the bits from msb to lsb in val'
     return ((val & bm(msb, lsb)) >> lsb)
+
+
+def is_set(val, bit):
+    'Checks whether particular bit is set in val'
+    if (val >> bit) & 0x1:
+        return True
+    return False
