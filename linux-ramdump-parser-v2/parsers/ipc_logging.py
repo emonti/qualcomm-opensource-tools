@@ -104,12 +104,14 @@ def str_to_hex(strHex):
 #    TSV_TYPE_POINTER,
 #    TSV_TYPE_INT32,
 #    TSV_TYPE_BYTE_ARRAY,
+#    TSV_TYPE_QTIMER
 # };
 TSV_TYPE_INVALID = 0
 TSV_TYPE_TIMESTAMP = 1
 TSV_TYPE_POINTER = 2
 TSV_TYPE_INT32 = 3
 TSV_TYPE_BYTE_ARRAY = 4
+TSV_TYPE_QTIMER = 5
 
 # Message types
 # enum {
@@ -138,8 +140,9 @@ CTX_READ_SIZE = 64
 
 # Default header sizes by IPC Logging Version
 # V0 was 32-bit only, so it is used in the 64-bit list as a placeholder
-PAGE_HDR_SIZES = [V0_PAGE_HDR_SIZE, V1_PAGE_HDR_SIZE]
-PAGE_HDR_SIZES_64 = [V0_PAGE_HDR_SIZE, V1_PAGE_HDR_SIZE_64]
+PAGE_HDR_SIZES = [V0_PAGE_HDR_SIZE, V1_PAGE_HDR_SIZE, V1_PAGE_HDR_SIZE]
+PAGE_HDR_SIZES_64 = [V0_PAGE_HDR_SIZE, V1_PAGE_HDR_SIZE_64,
+                     V1_PAGE_HDR_SIZE_64]
 
 
 class LogTSV(object):
@@ -224,6 +227,54 @@ class TsvTimestamp(object):
         return '%16.9f' % (self.fTimestamp)
 
 
+class TsvQTimer(object):
+    """Handles processing TSV QTimer timestamps"""
+
+    def unpack(self, data):
+        """
+        Unpacks a TSV QTimer timestamp. This is a wrapper around the
+        :func:`~struct.unpack()` function from the :mod:`struct` module.
+
+        :return: The unpacked timestamp.
+
+        **Side Effects**: The unpacked timestamp is saved as an instance
+                variable, ``self.fTimestamp``, which can be accessed as a
+                string through the :meth:`__str__()` method of this class.
+                This method is used by :class:`LogMessageString` to get
+                the timestamp in order to dump it to the logs.
+        """
+        tsv = LogTSV()
+        data = tsv.unpack(data)
+        assert tsv.msg_type == TSV_TYPE_QTIMER, "timestamp"
+        assert tsv.msg_size == 8, "msg size"
+
+        # read 64-bit timestamp
+        timestamp_raw, = struct.unpack('<Q', data[0:8])
+        data = data[8:]
+        self.fTimestamp = timestamp_raw
+        return data
+
+    def pack(self, fTimestamp):
+        """
+        Packs a timestamp into a new TSV structure. This is a wrapper around
+        the :func:`~struct.pack()` function from the :mod:`struct` module.
+
+        :param fTimestamp: The TSV timestamp to be packed into a new TSV
+                message structure.
+
+        :return: A TSV message structure with *fTimestamp* packed
+                into the binary string.
+        """
+        self.fTimestamp = fTimestamp
+        tsv = LogTSV()
+        data = tsv.pack(TSV_TYPE_QTIMER, 8)
+        data += struct.pack('<Q', fTimestamp * 1.0E9)
+        return data
+
+    def __str__(self):
+        return '%#18x' % (self.fTimestamp)
+
+
 class TsvByteArray(object):
     """Handles processing TSV byte arrays."""
 
@@ -276,7 +327,7 @@ class TsvByteArray(object):
 class LogMessageString(object):
     """Handles processing TSV message strings."""
 
-    def unpack(self, data, tsv):
+    def unpack(self, data, tsv, qtimer):
         """
         Unpacks a new TSV message string. To do this, it is first
         necessary to unpack the timestamp using :meth:`TsvTimestamp.unpack()`,
@@ -286,6 +337,9 @@ class LogMessageString(object):
 
         :param data: The data containing the TSV string message to be unpacked
         :param tsv: The :class:`LogTSV` object that was used to unpack *data*
+        :param qtimer: If True, unpack the QTimer timestamp as well as the
+                       kernel timestamp; otherwise, just unpack the kernel
+                       timestamp
 
         :return: The TSV message string data
 
@@ -300,24 +354,35 @@ class LogMessageString(object):
         # TSV_TYPE_STRING - message type
         # TSV_TYPE_TIMESTAMP
         # TSV_TYPE_BYTE_ARRAY
+        # TSV_TYPE_QTIMER
         self.timestamp = TsvTimestamp()
         data = self.timestamp.unpack(data)
+
+        if qtimer:
+            self.qtimer = TsvQTimer()
+            data = self.qtimer.unpack(data)
 
         self.strMessage = TsvByteArray()
         data = self.strMessage.unpack(data)
         return data
 
-    def pack(self, fTimestamp, strMessage):
+    def pack(self, fTimestamp, strMessage, fQTimer=None):
         """
         Packs a new TSV LogMessageString structure.
 
         :param fTimestamp: The timestamp to be packed into the structure
+        :param fQTimer: The QTimer timestamp to be packed into the structure,
+                if present; if not, the value is None
         :param strMessage: The string message to be packed into the structure
 
         :return: The packed TSV LogMessageString structure
         """
         self.timestamp = TsvTimestamp()
         data = self.timestamp.pack(fTimestamp)
+
+        if fQTimer is not None:
+            data += self.qtimer.pack(fQTimer)
+
         data += TsvByteArray().pack(strMessage)
 
         tsv = LogTSV()
@@ -326,7 +391,11 @@ class LogMessageString(object):
         return data
 
     def __str__(self):
-        return '[%s] %s' % (self.timestamp, self.strMessage)
+        if hasattr(self, 'qtimer'):
+            return '[%s/%s] %s' % \
+                (self.timestamp, self.qtimer, self.strMessage)
+        else:
+            return '[%s] %s' % (self.timestamp, self.strMessage)
 
 
 class LogContext(object):
@@ -553,7 +622,7 @@ class LogPage(object):
                 if tsv.msg_type == TSV_TYPE_STRING:
                     self.iter_data = data
                     msg = LogMessageString()
-                    self.iter_data = msg.unpack(self.iter_data, tsv)
+                    self.iter_data = msg.unpack(self.iter_data, tsv, False)
                     return msg
                 else:
                     debug_str = "Unknown message type 0x%x\n%s" % \
@@ -833,7 +902,7 @@ class LogPage_v1(LogPage):
     """
     def __init__(self):
         # Call the parent constructor
-        super(self.__class__, self).__init__()
+        super(LogPage_v1, self).__init__()
         self.headerBinaryFormat = '<IIIHHQQQq'
         self.headerBinaryFormatSize = struct.calcsize(self.headerBinaryFormat)
         self.context = LogContext()
@@ -1051,6 +1120,64 @@ class LogPage_v1(LogPage):
 
     def get_start_time(self):
         return self.start_time
+
+
+class LogPage_v2(LogPage_v1):
+    """
+    A single page in a version 2 IPC Logging log. This class is a descendant of
+    :class:`LogPage_v1`.
+
+    This class was added in order to provide the ability to parse QTimer
+    timestamps. Since no part of the page header changed between version 1 and
+    version 2, this class was made a descendant of :class:`LogPage_v1` rather
+    than :class:`LogPage`. Because of this, only the next() function needed to
+    be overridden.
+    """
+    def next(self):
+        # handles full-buffer condition where write pointer
+        # is behind the read pointer
+        if self.nextPage and self.nextPage.previousData:
+            self.iter_data += self.nextPage.previousData
+            self.nextPage.previousData = None
+
+        if len(self.iter_data) < 2:
+            # not enough data to retrieve message header
+            logging.debug("Pushing data to continue\n%s" %
+                          (hex_to_str(self.iter_data, 16, 10)))
+            self.nextData = self.iter_data
+            self.iter_data = None
+            raise StopIteration
+
+        while True:
+            try:
+                tsv = LogTSV()
+                data = tsv.unpack(self.iter_data)
+                if tsv.msg_size > len(data):
+                    # not enough data left to extract entire message
+                    logging.debug("Pushing data to continue\n%s" %
+                                  (hex_to_str(self.iter_data, 16, 10)))
+                    self.nextData = self.iter_data
+                    self.iter_data = None
+                    raise StopIteration
+
+                if tsv.msg_type == 0:
+                    # no more messages
+                    raise StopIteration
+
+                if tsv.msg_type == TSV_TYPE_STRING:
+                    self.iter_data = data
+                    msg = LogMessageString()
+                    self.iter_data = msg.unpack(self.iter_data, tsv, True)
+                    return msg
+                else:
+                    debug_str = "Unknown message type 0x%x\n%s" % \
+                        (tsv.msg_type, hex_to_str(self.iter_data, 16, 10))
+
+                    logging.debug(debug_str)
+                    assert False, debug_str
+
+            except StopIteration:
+                raise
 
 
 class PageIterator(object):
@@ -1430,6 +1557,18 @@ def get_files_info(files):
     return lstFiles
 
 
+def get_LogPage_v0_instance():
+    return LogPage_v0()
+
+
+def get_LogPage_v1_instance():
+    return LogPage_v1()
+
+
+def get_LogPage_v2_instance():
+    return LogPage_v2()
+
+
 def cmdParse(options):
     """
     The top-level function, which is called from the main entry point to the
@@ -1450,6 +1589,7 @@ def cmdParse(options):
     """
     dictLogs = {}
     dictContexts = {}
+    dictVersions = {2: get_LogPage_v2_instance}
     fileCount = 0
     version = 0
     versionIsOneOrGreater = False
@@ -1484,6 +1624,9 @@ def cmdParse(options):
                     versionIsOneOrGreater = False
                     page = LogPage_v0()
 
+                if version > 1:
+                    page = dictVersions[version]()
+
                 if page.unpack(data):
                     if versionIsOneOrGreater:
                         if page.log_id not in dictContexts:
@@ -1499,6 +1642,14 @@ def cmdParse(options):
                                 page = LogPageVersionUnknown()
                                 continue
 
+                            # Got the context, extract the version and start
+                            # again
+                            if version == 0:
+                                version = context.version
+                                fIn.seek(start_of_page)
+                                page = LogPageVersionUnknown()
+                                continue
+
                         else:
                             context = dictContexts[page.log_id]
                             page.setContext(context)
@@ -1511,8 +1662,6 @@ def cmdParse(options):
                                 page.log_info()
                             page = LogPageVersionUnknown()
                             continue
-
-                        version = context.version
 
                     if page.log_id not in dictLogs:
                         dictLogs[page.log_id] = {}
@@ -1604,6 +1753,9 @@ def cmdTest(options):
                     functions.
     """
     dictPages = {}
+    dictVersions = {0: get_LogPage_v0_instance,
+                    1: get_LogPage_v1_instance,
+                    2: get_LogPage_v2_instance}
     version = 0
     numPages = 0
 
@@ -1620,15 +1772,8 @@ def cmdTest(options):
     for f in lstFiles:
         data = open(f, 'rb').read()
 
-        page = LogPageVersionUnknown()
-        assert page.unpack(data) is True, "Unable to open file '%s'" % (f)
-
-        if page.isVersionOneOrGreater(data):
-            page = LogPage_v1()
-            page.unpack(data)
-        else:
-            page = LogPage_v0()
-            page.unpack(data)
+        page = dictVersions[version]()
+        assert page.unpack(data) is True, "Could not unpack page header"
 
         numPages += 1
         dictPages[page.page_num] = page
