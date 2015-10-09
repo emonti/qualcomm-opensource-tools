@@ -15,8 +15,10 @@ import re
 import shutil
 import os
 import platform
+import random
 import subprocess
 import sys
+import time
 
 from dcc import DccRegDump, DccSramDump
 from pmic import PmicRegDump
@@ -288,14 +290,38 @@ class DebugImage_v2():
         else:
             return
 
-        port = 12345
+        port = None
+        server_proc = None
+        qtf_success = False
+        max_tries = 3
         qtf_dir = os.path.join(out_dir, 'qtf')
         workspace = os.path.join(qtf_dir, 'qtf.workspace')
         qtf_out = os.path.join(out_dir, 'qtf.txt')
         chipset = 'msm' + str(ram_dump.hw_id)
         hlos = 'LA'
 
-        p = subprocess.Popen([qtf_path, '-s', '{0}'.format(port)])
+        # Resolve any port collisions with other running qtf_server instances
+        for tries in range(max_tries):
+            port = random.randint(12000, 13000)
+            server_proc = subprocess.Popen(
+                [qtf_path, '-s', '{0}'.format(port)], stderr=subprocess.PIPE)
+            time.sleep(1)
+            server_proc.poll()
+            if server_proc.returncode == 1:
+                server_proc.terminate()
+                continue
+            else:
+                qtf_success = True
+                break
+        if not qtf_success:
+            server_proc.terminate()
+            print_out_str('!!! Could not open a QTF server instance with a '
+                          'unique port (last port tried: '
+                          '{0})'.format(str(port)))
+            print_out_str('!!! Please kill all currently running qtf_server '
+                          'processes and try again')
+            return
+
         subprocess.call('{0} -c {1} new workspace {2} {3} {4}'.format(qtf_path, port, qtf_dir, chipset, hlos))
 
         self.collect_ftrace_format(ram_dump)
@@ -303,8 +329,9 @@ class DebugImage_v2():
         subprocess.call('{0} -c {1} open workspace {2}'.format(qtf_path, port, workspace))
         subprocess.call('{0} -c {1} open bin {2}'.format(qtf_path, port, trace_file))
         subprocess.call('{0} -c {1} stream trace table {2}'.format(qtf_path, port, qtf_out))
+        subprocess.call('{0} -c {1} close'.format(qtf_path, port))
         subprocess.call('{0} -c {1} exit'.format(qtf_path, port))
-        p.communicate('quit')
+        server_proc.communicate('quit')
 
     def parse_dcc(self, ram_dump):
         out_dir = ram_dump.outdir
