@@ -879,7 +879,7 @@ class LogPage_v0(LogPage):
 
 class LogPage_v1(LogPage):
     """
-    A single page in a version 0 IPC Logging log. This class is a descendant of
+    A single page in a version 1 IPC Logging log. This class is a descendant of
     :class:`LogPage`.
 
     .. code-block:: c
