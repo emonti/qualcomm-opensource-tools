@@ -909,6 +909,67 @@ class LogPage_v1(LogPage):
         self.context.header_size = V1_PAGE_HDR_SIZE
         self.page_header_size = self.context.header_size
 
+    def find_min_end_position(self, lstPages):
+        """
+        Find the last page written to. Since the pages are filled in order by
+        page ID, the first non-full page is the last page written to.
+
+        :param lstPages: The list of pages
+
+        :return: The index of the last page written to
+        """
+        min_end_time = None
+        min_end_position = 0
+
+        for n in range(len(lstPages)):
+            cur_end_time = lstPages[n].get_end_time()
+            if cur_end_time == 0:
+                continue
+
+            if not min_end_time:
+                min_end_time = cur_end_time
+                min_end_position = n
+                continue
+
+            if cur_end_time > 0 and cur_end_time < min_end_time:
+                min_end_time = cur_end_time
+                min_end_position = n
+
+        return min_end_position
+
+    def find_min_position(self, lstPages, min_position):
+        """
+        Find the first chronological page (the page with the lowest non-zero
+        end time.
+
+        :param lstPages: The list of pages
+        :param min_position: The index of the first non-full page
+
+        :return: The index of the first chronological page
+        """
+        min_start_time = None
+        min_start_position = 0
+
+        if lstPages[min_position].read_offset == 0:
+            for n in range(len(lstPages)):
+                cur_start_time = lstPages[n].get_start_time()
+                if cur_start_time == 0:
+                    continue
+
+                if not min_start_time:
+                    min_start_time = cur_start_time
+                    min_start_position = n
+                    continue
+
+                if cur_start_time > 0 and cur_start_time < min_start_time:
+                    min_start_time = cur_start_time
+                    min_start_position = n
+
+            if lstPages[min_start_position].read_offset != 0:
+                min_position = min_start_position
+
+        return min_position
+
     def sortAndLink(self, lstPages, bSort):
         """
         Given a list of pages in ascending page number order,
@@ -928,44 +989,10 @@ class LogPage_v1(LogPage):
         # Since the pages are filled in order by page-id, the first
         # non-full page is the last page written to.
         if bSort:
+            min_end_position = self.find_min_end_position(lstPages)
+            min_position = self.find_min_position(lstPages, min_end_position)
+
             # Rotate to lowest non-zero end time
-            min_end_time = None
-            min_start_time = None
-            min_end_position = 0
-            min_start_position = 0
-            for n in range(len(lstPages)):
-                cur_end_time = lstPages[n].get_end_time()
-                if cur_end_time == 0:
-                    continue
-
-                if not min_end_time:
-                    min_end_time = cur_end_time
-                    min_end_position = n
-                    continue
-
-                if cur_end_time > 0 and cur_end_time < min_end_time:
-                    min_end_time = cur_end_time
-                    min_end_position = n
-
-            min_position = min_end_position
-            if lstPages[min_end_position].read_offset == 0:
-                for n in range(len(lstPages)):
-                    cur_start_time = lstPages[n].get_start_time()
-                    if cur_start_time == 0:
-                        continue
-
-                    if not min_start_time:
-                        min_start_time = cur_start_time
-                        min_start_position = n
-                        continue
-
-                    if cur_start_time > 0 and cur_start_time < min_start_time:
-                        min_start_time = cur_start_time
-                        min_start_position = n
-
-                if lstPages[min_start_position].read_offset != 0:
-                    min_position = min_start_position
-
             lstPages.rotate(-min_position)
             lstPages = list(lstPages)
 
