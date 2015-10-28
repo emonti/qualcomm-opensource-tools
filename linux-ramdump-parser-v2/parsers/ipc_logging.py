@@ -1596,6 +1596,146 @@ def get_LogPage_v2_instance():
     return LogPage_v2()
 
 
+def get_page_of_version(data, versionIsOneOrGreater, version, page):
+    """
+    Retrieves the appropriate descendant of :class:`LogPage` given the version.
+    Note: It may seem unnecessary to pass the version itself and the
+    versionIsOneOrGreater boolean. This is done because of the way the version
+    is stored in the dumps. The version is stored in the log context, and
+    contexts are only present in dumps with IPC Logging version 1 or greater.
+    We can tell whether a page is version 1 or greater by looking just at the
+    page iteslf, but beyond that we must find the context. This is why both
+    variables are used.
+
+    :param data: The data that has been read in from the input file
+    :param versionIsOneOrGreater: True if IPC Logging version is one or
+                                  greater
+    :param version: The IPC Logging version
+    :param page: The log page currently being processed
+    """
+    dictVersions = {1: get_LogPage_v1_instance, 2: get_LogPage_v2_instance}
+
+    if page.isVersionOneOrGreater(data):
+        versionIsOneOrGreater = True
+        if version == 0:
+            """
+            This occurs before the context has been found; thus the version
+            has not been extracted and is not known. The version will be
+            extracted from the context later, and this function will be re-run
+            with the actual version. For now, use a LogPage_v1() object to
+            extract the context.
+            """
+            page = LogPage_v1()
+            return page, versionIsOneOrGreater
+
+        page = dictVersions[version]()
+    else:
+        versionIsOneOrGreater = False
+        page = LogPage_v0()
+
+    return page, versionIsOneOrGreater
+
+
+def process_log_context(context, page, start_of_page, fIn, dictContexts,
+                        lstFiles, fileCount, version):
+    """
+    Finds and processes the log context, and extracts the version information
+    from it. This function determines which descendant of :class:`LogPage`
+    should be used.
+
+    :param context: The LogContext object, which will either be populated or
+                    have the version information extracted from it.
+    :param page: A descendant of :class:`LogPage`, which will have a context
+                 linked to it if one is found.
+    :param start_of_page: The position in the file corresponding to the start
+                          of the log page.
+    :param fIn: A pointer to the input file.
+    :param dictContexts: A dictionary that maintains the
+                         log ID-to-:class:`LogContext` mapping.
+    :param lstFiles: A list of dictionaries containing the name, starting
+                     position, and ending position of each input file.
+    :param fileCount: An index into lstFiles, which indicates the current file
+                      being processed.
+    :param version: The LogPage version.
+
+    :return: A tuple with of four elements: A boolean indicating whether or not
+             to continue the current iteration of processing, the LogContext
+             object, the LogPage object, and the version.
+    """
+    if page.log_id not in dictContexts:
+        try:
+            context = get_context(start_of_page, fIn, page,
+                                  dictContexts, lstFiles,
+                                  fileCount)
+        except:
+            msg = "Context not found - skipping page " + \
+                  "and trying to continue with " + \
+                  "unknown log page version"
+            logging.debug(msg)
+            page = LogPageVersionUnknown()
+            return False, context, page, version
+
+        # Got the context, extract the version and start
+        # again
+        if version == 0:
+            version = context.version
+            fIn.seek(start_of_page)
+            page = LogPageVersionUnknown()
+            return False, context, page, version
+
+        return True, context, page, version
+    else:
+        context = dictContexts[page.log_id]
+        page.setContext(context)
+        return True, context, page, version
+
+
+def process_log_pages(dictLogs, page, versionIsOneOrGreater, fIn, fileName,
+                      data, context, version, options):
+    """
+    Finds and processes, and stores log pages.
+
+    :param dictLogs: The dictionary of logs to be populated by this function
+    :param page: The log page currently being processed
+    :param versionIsOneOrGreater: True if IPC Logging version is one or
+                                  greater
+    :param fIn: Pointer to the input file
+    :param data: The data that has been read in from the input file
+    :param context: The context of this log page
+    :param version: The IPC Logging version
+    """
+    if page.log_id not in dictLogs:
+        dictLogs[page.log_id] = {}
+
+    if page.page_num in dictLogs[page.log_id]:
+        logging.error("Duplicate page found log id 0x%x," +
+                      "page %d", page.log_id, page.page_num)
+
+    dictLogs[page.log_id][page.page_num] = page
+
+    if versionIsOneOrGreater:
+        logging.info(
+            "Found log page - context: %s, id: 0x%x, " +
+            "page: %d", page.context.name,
+            page.log_id, page.page_num)
+        page.log_info()
+        sys.stdout.flush()
+    else:
+        logging.info("Found log page: id 0x%x, page %d" %
+                     (page.log_id, page.page_num))
+        page.log_info()
+        sys.stdout.flush()
+
+    # for debug mode, save the extracted log pages
+    if options.debug_enabled:
+        if version >= 1:
+            page.debug_save_log_pages(fIn, fileName, data,
+                                      context.name, options)
+        else:
+            page.debug_save_log_pages(fIn, fileName, data,
+                                      options)
+
+
 def cmdParse(options):
     """
     The top-level function, which is called from the main entry point to the
@@ -1616,7 +1756,6 @@ def cmdParse(options):
     """
     dictLogs = {}
     dictContexts = {}
-    dictVersions = {2: get_LogPage_v2_instance}
     fileCount = 0
     version = 0
     versionIsOneOrGreater = False
@@ -1644,84 +1783,34 @@ def cmdParse(options):
             if page.unpack(data):
                 data += fIn.read(PAGE_SIZE-16)
 
-                if page.isVersionOneOrGreater(data):
-                    versionIsOneOrGreater = True
-                    page = LogPage_v1()
-                else:
-                    versionIsOneOrGreater = False
-                    page = LogPage_v0()
+                page, versionIsOneOrGreater = \
+                    get_page_of_version(data, versionIsOneOrGreater,
+                                        version, page)
 
-                if version > 1:
-                    page = dictVersions[version]()
+                if page.unpack(data) and versionIsOneOrGreater:
+                    continue_iter, context, page, version = \
+                        process_log_context(context, page, start_of_page, fIn,
+                                            dictContexts, lstFiles, fileCount,
+                                            version)
 
-                if page.unpack(data):
-                    if versionIsOneOrGreater:
-                        if page.log_id not in dictContexts:
-                            try:
-                                context = get_context(start_of_page, fIn, page,
-                                                      dictContexts, lstFiles,
-                                                      fileCount)
-                            except:
-                                msg = "Context not found - skipping page " + \
-                                      "and trying to continue with " + \
-                                      "unknown log page version"
-                                logging.debug(msg)
-                                page = LogPageVersionUnknown()
-                                continue
+                    if not continue_iter:
+                        continue
 
-                            # Got the context, extract the version and start
-                            # again
-                            if version == 0:
-                                version = context.version
-                                fIn.seek(start_of_page)
-                                page = LogPageVersionUnknown()
-                                continue
+                    if context is None:
+                        logging.debug("Context at 0x%x had no data, " +
+                                      "skipping this page",
+                                      page.context_offset)
 
-                        else:
-                            context = dictContexts[page.log_id]
-                            page.setContext(context)
+                        if options.debug_enabled:
+                            page.log_info()
 
-                        if context is None:
-                            logging.debug("Context at 0x%x had no data, " +
-                                          "skipping this page",
-                                          page.context_offset)
-                            if options.debug_enabled:
-                                page.log_info()
-                            page = LogPageVersionUnknown()
-                            continue
+                        page = LogPageVersionUnknown()
+                        continue
 
-                    if page.log_id not in dictLogs:
-                        dictLogs[page.log_id] = {}
-
-                    if page.page_num in dictLogs[page.log_id]:
-                        logging.error("Duplicate page found log id 0x%x," +
-                                      "page %d", page.log_id, page.page_num)
-
-                    dictLogs[page.log_id][page.page_num] = page
-
-                    if versionIsOneOrGreater:
-                        logging.info(
-                            "Found log page - context: %s, id: 0x%x, " +
-                            "page: %d", page.context.name,
-                            page.log_id, page.page_num)
-                        page.log_info()
-                        sys.stdout.flush()
-                    else:
-                        logging.info("Found log page: id 0x%x, page %d" %
-                                     (page.log_id, page.page_num))
-                        page.log_info()
-                        sys.stdout.flush()
-
-                    # for debug mode, save the extracted log pages
-                    if options.debug_enabled:
-                        if version >= 1:
-                            page.debug_save_log_pages(fIn, fileName, data,
-                                                      context.name, options)
-                        else:
-                            page.debug_save_log_pages(fIn, fileName, data,
-                                                      options)
-
-                    page = LogPageVersionUnknown()
+                process_log_pages(dictLogs, page, versionIsOneOrGreater,
+                                  fIn, fileName, data, context, version,
+                                  options)
+                page = LogPageVersionUnknown()
 
         fIn.close()
         fileCount += 1
