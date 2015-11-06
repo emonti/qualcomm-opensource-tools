@@ -348,11 +348,11 @@ sysdbg_cpu64_register_names_v1_4 = [
     ('elr_el1', 'elr_el1', True),
     ('spsr_el1', 'spsr_el1', False),
     ('sp_el0', 'sp_el0', False),
-    ('dirty_flag', 'dirty_flag', False),
-    ('PStateMisc', 'PStateMisc', False),
-    ('trust0', 'trust0', False),
-    ('trust1', 'trust1', False),
-    ('trust2', 'trust2', False),
+    ('cpu_state_0', 'cpu_state_0', False),
+    ('cpu_state_1', 'cpu_state_1', False),
+    ('cpu_state_3', 'cpu_state_3', False),
+    ('cpu_state_4', 'cpu_state_4', False),
+    ('cpu_state_5', 'cpu_state_5', False),
     ('__reserved1', '__reserved1', False),
     ('__reserved2', '__reserved2', False),
     ('__reserved3', '__reserved3', False),
@@ -403,11 +403,11 @@ sysdbg_cpu64_ctxt_regs_type_v1_4 = ''.join([
     'Q',  # elr_el1
     'Q',  # spsr_el1
     'Q',  # sp_el0
-    'Q',  # dirty_flag
-    'Q',  # PStateMisc
-    'Q',  # trust0
-    'Q',  # trust1
-    'Q',  # trust2
+    'Q',  # cpu_state_0
+    'Q',  # cpu_state_1
+    'Q',  # cpu_state_3
+    'Q',  # cpu_state_4
+    'Q',  # cpu_state_5
     'Q',  # __reserved1
     'Q',  # __reserved2
     'Q',  # __reserved3
@@ -592,37 +592,37 @@ class NeonCtxType():
 class TZCpuCtx_v2():
 
     def compute_pc(self, neon_regs):
-        pstate = self.regs['PStateMisc']
-        trust0 = self.regs['trust0']
-        trust2 = self.regs['trust2']
+        pstate = self.regs['cpu_state_1']
+        cpu_state_3 = self.regs['cpu_state_3']
+        cpu_state_5 = self.regs['cpu_state_5']
         pc = self.regs['pc']
 
         # AArch32 Mode
         if is_set(pstate, 4):
             val = pstate & 0xF
-            if val == 0x0 and is_set(trust0, 14):
+            if val == 0x0 and is_set(cpu_state_3, 14):
                 self.regs['pc'] = self.regs['x14']
-            elif val == 0x1 and is_set(trust0, 30):
+            elif val == 0x1 and is_set(cpu_state_3, 30):
                 self.regs['pc'] = self.regs['x30']
-            elif val == 0x2 and is_set(trust0, 16):
+            elif val == 0x2 and is_set(cpu_state_3, 16):
                 self.regs['pc'] = self.regs['x16']
-            elif val == 0x3 and is_set(trust0, 18):
+            elif val == 0x3 and is_set(cpu_state_3, 18):
                 self.regs['pc'] = self.regs['x18']
-            elif val == 0x7 and is_set(trust0, 20):
+            elif val == 0x7 and is_set(cpu_state_3, 20):
                 self.regs['pc'] = self.regs['x20']
-            elif val == 0xB and is_set(trust0, 22):
+            elif val == 0xB and is_set(cpu_state_3, 22):
                 self.regs['pc'] = self.regs['x22']
-            elif val == 0x6 and is_set(trust2, 31):
+            elif val == 0x6 and is_set(cpu_state_5, 31):
                 self.regs['pc'] = neon_regs['q31-upper']
             elif val == 0xA:
                 self.regs['pc'] = self.regs['elr_el2']
-            elif val == 0xF and is_set(trust0, 14):
+            elif val == 0xF and is_set(cpu_state_3, 14):
                 self.regs['pc'] = self.regs['x14']
             else:
                 print_out_str('!!! AArch32 PC Approximation Logic Failed!')
         # AArch64 Mode
         else:
-            if is_set(trust0, 30):
+            if is_set(cpu_state_3, 30):
                 self.regs['pc'] = self.regs['x30']
             else:
                 val = (pstate >> 2) & 0x3
@@ -655,7 +655,7 @@ class TZCpuCtx_v2():
             self.regs[register_name[i][0]] = r
             i += 1
 
-        if self.version == '1.4' and self.regs['dirty_flag'] == 0x1:
+        if self.version == '1.4' and self.regs['cpu_state_0'] == 0x1:
             print_out_str(
                 '!!! PC is invalid, applying "PC Approximation Logic"!')
             self.compute_pc(neon_regs)
