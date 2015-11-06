@@ -1,4 +1,4 @@
-# Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -140,7 +140,6 @@ def page_to_pfn_vmemmap(ramdump, page):
 def pfn_to_page_vmemmap(ramdump, pfn):
     mem_map = 0xffffffbc00000000
     page_size = ramdump.sizeof('struct page')
-    pfn_offset = ramdump.phys_offset >> 12
     return mem_map + (pfn * page_size)
 
 
