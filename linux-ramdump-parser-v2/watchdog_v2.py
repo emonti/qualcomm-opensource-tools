@@ -685,6 +685,8 @@ class TZCpuCtx_v2():
                 print_out_str('   {0:8} = 0x{1:016x}'.format(
                               reg_name, self.regs[reg_name]))
             if t32_name is not None:
+                if reg_name.startswith('cpu_state_'):
+                    continue
                 outfile.write(
                     'r.s {0} 0x{1:x}\n'.format(t32_name, self.regs[reg_name]))
 
