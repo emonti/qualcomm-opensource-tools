@@ -496,6 +496,7 @@ class RamDump():
             self.phys_offset = options.phys_offset
         self.lookup_table = []
         self.config = []
+        self.config_dict = {}
         if self.arm64:
             self.page_offset = 0xffffffc000000000
             self.thread_size = 16384
@@ -618,7 +619,13 @@ class RamDump():
         os.remove(zconfig.name)
         for l in t:
             self.config.append(l.rstrip().decode('ascii', 'ignore'))
+            if not l.startswith('#') and l.strip() != '':
+                cfg, val = l.split('=')
+                self.config_dict[cfg] = val.strip()
         return True
+
+    def get_config_val(self, config):
+        return self.config_dict.get(config)
 
     def is_config_defined(self, config):
         s = config + '=y'
