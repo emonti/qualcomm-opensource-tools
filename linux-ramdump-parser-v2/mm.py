@@ -9,6 +9,8 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
+import bitops
+
 
 def page_buddy(ramdump, page):
     mapcount_offset = ramdump.field_offset('struct page', '_mapcount')
@@ -127,20 +129,37 @@ def page_to_pfn_sparse(ramdump, page):
     # divide by struct page size for division fun
     return (page - addr) / sizeof_page
 
-# Yes, we are hard coding the vmemmap. This isn't very likely to change unless
-# the rest of the addresses start changing as well. When that happens, the
-# entire parser will probably be broken in many other ways so a better solution
-# can be derived then.
+
+def get_vmemmap(ramdump):
+    # See: include/asm-generic/pgtable-nopud.h,
+    # arch/arm64/include/asm/pgtable-hwdef.h,
+    # arch/arm64/include/asm/pgtable.h
+    nlevels = int(ramdump.get_config_val("CONFIG_ARM64_PGTABLE_LEVELS"))
+    if ramdump.is_config_defined("CONFIG_ARM64_64K_PAGES"):
+        page_shift = 16
+    else:
+        page_shift = 12
+    pgdir_shift = ((page_shift - 3) * nlevels) + 3
+    pud_shift = pgdir_shift
+    pud_size = 1 << pud_shift
+    va_bits = int(ramdump.get_config_val("CONFIG_ARM64_VA_BITS"))
+    spsize = ramdump.sizeof('struct page')
+    vmemmap_size = bitops.align((1 << (va_bits - page_shift)) * spsize,
+                                pud_size)
+    vmalloc_end = ramdump.page_offset - pud_size - vmemmap_size
+    return vmalloc_end
+
+
 def page_to_pfn_vmemmap(ramdump, page):
-    mem_map = 0xffffffbc00000000
+    vmemmap = get_vmemmap(ramdump)
     page_size = ramdump.sizeof('struct page')
-    return ((page - mem_map) / page_size)
+    return ((page - vmemmap) / page_size)
 
 
 def pfn_to_page_vmemmap(ramdump, pfn):
-    mem_map = 0xffffffbc00000000
+    vmemmap = get_vmemmap(ramdump)
     page_size = ramdump.sizeof('struct page')
-    return mem_map + (pfn * page_size)
+    return vmemmap + (pfn * page_size)
 
 
 def page_to_pfn_flat(ramdump, page):
