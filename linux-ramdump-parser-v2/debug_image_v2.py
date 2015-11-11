@@ -169,8 +169,11 @@ class DebugImage_v2():
         cache_type = lookup_cache_type(ramdump.hw_id, client_id, version)
         try:
             cache_type.parse(start, end, ramdump, outfile)
+        except NotImplementedError:
+            print_out_str('Cache dumping not supported for %s on this target'
+                          % client_name)
         except:
-            print_out_str('!!! Exception while running {0}'.format(client_name))
+            print_out_str('!!! Unhandled exception while running {0}'.format(client_name))
             print_out_exception()
         outfile.close()
 
