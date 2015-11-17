@@ -49,72 +49,77 @@ NMAGIC = ctypes.c_uint32(~MAGIC).value
 CTX_MAGIC = 0x25874452
 CTX_NMAGIC = ctypes.c_uint32(~CTX_MAGIC).value
 
+
 def hex_to_str(chars, width, nLineLimit=None):
-	"""
-	Converts a binary string to a hex dump.
+    """
+    Converts a binary string to a hex dump.
 
-	:param chars: The string to convert.
-	:param width: The width of the hex output.
-	:param nLineLimit: The maximum length of the hex output, in lines.
+    :param chars: The string to convert.
+    :param width: The width of the hex output.
+    :param nLineLimit: The maximum length of the hex output, in lines.
 
-	:return: The hex dump as a string.
-	"""
-	output = []
-	offset = 0
-	nLines = 0
+    :return: The hex dump as a string.
+    """
+    output = []
+    offset = 0
+    nLines = 0
 
-	while chars:
-		line = chars[:width]
-		chars = chars[width:]
-		strBlankHex = '   ' * (width - len(line))
-		strHex = ' '.join("%02x" % ord(c) for c in line) + strBlankHex
-		strOut = "%08x %s %s" % (offset, strHex, quotechars(line))
-		offset += width
-		output.append(strOut)
-		nLines += 1
-		if nLineLimit and nLines > nLineLimit:
-			output.append("...")
-			break
+    while chars:
+        line = chars[:width]
+        chars = chars[width:]
+        strBlankHex = '   ' * (width - len(line))
+        strHex = ' '.join("%02x" % ord(c) for c in line) + strBlankHex
+        strOut = "%08x %s %s" % (offset, strHex, quotechars(line))
+        offset += width
+        output.append(strOut)
+        nLines += 1
+        if nLineLimit and nLines > nLineLimit:
+            output.append("...")
+            break
 
-	return '\n'.join(output) + '\n'
+    return '\n'.join(output) + '\n'
+
 
 def quotechars(chars):
-	return ''.join(['.', c][c.isalnum()] for c in chars)
+    return ''.join(['.', c][c.isalnum()] for c in chars)
+
 
 def str_to_hex(strHex):
-	"""
-	Converts a space-separated string of hex bytes into a binary string.
+    """
+    Converts a space-separated string of hex bytes into a binary string.
 
-	:param strHex: The space-separated string of hex bytes.
+    :param strHex: The space-separated string of hex bytes.
 
-	Example:
-		str_to_hex("01 02 0A 0B") ==> "\x01\x02\x0a\x0b"
+    Example:
+        str_to_hex("01 02 0A 0B") ==> "\x01\x02\x0a\x0b"
 
-	:return: The binary string.
-	"""
-	return ''.join([chr(int(x.strip(), 16)) for x in strHex.split()])
+    :return: The binary string.
+    """
+    return ''.join([chr(int(x.strip(), 16)) for x in strHex.split()])
 
 # Element types
-#enum {
-#	TSV_TYPE_INVALID,
-#	TSV_TYPE_TIMESTAMP,
-#	TSV_TYPE_POINTER,
-#	TSV_TYPE_INT32,
-#	TSV_TYPE_BYTE_ARRAY,
-#};
+# enum {
+#    TSV_TYPE_INVALID,
+#    TSV_TYPE_TIMESTAMP,
+#    TSV_TYPE_POINTER,
+#    TSV_TYPE_INT32,
+#    TSV_TYPE_BYTE_ARRAY,
+#    TSV_TYPE_QTIMER
+# };
 TSV_TYPE_INVALID = 0
 TSV_TYPE_TIMESTAMP = 1
 TSV_TYPE_POINTER = 2
 TSV_TYPE_INT32 = 3
 TSV_TYPE_BYTE_ARRAY = 4
+TSV_TYPE_QTIMER = 5
 
 # Message types
-#enum {
-#	TSV_TYPE_MSG_START = 1,
-#	TSV_TYPE_SKB = TSV_TYPE_MSG_START,
-#	TSV_TYPE_STRING,
-#	TSV_TYPE_MSG_END = TSV_TYPE_STRING,
-#};
+# enum {
+#    TSV_TYPE_MSG_START = 1,
+#    TSV_TYPE_SKB = TSV_TYPE_MSG_START,
+#    TSV_TYPE_STRING,
+#    TSV_TYPE_MSG_END = TSV_TYPE_STRING,
+# };
 TSV_TYPE_MSG_START = 1
 TSV_TYPE_SKB = TSV_TYPE_MSG_START
 TSV_TYPE_STRING = 2
@@ -122,10 +127,10 @@ TSV_TYPE_MSG_END = 2
 
 
 # TSV values
-#struct tsv_header {
-#	unsigned char type;
-#	unsigned char size; /* size of data field */
-#};
+# struct tsv_header {
+#    unsigned char type;
+#    unsigned char size; /* size of data field */
+# };
 V0_PAGE_HDR_SIZE = 4*4 + 2*2 + 2*4
 V1_PAGE_HDR_SIZE = 0x40
 V1_PAGE_HDR_SIZE_64 = 0x48
@@ -135,1584 +140,1876 @@ CTX_READ_SIZE = 64
 
 # Default header sizes by IPC Logging Version
 # V0 was 32-bit only, so it is used in the 64-bit list as a placeholder
-PAGE_HDR_SIZES = [V0_PAGE_HDR_SIZE, V1_PAGE_HDR_SIZE]
-PAGE_HDR_SIZES_64 = [V0_PAGE_HDR_SIZE, V1_PAGE_HDR_SIZE_64]
+PAGE_HDR_SIZES = [V0_PAGE_HDR_SIZE, V1_PAGE_HDR_SIZE, V1_PAGE_HDR_SIZE]
+PAGE_HDR_SIZES_64 = [V0_PAGE_HDR_SIZE, V1_PAGE_HDR_SIZE_64,
+                     V1_PAGE_HDR_SIZE_64]
+
 
 class LogTSV(object):
-	"""Handles processing message/value headers"""
+    """Handles processing message/value headers"""
 
-	def __init__(self):
-		pass
+    def __init__(self):
+        pass
 
-	def unpack(self, data):
-		"""
-		Unpacks a TSV message. This is a wrapper around the
-		:func:`~struct.unpack()` function from the :mod:`struct` module.
+    def unpack(self, data):
+        """
+        Unpacks a TSV message. This is a wrapper around the
+        :func:`~struct.unpack()` function from the :mod:`struct` module.
 
-		:param data: The binary data to be unpacked.
+        :param data: The binary data to be unpacked.
 
-		:return: The TSV message with the header stripped off.
-		"""
-		assert len(data) >= 2, "Invalid message size %d" % (len(data))
-		self.msg_type, self.msg_size = struct.unpack('BB', data[0:2])
-		return data[2:]
+        :return: The TSV message with the header stripped off.
+        """
+        assert len(data) >= 2, "Invalid message size %d" % (len(data))
+        self.msg_type, self.msg_size = struct.unpack('BB', data[0:2])
+        return data[2:]
 
-	def pack(self, msg_type, msg_size):
-		"""
-		Packs a new TSV message structure. This is a wrapper around the
-		:func:`~struct.pack()` function from the :mod:`struct` module.
+    def pack(self, msg_type, msg_size):
+        """
+        Packs a new TSV message structure. This is a wrapper around the
+        :func:`~struct.pack()` function from the :mod:`struct` module.
 
-		:param msg_type: The TSV msg_type to be packed into the new \
-				TSV message structure.
-		:param msg_size: The TSV msg_size to be packed into the new \
-				TSV message structure.
+        :param msg_type: The TSV msg_type to be packed into the new
+                         TSV message structure.
+        :param msg_size: The TSV msg_size to be packed into the new
+                         TSV message structure.
 
-		:return: The TSV message structure packed into a binary string.
-		"""
-		return struct.pack('BB', msg_type, msg_size)
+        :return: The TSV message structure packed into a binary string.
+        """
+        return struct.pack('BB', msg_type, msg_size)
+
 
 class TsvTimestamp(object):
-	"""Handles processing TSV Timestamps"""
+    """Handles processing TSV Timestamps"""
 
-	def unpack(self, data):
-		"""
-		Unpacks a TSV timestamp. This is a wrapper around the
-		:func:`~struct.unpack()` function from the :mod:`struct` module.
+    def unpack(self, data):
+        """
+        Unpacks a TSV timestamp. This is a wrapper around the
+        :func:`~struct.unpack()` function from the :mod:`struct` module.
 
-		:return: The unpacked timestamp.
+        :return: The unpacked timestamp.
 
-		**Side Effects**: The unpacked timestamp is saved as an instance \
-				variable, ``self.fTimestamp``, which can be accessed as a \
-				string through the :meth:`__str__()` method of this class. \
-				This method is used by :class:`LogMessageString` to get \
-				the timestamp in order to dump it to the logs.
-		"""
-		tsv = LogTSV()
-		data = tsv.unpack(data)
-		assert tsv.msg_type == TSV_TYPE_TIMESTAMP, "timestamp"
-		assert tsv.msg_size == 8, "msg size"
+        **Side Effects**: The unpacked timestamp is saved as an instance
+                variable, ``self.fTimestamp``, which can be accessed as a
+                string through the :meth:`__str__()` method of this class.
+                This method is used by :class:`LogMessageString` to get
+                the timestamp in order to dump it to the logs.
+        """
+        tsv = LogTSV()
+        data = tsv.unpack(data)
+        assert tsv.msg_type == TSV_TYPE_TIMESTAMP, "timestamp"
+        assert tsv.msg_size == 8, "msg size"
 
-		# read 64-bit timestamp
-		timestamp_ns, = struct.unpack('<Q', data[0:8])
-		data = data[8:]
-		self.fTimestamp =  timestamp_ns * 1.0E-9
-		return data
+        # read 64-bit timestamp
+        timestamp_ns, = struct.unpack('<Q', data[0:8])
+        data = data[8:]
+        self.fTimestamp = timestamp_ns * 1.0E-9
+        return data
 
-	def pack(self, fTimestamp):
-		"""
-		Packs a timestamp into a new TSV structure. This is a wrapper around the
-		:func:`~struct.pack()` function from the :mod:`struct` module.
+    def pack(self, fTimestamp):
+        """
+        Packs a timestamp into a new TSV structure. This is a wrapper around
+        the :func:`~struct.pack()` function from the :mod:`struct` module.
 
-		:param fTimestamp: The TSV timestamp to be packed into a new TSV \
-				message structure.
+        :param fTimestamp: The TSV timestamp to be packed into a new TSV
+                           message structure.
 
-		:return: A TSV message structure with *fTimestamp* packed \
-				into the binary string.
-		"""
-		self.fTimestamp = fTimestamp
-		tsv = LogTSV()
-		data = tsv.pack(TSV_TYPE_TIMESTAMP, 8)
-		data += struct.pack('<Q', fTimestamp * 1.0E9)
-		return data
+        :return: A TSV message structure with *fTimestamp* packed
+                into the binary string.
+        """
+        self.fTimestamp = fTimestamp
+        tsv = LogTSV()
+        data = tsv.pack(TSV_TYPE_TIMESTAMP, 8)
+        data += struct.pack('<Q', fTimestamp * 1.0E9)
+        return data
 
-	def __str__(self):
-		return '%16.9f' % (self.fTimestamp)
+    def __str__(self):
+        return '%16.9f' % (self.fTimestamp)
+
+
+class TsvQTimer(object):
+    """Handles processing TSV QTimer timestamps"""
+
+    def unpack(self, data):
+        """
+        Unpacks a TSV QTimer timestamp. This is a wrapper around the
+        :func:`~struct.unpack()` function from the :mod:`struct` module.
+
+        :return: The unpacked timestamp.
+
+        **Side Effects**: The unpacked timestamp is saved as an instance
+                variable, ``self.fTimestamp``, which can be accessed as a
+                string through the :meth:`__str__()` method of this class.
+                This method is used by :class:`LogMessageString` to get
+                the timestamp in order to dump it to the logs.
+        """
+        tsv = LogTSV()
+        data = tsv.unpack(data)
+        assert tsv.msg_type == TSV_TYPE_QTIMER, "timestamp"
+        assert tsv.msg_size == 8, "msg size"
+
+        # read 64-bit timestamp
+        timestamp_raw, = struct.unpack('<Q', data[0:8])
+        data = data[8:]
+        self.fTimestamp = timestamp_raw
+        return data
+
+    def pack(self, fTimestamp):
+        """
+        Packs a timestamp into a new TSV structure. This is a wrapper around
+        the :func:`~struct.pack()` function from the :mod:`struct` module.
+
+        :param fTimestamp: The TSV timestamp to be packed into a new TSV
+                message structure.
+
+        :return: A TSV message structure with *fTimestamp* packed
+                into the binary string.
+        """
+        self.fTimestamp = fTimestamp
+        tsv = LogTSV()
+        data = tsv.pack(TSV_TYPE_QTIMER, 8)
+        data += struct.pack('<Q', fTimestamp * 1.0E9)
+        return data
+
+    def __str__(self):
+        return '%#18x' % (self.fTimestamp)
+
 
 class TsvByteArray(object):
-	"""Handles processing TSV byte arrays."""
+    """Handles processing TSV byte arrays."""
 
-	def unpack(self, data):
-		"""
-		Unpacks a TSV byte array. This is a wrapper around the
-		:func:`~struct.unpack()` function from the :mod:`struct` module.
+    def unpack(self, data):
+        """
+        Unpacks a TSV byte array. This is a wrapper around the
+        :func:`~struct.unpack()` function from the :mod:`struct` module.
 
-		:param data: The binary data to be unpacked.
+        :param data: The binary data to be unpacked.
 
-		:return: The header data of the TSV message.
+        :return: The header data of the TSV message.
 
-		**Side Effects**: The byte array data is saved as an instance \
-				variable, ``self.strByteArray``, which can be accessed as a \
-				string through the :meth:`__str__()` method of this class. \
-				This method is used by :class:`LogMessageString` to get \
-				the byte array data as a string in order to dump it to the logs.
-		"""
-		tsv = LogTSV()
-		data = tsv.unpack(data)
-		assert tsv.msg_type == TSV_TYPE_BYTE_ARRAY, \
-				"%d != %d" % (tsv.msg_type, TSV_TYPE_BYTE_ARRAY)
+        **Side Effects**: The byte array data is saved as an instance
+                variable, ``self.strByteArray``, which can be accessed as a
+                string through the :meth:`__str__()` method of this class.
+                This method is used by :class:`LogMessageString` to get
+                the byte array data as a string in order to dump it to the
+                logs.
+        """
+        tsv = LogTSV()
+        data = tsv.unpack(data)
+        assert tsv.msg_type == TSV_TYPE_BYTE_ARRAY, \
+            "%d != %d" % (tsv.msg_type, TSV_TYPE_BYTE_ARRAY)
 
-		# read byte array
-		self.strByteArray = data[:tsv.msg_size]
-		data = data[tsv.msg_size:]
-		return data
+        # read byte array
+        self.strByteArray = data[:tsv.msg_size]
+        data = data[tsv.msg_size:]
+        return data
 
-	def pack(self, data):
-		"""
-		Packs a new TSV message structure, using the TSV byte array in *data*.
-		This is a wrapper around the :func:`~struct.pack()` function from the
-		:mod:`struct` module.
+    def pack(self, data):
+        """
+        Packs a new TSV message structure, using the TSV byte array in *data*.
+        This is a wrapper around the :func:`~struct.pack()` function from the
+        :mod:`struct` module.
 
-		:param data: The data to be packed into the new TSV message structure.
+        :param data: The data to be packed into the new TSV message structure.
 
-		:return: The new structure as binary data, with *data* appended to the \
-				end.
-		"""
-		tsv = LogTSV()
-		lst = tsv.pack(TSV_TYPE_BYTE_ARRAY, len(data))
-		lst += data
-		return lst
+        :return: The new structure as binary data, with *data* appended to
+                the end.
+        """
+        tsv = LogTSV()
+        lst = tsv.pack(TSV_TYPE_BYTE_ARRAY, len(data))
+        lst += data
+        return lst
 
-	def __str__(self):
-		return self.strByteArray
+    def __str__(self):
+        return self.strByteArray
+
 
 class LogMessageString(object):
-	"""Handles processing TSV message strings."""
+    """Handles processing TSV message strings."""
 
-	def unpack(self, data, tsv):
-		"""
-		Unpacks a new TSV message string. To do this, it is first
-		necessary to unpack the timestamp using :meth:`TsvTimestamp.unpack()`,
-		and proceed to use unpack the byte array from the result using
-		:meth:`TsvByteArray.unpack()`. The result of this call is what is
-		returned.
+    def unpack(self, data, tsv, qtimer):
+        """
+        Unpacks a new TSV message string. To do this, it is first
+        necessary to unpack the timestamp using :meth:`TsvTimestamp.unpack()`,
+        and proceed to use unpack the byte array from the result using
+        :meth:`TsvByteArray.unpack()`. The result of this call is what is
+        returned.
 
-		:param data: The data containing the TSV string message to be unpacked
-		:param tsv: The :class:`LogTSV` object that was used to unpack *data*
+        :param data: The data containing the TSV string message to be unpacked
+        :param tsv: The :class:`LogTSV` object that was used to unpack *data*
+        :param qtimer: If True, unpack the QTimer timestamp as well as the
+                       kernel timestamp; otherwise, just unpack the kernel
+                       timestamp
 
-		:return: The TSV message string data
+        :return: The TSV message string data
 
-		**Side Effects**: The timestamp and the message extracted from *data* \
-				are stored as instance variables, and can be printed using the \
-				:meth:`__str__` method of this class. This :meth:`__str__()` \
-				method is used to dump the logs in their \
-				'[timestamp] <message>' format.
-		"""
-		assert tsv.msg_type == TSV_TYPE_STRING, "invalid message type"
+        **Side Effects**: The timestamp and the message extracted from *data*
+                are stored as instance variables, and can be printed using
+                the :meth:`__str__` method of this class. This
+                :meth:`__str__()` method is used to dump the logs in their
+                '[timestamp] <message>' format.
+        """
+        assert tsv.msg_type == TSV_TYPE_STRING, "invalid message type"
 
-		# TSV_TYPE_STRING - message type
-		# TSV_TYPE_TIMESTAMP
-		# TSV_TYPE_BYTE_ARRAY
-		self.timestamp = TsvTimestamp()
-		data = self.timestamp.unpack(data)
+        # TSV_TYPE_STRING - message type
+        # TSV_TYPE_TIMESTAMP
+        # TSV_TYPE_BYTE_ARRAY
+        # TSV_TYPE_QTIMER
+        self.timestamp = TsvTimestamp()
+        data = self.timestamp.unpack(data)
 
-		self.strMessage = TsvByteArray()
-		data = self.strMessage.unpack(data)
-		return data
+        if qtimer:
+            self.qtimer = TsvQTimer()
+            data = self.qtimer.unpack(data)
 
-	def pack(self, fTimestamp, strMessage):
-		"""
-		Packs a new TSV LogMessageString structure.
+        self.strMessage = TsvByteArray()
+        data = self.strMessage.unpack(data)
+        return data
 
-		:param fTimestamp: The timestamp to be packed into the structure
-		:param strMessage: The string message to be packed into the structure
+    def pack(self, fTimestamp, strMessage, fQTimer=None):
+        """
+        Packs a new TSV LogMessageString structure.
 
-		:return: The packed TSV LogMessageString structure
-		"""
-		self.timestamp = TsvTimestamp()
-		data =self.timestamp.pack(fTimestamp)
-		data += TsvByteArray().pack(strMessage)
+        :param fTimestamp: The timestamp to be packed into the structure
+        :param fQTimer: The QTimer timestamp to be packed into the structure,
+                if present; if not, the value is None
+        :param strMessage: The string message to be packed into the structure
 
-		tsv = LogTSV()
-		data = tsv.pack(TSV_TYPE_STRING, len(data)) + data
-		self.strMessage = strMessage
-		return data
+        :return: The packed TSV LogMessageString structure
+        """
+        self.timestamp = TsvTimestamp()
+        data = self.timestamp.pack(fTimestamp)
 
-	def __str__(self):
-		return '[%s] %s' % (self.timestamp, self.strMessage)
+        if fQTimer is not None:
+            data += self.qtimer.pack(fQTimer)
+
+        data += TsvByteArray().pack(strMessage)
+
+        tsv = LogTSV()
+        data = tsv.pack(TSV_TYPE_STRING, len(data)) + data
+        self.strMessage = strMessage
+        return data
+
+    def __str__(self):
+        if hasattr(self, 'qtimer'):
+            return '[%s/%s] %s' % \
+                (self.timestamp, self.qtimer, self.strMessage)
+        else:
+            return '[%s] %s' % (self.timestamp, self.strMessage)
+
 
 class LogContext(object):
-	"""
-	A single context in a version 1 or greater IPC Logging log.
+    """
+    A single context in a version 1 or greater IPC Logging log.
 
-	.. code-block:: c
+    .. code-block:: c
 
-		struct ipc_log_context {
-			uint32_t magic;
-			uint32_t nmagic;
-			uint32_t version;
-			uint16_t user_version;
-			uint16_t header_size;
-			uint64_t log_id;
+        struct ipc_log_context {
+            uint32_t magic;
+            uint32_t nmagic;
+            uint32_t version;
+            uint16_t user_version;
+            uint16_t header_size;
+            uint64_t log_id;
 
-			/* Local data structures below ... */
-		};
+            /* Local data structures below ... */
+        };
 
-	The purpose of the log context is to contain the above information about
-	the log. One log consists of one to several pages. Thus, pages and contexts
-	are associated by log ID, the one piece of information that is common
-	between them in their C structs.
+    The purpose of the log context is to contain the above information about
+    the log. One log consists of one to several pages. Thus, pages and contexts
+    are associated by log ID, the one piece of information that is common
+    between them in their C structs.
 
-	"""
+    """
 
-	headerBinaryFormat = '<IIIHHQ20s'
-	headerBinaryFormatSize = struct.calcsize(headerBinaryFormat)
+    headerBinaryFormat = '<IIIHHQ20s'
+    headerBinaryFormatSize = struct.calcsize(headerBinaryFormat)
 
-	def __init__(self):
-		self.data = None
+    def __init__(self):
+        self.data = None
 
-	def unpack(self, data):
-		"""
-		Unpacks an ipc_log_context structure, and assigns the contents
-		into instance variables of this class. This is a wrapper around
-		the :func:`~struct.unpack()` function from the :mod:`struct` module.
+    def unpack(self, data):
+        """
+        Unpacks an ipc_log_context structure, and assigns the contents
+        into instance variables of this class. This is a wrapper around
+        the :func:`~struct.unpack()` function from the :mod:`struct` module.
 
-		:param data: The binary ipc_log_context structure to be unpacked.
+        :param data: The binary ipc_log_context structure to be unpacked.
 
-		:return: :const:`True` if the unpack completes successfully, \
-				:const:`False` if not.
+        :return: :const:`True` if the unpack completes successfully,
+                :const:`False` if not.
 
-		**Side Effects**: If the unpack is successful, the contexts are \
-				assigned to instance variables. In this way, :meth:`unpack()` \
-				acts as a sort of constructor. This is common to all the \
-				unpack methods.
-		"""
-		self.data = data
-		self.magic, self.nmagic, self.version, self.user_version, \
-			self.header_size, self.log_id, self.name = \
-				struct.unpack(self.headerBinaryFormat,
-						self.data[0:self.headerBinaryFormatSize])
-		self.name = self.name.rstrip('\0')
+        **Side Effects**: If the unpack is successful, the contexts are
+                assigned to instance variables. In this way, :meth:`unpack()`
+                acts as a sort of constructor. This is common to all the
+                unpack methods.
+        """
+        self.data = data
+        self.magic, self.nmagic, self.version, self.user_version, \
+            self.header_size, self.log_id, self.name = \
+            struct.unpack(self.headerBinaryFormat,
+                          self.data[0:self.headerBinaryFormatSize])
+        self.name = self.name.rstrip('\0')
 
-		if self.magic == CTX_MAGIC and self.nmagic == CTX_NMAGIC:
-			return True
+        if self.magic == CTX_MAGIC and self.nmagic == CTX_NMAGIC:
+            return True
 
-		return False
+        return False
 
-	def pack(self, nVersion, nUserVersion, nHeaderSize, nLogId, nName):
-		"""
-		Packs a new ipc_log_context structure using the given elements. This
-		function is especially useful in unit testing, as it provides the
-		ability to create structures and then unpack them using the
-		:meth:`unpack()` method.
+    def pack(self, nVersion, nUserVersion, nHeaderSize, nLogId, nName):
+        """
+        Packs a new ipc_log_context structure using the given elements. This
+        function is especially useful in unit testing, as it provides the
+        ability to create structures and then unpack them using the
+        :meth:`unpack()` method.
 
-		:param nVersion: The IPC Logging version
-		:param nUserVersion: The user version
-		:param nHeaderSize: The header size
-		:param nLogId: The log ID
-		:param nName: The context name
+        :param nVersion: The IPC Logging version
+        :param nUserVersion: The user version
+        :param nHeaderSize: The header size
+        :param nLogId: The log ID
+        :param nName: The context name
 
-		:return: The packed binary data.
-		"""
-		self.data = struct.pack(self.headerBinaryFormat, CTX_MAGIC, CTX_NMAGIC,
-				nVersion, nUserVersion, nHeaderSize, nLogId, nName)
+        :return: The packed binary data.
+        """
+        self.data = struct.pack(self.headerBinaryFormat, CTX_MAGIC, CTX_NMAGIC,
+                                nVersion, nUserVersion, nHeaderSize, nLogId,
+                                nName)
 
-	def log_info(self):
-		"""
-		If DEBUG logging is turned on (command line parameter -v), logs the
-		instance variables of this LogContext to the output file. See the Python
-		:mod:`logging` module documentation and the IPC Logging main function
-		for more info on logging.
+    def log_info(self):
+        """
+        If DEBUG logging is turned on (command line parameter -v), logs the
+        instance variables of this LogContext to the output file. See the
+        Python :mod:`logging` module documentation and the IPC Logging main
+        function for more info on logging.
 
-		This method logs the ``version``, ``user_version``, ``log_id``,
-		``header_size``, and ``name`` variables to the logging output file.
-		"""
-		logging.debug("\tversion:      %d" % (self.version))
-		logging.debug("\tuser version: %d" % (self.user_version))
-		logging.debug("\tlog id:       %x" % (self.log_id))
-		logging.debug("\theader_size:  %x" % (self.header_size))
-		logging.debug("\tname:         %s" % (self.name))
+        This method logs the ``version``, ``user_version``, ``log_id``,
+        ``header_size``, and ``name`` variables to the logging output file.
+        """
+        logging.debug("\tversion:      %d" % (self.version))
+        logging.debug("\tuser version: %d" % (self.user_version))
+        logging.debug("\tlog id:       %x" % (self.log_id))
+        logging.debug("\theader_size:  %x" % (self.header_size))
+        logging.debug("\tname:         %s" % (self.name))
+
 
 class LogPage(object):
-	"""
-	LogPage base class. New versions of IPC Logging will require new descendants
-	of this class, as their :meth:`~LogPage_v0.unpack()` methods will change,
-	among other things. In IPC Logging version 1, the children of
-	:class:`LogPage` include :class:`LogPage_v0` and :class:`LogPage_v1`. There
-	is another class, :class:`LogPageVersionUnknown`, which is not in this
-	inheritance hierarchy; this is because it does not use the methods or data
-	needed by the rest of the :class:`LogPage` classes.
+    """
+    LogPage base class. New versions of IPC Logging will require new
+    descendants of this class, as their :meth:`~LogPage_v0.unpack()` methods
+    will change, among other things. In IPC Logging version 1, the children of
+    :class:`LogPage` include :class:`LogPage_v0` and :class:`LogPage_v1`. There
+    is another class, :class:`LogPageVersionUnknown`, which is not in this
+    inheritance hierarchy; this is because it does not use the methods or data
+    needed by the rest of the :class:`LogPage` classes.
 
-	Note that this is not an abstract class. The reason for this is to allow
-	new methods to be added here without forcing child classes to define them.
-	"""
-	def __init__(self):
-		self.data = None
-		self.previousPage = None
-		self.previousData = None
-		self.nextPage = None
-		self.nextData = None
-		self.iterated = False
-		self.page_header_size = V0_PAGE_HDR_SIZE
-		self.unknown_messages_data = None
+    Note that this is not an abstract class. The reason for this is to allow
+    new methods to be added here without forcing child classes to define them.
+    """
+    def __init__(self):
+        self.data = None
+        self.previousPage = None
+        self.previousData = None
+        self.nextPage = None
+        self.nextData = None
+        self.iterated = False
+        self.page_header_size = V0_PAGE_HDR_SIZE
+        self.unknown_messages_data = None
 
-	def pack_continue(self, strPayload):
-		"""
-		Packs a new page structure.  The *strPayload* can be empty and
-		additional payload can be added using :meth:`pack_continue()`.
+    def pack_continue(self, strPayload):
+        """
+        Packs a new page structure.  The *strPayload* can be empty and
+        additional payload can be added using :meth:`pack_continue()`.
 
-		Returns: Overflow data (*strPayload* that didn't fit into the page) or
-		:const:`None` if all fit.
-		"""
-		self.data += strPayload
+        Returns: Overflow data (*strPayload* that didn't fit into the page) or
+        :const:`None` if all fit.
+        """
+        self.data += strPayload
 
-		if len(self.data) > PAGE_SIZE:
-			overflowData = self.data[PAGE_SIZE:]
-			self.data = self.data[0:PAGE_SIZE]
-		else:
-			return None
+        if len(self.data) > PAGE_SIZE:
+            overflowData = self.data[PAGE_SIZE:]
+            self.data = self.data[0:PAGE_SIZE]
+            return overflowData
+        else:
+            return None
 
-	def __iter__(self):
-		"""Message iterator"""
-		self.iterated = True
-		self.previousData = None
+    def __iter__(self):
+        """Message iterator"""
+        self.iterated = True
+        self.previousData = None
 
-		logging.debug("Iterating log id %d, page %d" % \
-				(self.log_id, self.page_num))
-		self.log_info()
+        logging.debug("Iterating log id %d, page %d" %
+                      (self.log_id, self.page_num))
+        self.log_info()
 
-		if self.read_offset == FULL_PAGE_WRITE_OFFSET \
-				and self.write_offset == FULL_PAGE_WRITE_OFFSET:
-			# page is either empty or full, but only the page with
-			# valid read/write pointers knows if we have data
-			self.iter_data = self.data[self.page_header_size:]
-			logging.debug("\tfull/empty case")
-		elif self.write_offset == FULL_PAGE_WRITE_OFFSET:
-			# page is full
-			read_iter = self.read_offset + self.page_header_size
-			self.iter_data = self.data[read_iter:]
-			logging.debug("\tfull case")
-		elif self.read_offset == FULL_PAGE_WRITE_OFFSET:
-			# page hasn't been read, but has only been partially written
-			write_iter = self.write_offset + self.page_header_size
-			self.iter_data = self.data[self.page_header_size:write_iter]
-			logging.debug("\tpartial write, no read")
-		elif self.read_offset >= self.write_offset:
-			# almost full buffer
-			read_iter = self.read_offset + self.page_header_size
-			write_iter = self.write_offset + self.page_header_size
-			self.iter_data = self.data[read_iter:]
-			self.previousData = self.data[self.page_header_size:write_iter]
+        if self.read_offset == FULL_PAGE_WRITE_OFFSET \
+                and self.write_offset == FULL_PAGE_WRITE_OFFSET:
+            # page is either empty or full, but only the page with
+            # valid read/write pointers knows if we have data
+            self.iter_data = self.data[self.page_header_size:]
+            logging.debug("\tfull/empty case")
+        elif self.write_offset == FULL_PAGE_WRITE_OFFSET:
+            # page is full
+            read_iter = self.read_offset + self.page_header_size
+            self.iter_data = self.data[read_iter:]
+            logging.debug("\tfull case")
+        elif self.read_offset == FULL_PAGE_WRITE_OFFSET:
+            # page hasn't been read, but has only been partially written
+            write_iter = self.write_offset + self.page_header_size
+            self.iter_data = self.data[self.page_header_size:write_iter]
+            logging.debug("\tpartial write, no read")
+        elif self.read_offset >= self.write_offset:
+            # almost full buffer
+            read_iter = self.read_offset + self.page_header_size
+            write_iter = self.write_offset + self.page_header_size
+            self.iter_data = self.data[read_iter:]
+            self.previousData = self.data[self.page_header_size:write_iter]
 
-			if self.page_num == 0 and self.read_offset == self.write_offset:
-				self.iter_data = self.data[self.page_header_size:]
-				self.previousData = None
-				logging.debug("\talmost full - first page offsets equal")
+            if self.page_num == 0 and self.read_offset == self.write_offset:
+                self.iter_data = self.data[self.page_header_size:]
+                self.previousData = None
+                logging.debug("\talmost full - first page offsets equal")
 
-			logging.debug("\talmost full")
-		else:
-			# almost empty buffer
-			read_iter = self.read_offset + self.page_header_size
-			write_iter = self.write_offset + self.page_header_size
-			self.iter_data = self.data[read_iter:write_iter]
-			logging.debug("\talmost empty")
+            logging.debug("\talmost full")
+        else:
+            # almost empty buffer
+            read_iter = self.read_offset + self.page_header_size
+            write_iter = self.write_offset + self.page_header_size
+            self.iter_data = self.data[read_iter:write_iter]
+            logging.debug("\talmost empty")
 
-		# prepend data from previous page
-		if self.previousPage and self.previousPage.nextData:
-			logging.debug("Pulling previous data len")
-			logging.debug(hex_to_str(self.previousPage.nextData, 16, 10))
-			self.iter_data = self.previousPage.nextData + self.iter_data
+        # prepend data from previous page
+        if self.previousPage and self.previousPage.nextData:
+            logging.debug("Pulling previous data len")
+            logging.debug(hex_to_str(self.previousPage.nextData, 16, 10))
+            self.iter_data = self.previousPage.nextData + self.iter_data
 
-		return PageIterator(self)
+        return PageIterator(self)
 
-	def next(self):
-		# handles full-buffer condition where write pointer
-		# is behind the read pointer
-		if self.nextPage and self.nextPage.previousData:
-			self.iter_data += self.nextPage.previousData
-			self.nextPage.previousData = None
+    def next(self):
+        # handles full-buffer condition where write pointer
+        # is behind the read pointer
+        if self.nextPage and self.nextPage.previousData:
+            self.iter_data += self.nextPage.previousData
+            self.nextPage.previousData = None
 
-		if len(self.iter_data) < 2:
-			# not enough data to retrieve message header
-			logging.debug("Pushing data to continue\n%s" % \
-					(hex_to_str(self.iter_data, 16, 10)))
-			self.nextData = self.iter_data
-			self.iter_data = None
-			raise StopIteration
+        if len(self.iter_data) < 2:
+            # not enough data to retrieve message header
+            logging.debug("Pushing data to continue\n%s" %
+                          (hex_to_str(self.iter_data, 16, 10)))
+            self.nextData = self.iter_data
+            self.iter_data = None
+            raise StopIteration
 
-		while True:
-			try:
-				tsv = LogTSV()
-				data = tsv.unpack(self.iter_data)
-				if tsv.msg_size > len(data):
-					# not enough data left to extract entire message
-					logging.debug("Pushing data to continue\n%s" % \
-							(hex_to_str(self.iter_data, 16, 10)))
-					self.nextData = self.iter_data
-					self.iter_data = None
-					raise StopIteration
+        while True:
+            try:
+                tsv = LogTSV()
+                data = tsv.unpack(self.iter_data)
+                if tsv.msg_size > len(data):
+                    # not enough data left to extract entire message
+                    logging.debug("Pushing data to continue\n%s" %
+                                  (hex_to_str(self.iter_data, 16, 10)))
+                    self.nextData = self.iter_data
+                    self.iter_data = None
+                    raise StopIteration
 
-				# TODO - this needs to be replaced with a dictionary for the
-				# message deserialization types for custom deserialization
-				# functions
-				if tsv.msg_type == 0:
-					# no more messages
-					raise StopIteration
+                # TODO - this needs to be replaced with a dictionary for the
+                # message deserialization types for custom deserialization
+                # functions
+                if tsv.msg_type == 0:
+                    # no more messages
+                    raise StopIteration
 
-				if tsv.msg_type == TSV_TYPE_STRING:
-					self.iter_data = data
-					msg = LogMessageString()
-					self.iter_data = msg.unpack(self.iter_data, tsv)
-					return msg
-				else:
-					debug_str = "Unknown message type 0x%x\n%s" % \
-						(tsv.msg_type, hex_to_str(self.iter_data, 16, 10))
+                if tsv.msg_type == TSV_TYPE_STRING:
+                    self.iter_data = data
+                    msg = LogMessageString()
+                    self.iter_data = msg.unpack(self.iter_data, tsv, False)
+                    return msg
+                else:
+                    debug_str = "Unknown message type 0x%x\n%s" % \
+                        (tsv.msg_type, hex_to_str(self.iter_data, 16, 10))
 
-					logging.debug(debug_str)
-					assert False, debug_str
+                    logging.debug(debug_str)
+                    assert False, debug_str
 
-			except StopIteration:
-				raise
+            except StopIteration:
+                raise
+
 
 class LogPageVersionUnknown(object):
-	"""
-	This class is used before the version of the log being parsed is known. It
-	only unpacks the magic numbers and the page number from the data that is
-	found by :func:`cmdParse()`, in order to determine the version.
+    """
+    This class is used before the version of the log being parsed is known. It
+    only unpacks the magic numbers and the page number from the data that is
+    found by :func:`cmdParse()`, in order to determine the version.
 
-	This class can only be used to discover whether the log is a version 0 log
-	or a version 1 (or greater) log. See :meth:`isVersionOneOrGreater()` for
-	more details.
-	"""
-	def __init__(self):
-		self.data = None
-		self.version = None
-		self.headerMagicFormat = '<II'
-		self.headerMagicFormatSize = struct.calcsize(self.headerMagicFormat)
-		self.versionDataFormat = '<I'
-		self.versionDataFormatSize = struct.calcsize(self.versionDataFormat)
+    This class can only be used to discover whether the log is a version 0 log
+    or a version 1 (or greater) log. See :meth:`isVersionOneOrGreater()` for
+    more details.
+    """
+    def __init__(self):
+        self.data = None
+        self.version = None
+        self.headerMagicFormat = '<II'
+        self.headerMagicFormatSize = struct.calcsize(self.headerMagicFormat)
+        self.versionDataFormat = '<I'
+        self.versionDataFormatSize = struct.calcsize(self.versionDataFormat)
 
-	def unpack(self, data):
-		"""
-		Partially unpacks a page structure in order to inspect the magic number.
-		This is a wrapper around the :func:`~struct.unpack()` function from the
-		:mod:`struct` module.
+    def unpack(self, data):
+        """
+        Partially unpacks a page structure in order to inspect the magic
+        number. This is a wrapper around the :func:`~struct.unpack()` function
+        from the :mod:`struct` module.
 
-		:param data: The binary data to be unpacked.
+        :param data: The binary data to be unpacked.
 
-		:return: :const:`True` if the unpack is successful, :const:`False` if \
-				not.
+        :return: :const:`True` if the unpack is successful, :const:`False` if
+                not.
 
-		**Side Effects**: The unpacked values are assigned to instance \
-				variables of this LogPageVersionUnknown instance.
-		"""
-		self.data=data
+        **Side Effects**: The unpacked values are assigned to instance
+                variables of this LogPageVersionUnknown instance.
+        """
+        self.data = data
 
-		self.magic, self.nmagic = \
-				struct.unpack(self.headerMagicFormat,
-						self.data[0:self.headerMagicFormatSize])
+        self.magic, self.nmagic = \
+            struct.unpack(self.headerMagicFormat,
+                          self.data[0:self.headerMagicFormatSize])
 
-		if self.magic == MAGIC and self.nmagic == NMAGIC:
-			return True
+        if self.magic == MAGIC and self.nmagic == NMAGIC:
+            return True
 
-		return False
+        return False
 
-	def isVersionOneOrGreater(self, data):
-		"""
-		This method determines whether the log is version 0, or version 1 or
-		greater. The top bit of ``self.version_data`` will be 1 if the log
-		version is at least 1, and 0 if not. Note that this function should
-		only be called after calling :meth:`unpack()`.
+    def isVersionOneOrGreater(self, data):
+        """
+        This method determines whether the log is version 0, or version 1 or
+        greater. The top bit of ``self.version_data`` will be 1 if the log
+        version is at least 1, and 0 if not. Note that this function should
+        only be called after calling :meth:`unpack()`.
 
-		:return: :const:`True` if the version is 1 or greater, \
-				:const:`False` otherwise.
+        :return: :const:`True` if the version is 1 or greater,
+                :const:`False` otherwise.
 
-		**Side Effects**: This method unpacks the version data and stores \
-				the result in an instance variable.
-		"""
-		self.data=data
-		endSize = self.headerMagicFormatSize + self.versionDataFormatSize
-		version_data = \
-				struct.unpack(self.versionDataFormat,
-						self.data[self.headerMagicFormatSize:endSize])
-		self.version_data = version_data[0]
-		mask = 0x80000000
-		result = (self.version_data & mask) >= 0x80000000
-		return result
+        **Side Effects**: This method unpacks the version data and stores
+                the result in an instance variable.
+        """
+        self.data = data
+        endSize = self.headerMagicFormatSize + self.versionDataFormatSize
+        version_data = \
+            struct.unpack(self.versionDataFormat,
+                          self.data[self.headerMagicFormatSize:endSize])
+        self.version_data = version_data[0]
+        mask = 0x80000000
+        result = (self.version_data & mask) >= 0x80000000
+        return result
+
 
 class LogPage_v0(LogPage):
-	"""
-	A single page in a version 0 IPC Logging log. This class is a descendant of
-	:class:`LogPage`.
+    """
+    A single page in a version 0 IPC Logging log. This class is a descendant of
+    :class:`LogPage`.
 
-	.. code-block:: c
+    .. code-block:: c
 
-		struct ipc_log_page_header {
-			uint32_t magic;
-			uint32_t nmagic; /* inverse of magic number */
-			uint32_t log_id; /* owner of log */
-			uint32_t page_num;
-			uint16_t read_offset;
-			uint16_t write_offset;
-			struct list_head list;
-		};
-	"""
-	def __init__(self):
-		# Call the parent constructor
-		super(self.__class__, self).__init__()
-		self.headerBinaryFormat = '<IIIIHH'
-		self.headerBinaryFormatSize = struct.calcsize(self.headerBinaryFormat)
+        struct ipc_log_page_header {
+            uint32_t magic;
+            uint32_t nmagic; /* inverse of magic number */
+            uint32_t log_id; /* owner of log */
+            uint32_t page_num;
+            uint16_t read_offset;
+            uint16_t write_offset;
+            struct list_head list;
+        };
+    """
+    def __init__(self):
+        # Call the parent constructor
+        super(self.__class__, self).__init__()
+        self.headerBinaryFormat = '<IIIIHH'
+        self.headerBinaryFormatSize = struct.calcsize(self.headerBinaryFormat)
 
-	def sortAndLink(self, lstPages, bSort):
-		"""
-		Given a list of pages in ascending page number order,
-		sort them chronologically and link the pages together.
-		This must be called before iterating over items in a page.
+    def sortAndLink(self, lstPages, bSort):
+        """
+        Given a list of pages in ascending page number order,
+        sort them chronologically and link the pages together.
+        This must be called before iterating over items in a page.
 
-		:param lstPages: The list of pages to be sorted
-		:param bSort: A boolean indicating whether the logs are full or \
-				partially full. If they are full, bSort is :const:`True`.
+        :param lstPages: The list of pages to be sorted
+        :param bSort: A boolean indicating whether the logs are full or
+                partially full. If they are full, bSort is :const:`True`.
 
-		:return: The sorted and linked list of pages.
+        :return: The sorted and linked list of pages.
 
-		**Side Effects**: If the starting page cannot be found, this \
-				method will fail an assertion.
-		"""
-		# Convert lstPages deque to a regular Python list
-		lstPages = list(lstPages)
+        **Side Effects**: If the starting page cannot be found, this
+                method will fail an assertion.
+        """
+        # Convert lstPages deque to a regular Python list
+        lstPages = list(lstPages)
 
-		# Sort pages chronologically by finding the first active page.
-		# Since the pages are filled in order by page-id, the first
-		# non-full page is the last page written to.
-		if bSort:
-			for n in range(len(lstPages)):
-				if lstPages[0].write_offset != FULL_PAGE_WRITE_OFFSET:
-					break
-				lstPages.append(lstPages.pop(0))
-			assert lstPages[0].write_offset != FULL_PAGE_WRITE_OFFSET, \
-					"Unable to find starting page"
+        # Sort pages chronologically by finding the first active page.
+        # Since the pages are filled in order by page-id, the first
+        # non-full page is the last page written to.
+        if bSort:
+            for n in range(len(lstPages)):
+                if lstPages[0].write_offset != FULL_PAGE_WRITE_OFFSET:
+                    break
+                lstPages.append(lstPages.pop(0))
+            assert lstPages[0].write_offset != FULL_PAGE_WRITE_OFFSET, \
+                "Unable to find starting page"
 
-		# link pages
-		numPages = len(lstPages)
-		nMaxPage = 0
-		for n in range(numPages):
-			page = lstPages[n]
-			nMaxPage = max(nMaxPage, page.page_num)
-			page.previousPage = lstPages[n - 1]
-			page.nextPage = lstPages[(n + 1) % numPages]
-			page.iterated = False
-		assert (nMaxPage + 1) == numPages, \
-				"Missing log pages: max page %d, num pages %d" % \
-					(nMaxPage, numPages)
+        # link pages
+        numPages = len(lstPages)
+        nMaxPage = 0
+        for n in range(numPages):
+            page = lstPages[n]
+            nMaxPage = max(nMaxPage, page.page_num)
+            page.previousPage = lstPages[n - 1]
+            page.nextPage = lstPages[(n + 1) % numPages]
+            page.iterated = False
+        assert (nMaxPage + 1) == numPages, \
+            "Missing log pages: max page %d, num pages %d" % \
+            (nMaxPage, numPages)
 
-		return lstPages
+        return lstPages
 
-	def log_info(self):
-		"""
-		If DEBUG logging is turned on (command line parameter -v), logs the
-		instance variables of this LogPage_v0 to the output file. See the Python
-		:mod:`logging` module documentation and the IPC Logging main function
-		for more info on logging.
+    def log_info(self):
+        """
+        If DEBUG logging is turned on (command line parameter -v), logs the
+        instance variables of this LogPage_v0 to the output file. See the
+        Python :mod:`logging` module documentation and the IPC Logging main
+        function for more info on logging.
 
-		This method only logs the ``read_offset`` and
-		``write_offset`` variables as the others are logged elsewhere.
-		"""
-		logging.debug("\tread index:  %x" % (self.read_offset))
-		logging.debug("\twrite index: %x" % (self.write_offset))
+        This method only logs the ``read_offset`` and
+        ``write_offset`` variables as the others are logged elsewhere.
+        """
+        logging.debug("\tread index:  %x" % (self.read_offset))
+        logging.debug("\twrite index: %x" % (self.write_offset))
 
-	def debug_save_log_pages(self, fIn, filename, data, options):
-		"""
-		Writes a binary file containing the data for the current page. This
-		is a helper to :func:`cmdParse`, and is particularly useful in
-		debugging.
+    def debug_save_log_pages(self, fIn, filename, data, options):
+        """
+        Writes a binary file containing the data for the current page. This
+        is a helper to :func:`cmdParse`, and is particularly useful in
+        debugging.
 
-		:param fIn: The input file currently being processed by the caller
-		:param filename: The name of the input file currently being processed
-		:param data: The binary data for the current page
-		:param options: Configuration options containing options.output_dir for
-						the output directory
+        :param fIn: The input file currently being processed by the caller
+        :param filename: The name of the input file currently being processed
+        :param data: The binary data for the current page
+        :param options: Configuration options containing options.output_dir for
+                        the output directory
 
-		**Side Effects**: Writes an output file containing the binary data \
-				for the current page.
-		"""
-		# Get just the filename, instead of the whole path.
-		# Otherwise the file open call will fail.
-		filename = os.path.split(filename)[1]
+        **Side Effects**: Writes an output file containing the binary data
+                for the current page.
+        """
+        # Get just the filename, instead of the whole path.
+        # Otherwise the file open call will fail.
+        filename = os.path.split(filename)[1]
 
-		strDebugFileName = 'log-%d-%d-%s-%u.bin' % (self.log_id, self.page_num,
-			filename, fIn.tell() - PAGE_SIZE)
+        strDebugFileName = 'log-%d-%d-%s-%u.bin' % (self.log_id, self.page_num,
+                                                    filename, fIn.tell() -
+                                                    PAGE_SIZE)
 
-		if options.output_dir:
-			strDebugFileName = \
-					os.path.join(options.output_dir, strDebugFileName)
+        if options.output_dir:
+            strDebugFileName = \
+                os.path.join(options.output_dir, strDebugFileName)
 
-		logging.info("Writing debug file '%s'\n", strDebugFileName)
-		fOut = open(strDebugFileName, 'wb')
-		fOut.write(data)
-		fOut.close()
+        logging.info("Writing debug file '%s'\n", strDebugFileName)
+        fOut = open(strDebugFileName, 'wb')
+        fOut.write(data)
+        fOut.close()
 
-	def unpack(self, data):
-		"""
-		Unpacks an ipc_log_page version 0 structure, and assigns the contents
-		into instance variables of this class. This is a wrapper around
-		the :func:`~struct.unpack()` function from the :mod:`struct` module.
+    def unpack(self, data):
+        """
+        Unpacks an ipc_log_page version 0 structure, and assigns the contents
+        into instance variables of this class. This is a wrapper around
+        the :func:`~struct.unpack()` function from the :mod:`struct` module.
 
-		:param data: The binary ipc_log_context structure to be unpacked.
+        :param data: The binary ipc_log_context structure to be unpacked.
 
-		:return: :const:`True` if the unpack completes successfully, \
-				:const:`False` if not.
+        :return: :const:`True` if the unpack completes successfully,
+                :const:`False` if not.
 
-		**Side Effects**: If the unpack is successful, the contexts are \
-				assigned to instance variables. In this way, :meth:`unpack()` \
-				acts as a sort of constructor. This is common to all the \
-				unpack methods.
-		"""
-		self.data = data
-		self.magic, self.nmagic, self.log_id, self.page_num, self.read_offset, \
-				self.write_offset = struct.unpack(self.headerBinaryFormat,
-					self.data[0:self.headerBinaryFormatSize])
+        **Side Effects**: If the unpack is successful, the contexts are
+                assigned to instance variables. In this way, :meth:`unpack()`
+                acts as a sort of constructor. This is common to all the
+                unpack methods.
+        """
+        self.data = data
+        self.magic, self.nmagic, self.log_id, self.page_num, \
+            self.read_offset, self.write_offset = \
+            struct.unpack(self.headerBinaryFormat,
+                          self.data[0:self.headerBinaryFormatSize])
 
-		# Mask off the top bit of page_num, which is used to indicate
-		# a version 1 or greater page
-		mask = 0x7FFFFFFF
-		self.page_num = self.page_num & mask
+        # Mask off the top bit of page_num, which is used to indicate
+        # a version 1 or greater page
+        mask = 0x7FFFFFFF
+        self.page_num = self.page_num & mask
 
-		if self.magic == MAGIC and self.nmagic == NMAGIC:
-			return True
+        if self.magic == MAGIC and self.nmagic == NMAGIC:
+            return True
 
-		return False
+        return False
 
-	def pack(self, nLogId, nPageNum, nReadOffset, nWriteOffset, strPayload):
-		"""
-		Packs a new version 0 page structure.  *strPayload* can be empty and
-		additional payload can be added using :meth:`~LogPage.pack_continue()`.
+    def pack(self, nLogId, nPageNum, nReadOffset, nWriteOffset, strPayload):
+        """
+        Packs a new version 0 page structure.  *strPayload* can be empty and
+        additional payload can be added using :meth:`~LogPage.pack_continue()`.
 
-		:param nLogId: The log ID to be packed into the new structure
-		:param nPageNum: The page number
-		:param nReadOffset: The read offset
-		:param nWriteOffset: The write offset
-		:param strPayload: The payload of the new structure
+        :param nLogId: The log ID to be packed into the new structure
+        :param nPageNum: The page number
+        :param nReadOffset: The read offset
+        :param nWriteOffset: The write offset
+        :param strPayload: The payload of the new structure
 
-		:return: Overflow data (*strPayload* that didn't fit into the page) or \
-				:const:`None` if all fit.
-		"""
-		data = struct.pack(self.headerBinaryFormat, MAGIC, NMAGIC,
-				nLogId, nPageNum, nReadOffset, nWriteOffset)
+        :return: Overflow data (*strPayload* that didn't fit into the page)
+              or :const:`None` if all fit.
+        """
+        data = struct.pack(self.headerBinaryFormat, MAGIC, NMAGIC,
+                           nLogId, nPageNum, nReadOffset, nWriteOffset)
 
-		# add padding for list structures
-		data += '\0' * (self.page_header_size - len(data))
+        # add padding for list structures
+        data += '\0' * (self.page_header_size - len(data))
 
-		# append message payload
-		self.data = data + strPayload or ''
+        # append message payload
+        self.data = data + strPayload or ''
 
-		if len(self.data) > PAGE_SIZE:
-			data = self.data[PAGE_SIZE:]
-			self.data = self.data[0:PAGE_SIZE]
-			return data
-		else:
-			return None
+        if len(self.data) > PAGE_SIZE:
+            data = self.data[PAGE_SIZE:]
+            self.data = self.data[0:PAGE_SIZE]
+            return data
+        else:
+            return None
+
 
 class LogPage_v1(LogPage):
-	"""
-	A single page in a version 0 IPC Logging log. This class is a descendant of
-	:class:`LogPage`.
+    """
+    A single page in a version 1 IPC Logging log. This class is a descendant of
+    :class:`LogPage`.
 
-	.. code-block:: c
+    .. code-block:: c
 
-		struct ipc_log_page_header {
-			uint32_t magic;
-			uint32_t nmagic;
-			uint32_t page_num;
-			uint16_t read_offset;
-			uint16_t write_offset;
-			uint64_t log_id;
-			uint64_t start_time;
-			uint64_t end_time;
-			int64_t context_offset;
+        struct ipc_log_page_header {
+            uint32_t magic;
+            uint32_t nmagic;
+            uint32_t page_num;
+            uint16_t read_offset;
+            uint16_t write_offset;
+            uint64_t log_id;
+            uint64_t start_time;
+            uint64_t end_time;
+            int64_t context_offset;
 
-			/* add local data structures after this point */
-			struct list_head list;
-			uint16_t nd_read_offset;
-		};
-	"""
-	def __init__(self):
-		# Call the parent constructor
-		super(self.__class__, self).__init__()
-		self.headerBinaryFormat = '<IIIHHQQQq'
-		self.headerBinaryFormatSize = struct.calcsize(self.headerBinaryFormat)
-		self.context = LogContext()
-		self.context.header_size = V1_PAGE_HDR_SIZE
-		self.page_header_size = self.context.header_size
+            /* add local data structures after this point */
+            struct list_head list;
+            uint16_t nd_read_offset;
+        };
+    """
+    def __init__(self):
+        # Call the parent constructor
+        super(LogPage_v1, self).__init__()
+        self.headerBinaryFormat = '<IIIHHQQQq'
+        self.headerBinaryFormatSize = struct.calcsize(self.headerBinaryFormat)
+        self.context = LogContext()
+        self.context.header_size = V1_PAGE_HDR_SIZE
+        self.page_header_size = self.context.header_size
 
-	def sortAndLink(self, lstPages, bSort):
-		"""
-		Given a list of pages in ascending page number order,
-		sort them chronologically and link the pages together.
-		This must be called before iterating over items in a page.
+    def find_min_end_position(self, lstPages):
+        """
+        Find the last page written to. Since the pages are filled in order by
+        page ID, the first non-full page is the last page written to.
 
-		:param lstPages: The list of pages to be sorted
-		:param bSort: A boolean indicating whether the logs are full or \
-				partially full. If they are full, bSort is :const:`True`.
+        :param lstPages: The list of pages
 
-		:return: The sorted and linked list of pages.
+        :return: The index of the last page written to
+        """
+        min_end_time = None
+        min_end_position = 0
 
-		**Side Effects**: If the starting page cannot be found, this \
-				method will fail an assertion.
-		"""
-		# Sort pages chronologically by finding the first active page.
-		# Since the pages are filled in order by page-id, the first
-		# non-full page is the last page written to.
-		if bSort:
-			# Rotate to lowest non-zero end time
-			min_end_time = None
-			min_start_time = None
-			min_end_position = 0
-			min_start_position = 0
-			for n in range(len(lstPages)):
-				cur_end_time = lstPages[n].get_end_time()
-				if cur_end_time == 0:
-					continue
+        for n in range(len(lstPages)):
+            cur_end_time = lstPages[n].get_end_time()
+            if cur_end_time == 0:
+                continue
 
-				if not min_end_time:
-					min_end_time = cur_end_time
-					min_end_position = n
-					continue
+            if not min_end_time:
+                min_end_time = cur_end_time
+                min_end_position = n
+                continue
 
-				if cur_end_time > 0 and cur_end_time < min_end_time:
-					min_end_time = cur_end_time
-					min_end_position = n
+            if cur_end_time > 0 and cur_end_time < min_end_time:
+                min_end_time = cur_end_time
+                min_end_position = n
 
-			min_position = min_end_position
-			if lstPages[min_end_position].read_offset == 0:
-				for n in range(len(lstPages)):
-					cur_start_time = lstPages[n].get_start_time()
-					if cur_start_time == 0:
-						continue
+        return min_end_position
 
-					if not min_start_time:
-						min_start_time = cur_start_time
-						min_start_position = n
-						continue
+    def find_min_position(self, lstPages, min_position):
+        """
+        Find the first chronological page (the page with the lowest non-zero
+        end time.
 
-					if cur_start_time > 0 and cur_start_time < min_start_time:
-						min_start_time = cur_start_time
-						min_start_position = n
+        :param lstPages: The list of pages
+        :param min_position: The index of the first non-full page
 
-				if lstPages[min_start_position].read_offset != 0:
-					min_position = min_start_position
+        :return: The index of the first chronological page
+        """
+        min_start_time = None
+        min_start_position = 0
 
-			lstPages.rotate(-min_position)
-			lstPages = list(lstPages)
+        if lstPages[min_position].read_offset == 0:
+            for n in range(len(lstPages)):
+                cur_start_time = lstPages[n].get_start_time()
+                if cur_start_time == 0:
+                    continue
 
-		# link pages
-		numPages = len(lstPages)
-		nMaxPage = 0
-		for n in range(numPages):
-			page = lstPages[n]
-			nMaxPage = max(nMaxPage, page.page_num)
-			page.previousPage = lstPages[n - 1]
-			page.nextPage = lstPages[(n + 1) % numPages]
-		assert (nMaxPage + 1) == numPages, \
-				"Missing log pages: max page %d, num pages %d" % \
-					(nMaxPage, numPages)
+                if not min_start_time:
+                    min_start_time = cur_start_time
+                    min_start_position = n
+                    continue
 
-		return lstPages
+                if cur_start_time > 0 and cur_start_time < min_start_time:
+                    min_start_time = cur_start_time
+                    min_start_position = n
 
-	def log_info(self):
-		"""
-		If DEBUG logging is turned on (command line parameter -v), logs the
-		instance variables of this LogPage_v1 to the output file. See the Python
-		:mod:`logging` module documentation and the IPC Logging main function
-		for more info on logging.
+            if lstPages[min_start_position].read_offset != 0:
+                min_position = min_start_position
 
-		This method logs the ``read_offset``, ``write_offset``, ``start_time``,
-		``end_time``, and ``context_offset`` variables.
-		"""
-		logging.debug("\tread index:  %x" % (self.read_offset))
-		logging.debug("\twrite index: %x" % (self.write_offset))
-		logging.debug("\tstart_time (seconds): %f" % (self.start_time * math.pow(10, -9)))
-		logging.debug("\tend_time (seconds): %f" % (self.end_time * math.pow(10, -9)))
-		logging.debug("\tcontext_offset: %x" % (self.context_offset))
+        return min_position
 
-	def debug_save_log_pages(self, fIn, filename, data, name, options):
-		"""
-		If DEBUG logging is turned on, writes a binary file containing the data
-		for the current page. This is a helper to :func:`cmdParse`.
+    def sortAndLink(self, lstPages, bSort):
+        """
+        Given a list of pages in ascending page number order,
+        sort them chronologically and link the pages together.
+        This must be called before iterating over items in a page.
 
-		:param fIn: The input file currently being processed by the caller
-		:param filename: The name of the input file currently being processed
-		:param data: The binary data for the current page
-		:param options: Configuration options containing options.output_dir for
-						the output directory
+        :param lstPages: The list of pages to be sorted
+        :param bSort: A boolean indicating whether the logs are full or
+                partially full. If they are full, bSort is :const:`True`.
 
-		**Side Effects**: Writes an output file containing the binary data \
-				for the current page.
-		"""
-		# Get just the filename, instead of the whole path.
-		# Otherwise the file open call will fail.
-		filename = os.path.split(filename)[1]
+        :return: The sorted and linked list of pages.
 
-		strDebugFileName = 'log-%s-%d-%s-%u.bin' % (name, self.page_num,
-			filename, fIn.tell() - PAGE_SIZE)
+        **Side Effects**: If the starting page cannot be found, this
+                method will fail an assertion.
+        """
+        # Sort pages chronologically by finding the first active page.
+        # Since the pages are filled in order by page-id, the first
+        # non-full page is the last page written to.
+        if bSort:
+            min_end_position = self.find_min_end_position(lstPages)
+            min_position = self.find_min_position(lstPages, min_end_position)
 
-		if options.output_dir:
-			strDebugFileName = \
-					os.path.join(options.output_dir, strDebugFileName)
+            # Rotate to lowest non-zero end time
+            lstPages.rotate(-min_position)
+            lstPages = list(lstPages)
 
-		logging.info("Writing debug file '%s'\n", strDebugFileName)
-		fOut = open(strDebugFileName, 'wb')
-		fOut.write(data)
-		fOut.close()
+        # link pages
+        numPages = len(lstPages)
+        nMaxPage = 0
+        for n in range(numPages):
+            page = lstPages[n]
+            nMaxPage = max(nMaxPage, page.page_num)
+            page.previousPage = lstPages[n - 1]
+            page.nextPage = lstPages[(n + 1) % numPages]
+        assert (nMaxPage + 1) == numPages, \
+            "Missing log pages: max page %d, num pages %d" % \
+            (nMaxPage, numPages)
 
-	def unpack(self, data):
-		"""
-		Unpacks an ipc_log_page version 1 structure, and assigns the contents
-		into instance variables of this class. This is a wrapper around
-		the :func:`~struct.unpack()` function from the :mod:`struct` module.
+        return lstPages
 
-		:param data: The binary ipc_log_context structure to be unpacked.
+    def log_info(self):
+        """
+        If DEBUG logging is turned on (command line parameter -v), logs the
+        instance variables of this LogPage_v1 to the output file. See the
+        Python :mod:`logging` module documentation and the IPC Logging main
+        function for more info on logging.
 
-		:return: :const:`True` if the unpack completes successfully, \
-				:const:`False` if not.
+        This method logs the ``read_offset``, ``write_offset``, ``start_time``,
+        ``end_time``, and ``context_offset`` variables.
+        """
+        logging.debug("\tread index:  %x" % (self.read_offset))
+        logging.debug("\twrite index: %x" % (self.write_offset))
+        logging.debug("\tstart_time (seconds): %f" %
+                      (self.start_time * math.pow(10, -9)))
+        logging.debug("\tend_time (seconds): %f" %
+                      (self.end_time * math.pow(10, -9)))
+        logging.debug("\tcontext_offset: %x" % (self.context_offset))
 
-		**Side Effects**: If the unpack is successful, the contexts are \
-				assigned to instance variables. In this way, :meth:`unpack()` \
-				acts as a sort of constructor. This is common to all the \
-				unpack methods.
-		"""
-		self.data=data
-		self.magic, self.nmagic, self.page_num, self.read_offset, \
-				self.write_offset, self.log_id, self.start_time, \
-				self.end_time, self.context_offset = \
-				struct.unpack(self.headerBinaryFormat,
-							self.data[0:self.headerBinaryFormatSize])
+    def debug_save_log_pages(self, fIn, filename, data, name, options):
+        """
+        If DEBUG logging is turned on, writes a binary file containing the data
+        for the current page. This is a helper to :func:`cmdParse`.
 
-		# Mask off the top bit of page_num, which is used to indicate
-		# a version 1 or greater page
-		mask = 0x7FFFFFFF
-		self.page_num = self.page_num & mask
+        :param fIn: The input file currently being processed by the caller
+        :param filename: The name of the input file currently being processed
+        :param data: The binary data for the current page
+        :param options: Configuration options containing options.output_dir for
+                        the output directory
 
-		if self.magic == MAGIC and self.nmagic == NMAGIC:
-			return True
+        **Side Effects**: Writes an output file containing the binary data
+                for the current page.
+        """
+        # Get just the filename, instead of the whole path.
+        # Otherwise the file open call will fail.
+        filename = os.path.split(filename)[1]
 
-		return False
+        strDebugFileName = 'log-%s-%d-%s-%u.bin' % (name, self.page_num,
+                                                    filename,
+                                                    fIn.tell() - PAGE_SIZE)
 
-	def pack(self, nPageNum, nReadOffset, nWriteOffset, nLogId,
-			nStartTime, nEndTime, nContextOffset, strPayload):
-		"""
-		Packs a new version 1 page structure.  *strPayload* can be empty and
-		additional payload can be added using :meth:`~LogPage.pack_continue()`.
+        if options.output_dir:
+            strDebugFileName = \
+                os.path.join(options.output_dir, strDebugFileName)
 
-		:param nPageNum: The page number to be packed into the new structure
-		:param nReadOffset: The read offset
-		:param nWriteOffset: The write offset
-		:param nLogId: The log ID
-		:param nStartTime: The start time
-		:param nEndTime: The end time
-		:param nContextOffset: The context offset
-		:param strPayload: The payload of the new structure
+        logging.info("Writing debug file '%s'\n", strDebugFileName)
+        fOut = open(strDebugFileName, 'wb')
+        fOut.write(data)
+        fOut.close()
 
-		:return: Overflow data (*strPayload* that didn't fit into the page) or \
-				:const:`None` if all fit.
-		"""
+    def unpack(self, data):
+        """
+        Unpacks an ipc_log_page version 1 structure, and assigns the contents
+        into instance variables of this class. This is a wrapper around
+        the :func:`~struct.unpack()` function from the :mod:`struct` module.
 
-		data = struct.pack(self.headerBinaryFormat, MAGIC, NMAGIC,
-				nPageNum, nReadOffset, nWriteOffset, nLogId, nStartTime,
-				nEndTime, nContextOffset)
+        :param data: The binary ipc_log_context structure to be unpacked.
 
-		# add padding for list structures
-		data += '\0' * (self.page_header_size - len(data))
+        :return: :const:`True` if the unpack completes successfully,
+                :const:`False` if not.
 
-		# append message payload
-		self.data = data + strPayload or ''
+        **Side Effects**: If the unpack is successful, the contexts are
+                assigned to instance variables. In this way, :meth:`unpack()`
+                acts as a sort of constructor. This is common to all the
+                unpack methods.
+        """
+        self.data = data
+        self.magic, self.nmagic, self.page_num, self.read_offset, \
+            self.write_offset, self.log_id, self.start_time, \
+            self.end_time, self.context_offset = \
+            struct.unpack(self.headerBinaryFormat,
+                          self.data[0:self.headerBinaryFormatSize])
 
-		if len(self.data) > PAGE_SIZE:
-			data = self.data[PAGE_SIZE:]
-			self.data = self.data[0:PAGE_SIZE]
-			return data
-		else:
-			return None
+        # Mask off the top bit of page_num, which is used to indicate
+        # a version 1 or greater page
+        mask = 0x7FFFFFFF
+        self.page_num = self.page_num & mask
 
-	def setContext(self, context):
-		"""
-		Sets the ``context`` field of this log page to *context*, and sets the
-		``page_header_size`` field to the context header size
-		(``context.header_size``). This method should be used whenever a page's
-		context is changed in order to make sure the page's information about
-		its context is consistent.
+        if self.magic == MAGIC and self.nmagic == NMAGIC:
+            return True
 
-		:param context: The :class:`LogContext` object to be assigned to this \
-				page
-		"""
-		self.context = context
-		self.page_header_size = self.context.header_size
+        return False
 
-	#@staticmethod
-	def get_end_time(self):
-		return self.end_time
+    def pack(self, nPageNum, nReadOffset, nWriteOffset, nLogId,
+             nStartTime, nEndTime, nContextOffset, strPayload):
+        """
+        Packs a new version 1 page structure.  *strPayload* can be empty and
+        additional payload can be added using :meth:`~LogPage.pack_continue()`.
 
-	#@staticmethod
-	def get_start_time(self):
-		return self.start_time
+        :param nPageNum: The page number to be packed into the new structure
+        :param nReadOffset: The read offset
+        :param nWriteOffset: The write offset
+        :param nLogId: The log ID
+        :param nStartTime: The start time
+        :param nEndTime: The end time
+        :param nContextOffset: The context offset
+        :param strPayload: The payload of the new structure
+
+        :return: Overflow data (*strPayload* that didn't fit into the page)
+              or :const:`None` if all fit.
+        """
+
+        data = struct.pack(self.headerBinaryFormat, MAGIC, NMAGIC,
+                           nPageNum, nReadOffset, nWriteOffset, nLogId,
+                           nStartTime, nEndTime, nContextOffset)
+
+        # add padding for list structures
+        data += '\0' * (self.page_header_size - len(data))
+
+        # append message payload
+        self.data = data + strPayload or ''
+
+        if len(self.data) > PAGE_SIZE:
+            data = self.data[PAGE_SIZE:]
+            self.data = self.data[0:PAGE_SIZE]
+            return data
+        else:
+            return None
+
+    def setContext(self, context):
+        """
+        Sets the ``context`` field of this log page to *context*, and sets the
+        ``page_header_size`` field to the context header size
+        (``context.header_size``). This method should be used whenever a page's
+        context is changed in order to make sure the page's information about
+        its context is consistent.
+
+        :param context: The :class:`LogContext` object to be assigned to this
+                page
+        """
+        self.context = context
+        self.page_header_size = self.context.header_size
+
+    def get_end_time(self):
+        return self.end_time
+
+    def get_start_time(self):
+        return self.start_time
+
+
+class LogPage_v2(LogPage_v1):
+    """
+    A single page in a version 2 IPC Logging log. This class is a descendant of
+    :class:`LogPage_v1`.
+
+    This class was added in order to provide the ability to parse QTimer
+    timestamps. Since no part of the page header changed between version 1 and
+    version 2, this class was made a descendant of :class:`LogPage_v1` rather
+    than :class:`LogPage`. Because of this, only the next() function needed to
+    be overridden.
+    """
+    def next(self):
+        # handles full-buffer condition where write pointer
+        # is behind the read pointer
+        if self.nextPage and self.nextPage.previousData:
+            self.iter_data += self.nextPage.previousData
+            self.nextPage.previousData = None
+
+        if len(self.iter_data) < 2:
+            # not enough data to retrieve message header
+            logging.debug("Pushing data to continue\n%s" %
+                          (hex_to_str(self.iter_data, 16, 10)))
+            self.nextData = self.iter_data
+            self.iter_data = None
+            raise StopIteration
+
+        while True:
+            try:
+                tsv = LogTSV()
+                data = tsv.unpack(self.iter_data)
+                if tsv.msg_size > len(data):
+                    # not enough data left to extract entire message
+                    logging.debug("Pushing data to continue\n%s" %
+                                  (hex_to_str(self.iter_data, 16, 10)))
+                    self.nextData = self.iter_data
+                    self.iter_data = None
+                    raise StopIteration
+
+                if tsv.msg_type == 0:
+                    # no more messages
+                    raise StopIteration
+
+                if tsv.msg_type == TSV_TYPE_STRING:
+                    self.iter_data = data
+                    msg = LogMessageString()
+                    self.iter_data = msg.unpack(self.iter_data, tsv, True)
+                    return msg
+                else:
+                    debug_str = "Unknown message type 0x%x\n%s" % \
+                        (tsv.msg_type, hex_to_str(self.iter_data, 16, 10))
+
+                    logging.debug(debug_str)
+                    assert False, debug_str
+
+            except StopIteration:
+                raise
+
 
 class PageIterator(object):
-	"""
-	An iterator object for use by the :class:`LogPage` iterator method.
-	"""
+    """
+    An iterator object for use by the :class:`LogPage` iterator method.
+    """
 
-	def __init__(self, page):
-		self.page = page
+    def __init__(self, page):
+        self.page = page
 
-	def __iter__(self):
-		# TODO - clear all iteration flags
-		logging.debug("Starting iteration through page %d" % \
-				(self.page.page_num))
+    def __iter__(self):
+        # TODO - clear all iteration flags
+        logging.debug("Starting iteration through page %d" %
+                      (self.page.page_num))
 
-	def next(self):
-		while True:
-			try:
-				return self.page.next()
-			except StopIteration:
-				logging.debug("Trying next page")
-				self.page = self.page.nextPage
-				if self.page.iterated:
-					logging.debug("Page %d already iterated" % \
-							(self.page.page_num))
-					raise
-				logging.debug("Iterating through page %d" % \
-						(self.page.page_num))
+    def next(self):
+        while True:
+            try:
+                return self.page.next()
+            except StopIteration:
+                logging.debug("Trying next page")
+                self.page = self.page.nextPage
+                if self.page.iterated:
+                    logging.debug("Page %d already iterated" %
+                                  (self.page.page_num))
+                    raise
+                logging.debug("Iterating through page %d" %
+                              (self.page.page_num))
 
-				# This isn't right.  The page iterator is just discarded
-				# and then we are calling the .next.
-				self.page.__iter__()
+                # This isn't right.  The page iterator is just discarded
+                # and then we are calling the .next.
+                self.page.__iter__()
+
 
 def dumpLogHelper(fout, pages, numPages, bSort):
-	"""
-	Handles iterating through the TSV messages in each :class:`LogPage` object
-	and dumping them to the output file for the current log ID. This function
-	is called by :func:`dumpLogWithRetry()`.
+    """
+    Handles iterating through the TSV messages in each :class:`LogPage` object
+    and dumping them to the output file for the current log ID. This function
+    is called by :func:`dumpLogWithRetry()`.
 
-	:param fout: The output file for the log currently being processed by \
-			:func:`dumpLogWithRetry()`.
-	:param pages: A list containing the :class:`LogPage` objects for the log \
-			currently being processed.
-	:param numPages: The number of pages in *pages*.
-	:param bSort: A boolean indicating whether all pages in the log are \
-			completely filled, or if some are partially full. If they are \
-			full, bSort is :const:`True`.
+    :param fout: The output file for the log currently being processed by
+            :func:`dumpLogWithRetry()`.
+    :param pages: A list containing the :class:`LogPage` objects for the log
+            currently being processed.
+    :param numPages: The number of pages in *pages*.
+    :param bSort: A boolean indicating whether all pages in the log are
+            completely filled, or if some are partially full. If they are
+            full, bSort is :const:`True`.
 
-	:return: :const:`True` if the messages are processed with no errors, \
-			:const:`False` if errors are encountered during iteration or \
-			during parsing of the TSV messages within the :class:`LogPage` \
-			objects.
-	"""
-	# sort pages chronologically
-	try:
-		lstPages = collections.deque()
-		presentKey = None
+    :return: :const:`True` if the messages are processed with no errors,
+            :const:`False` if errors are encountered during iteration or
+            during parsing of the TSV messages within the :class:`LogPage`
+            objects.
+    """
+    # sort pages chronologically
+    try:
+        lstPages = collections.deque()
+        presentKey = None
 
-		for key in pages.keys():
-			if not presentKey:
-				presentKey = key
-			lstPages.append(pages[key])
+        for key in pages.keys():
+            if not presentKey:
+                presentKey = key
+            lstPages.append(pages[key])
 
-		lstPages = pages[presentKey].sortAndLink(lstPages, bSort)
-	except AssertionError as e:
-		strMsg = "Exception: %s" % (str(e))
-		logging.error(strMsg)
-		fout.write(strMsg + '\n')
-		return False
+        lstPages = pages[presentKey].sortAndLink(lstPages, bSort)
+    except AssertionError as e:
+        strMsg = "Exception: %s" % (str(e))
+        logging.error(strMsg)
+        fout.write(strMsg + '\n')
+        return False
 
-	# dump data in pages
-	try:
-		page = lstPages[0]
-		logging.debug("Extracting messages from %d" % (page.page_num))
-		last_unknown_data = ''
-		for x in page:
-			if page.unknown_messages_data and \
-					page.unknown_messages_data != last_unknown_data:
-				fout.write(str(page.unknown_messages_data) + "\n")
-				last_unknown_data = page.unknown_messages_data
+    # dump data in pages
+    try:
+        page = lstPages[0]
+        logging.debug("Extracting messages from %d" % (page.page_num))
+        last_unknown_data = ''
+        for x in page:
+            if page.unknown_messages_data and \
+                    page.unknown_messages_data != last_unknown_data:
+                fout.write(str(page.unknown_messages_data) + "\n")
+                last_unknown_data = page.unknown_messages_data
 
-			fout.write("\n" + str(x).strip())
+            fout.write("\n" + str(x).strip())
 
-	except AssertionError as e:
-		strMsg = "Exception: %s" % (str(e))
-		logging.debug(strMsg)
-		fout.write(strMsg + '\n')
-		return False
+    except AssertionError as e:
+        strMsg = "Exception: %s" % (str(e))
+        logging.debug(strMsg)
+        fout.write(strMsg + '\n')
+        return False
 
-	return True
+    return True
+
 
 def dumpLogWithRetry(logId, name, version, pages, numPages, test, options):
-	"""
-	This function is called by :func:`dumpLogs()` and :func:`cmdTest()`. It
-	handles creating output files for the parsed logs and writing data to them.
-	A significant part of this work is delegated to :func:`dumpLogHelper()`.
+    """
+    This function is called by :func:`dumpLogs()` and :func:`cmdTest()`. It
+    handles creating output files for the parsed logs and writing data to them.
+    A significant part of this work is delegated to :func:`dumpLogHelper()`.
 
-	:param logId: The log ID currently being processed
-	:param name: The name of the log context
-	:param version: The version of the log
-	:param pages: List of pages to process and dump to the output file
-	:param numPages: The number of pages in the current log
-	:param test: True if this function was called by cmdTest
-	:param options: Configuration options containing options.output_dir for the
-					output directory
-	"""
-	if version >= 1:
-		strFileName = "ipc-log-%s.txt" % (str(name))
-		titleStr = "Log name: %s (%d pages)\n" % (str(name), numPages)
-	else:
-		strFileName = "ipc-log-%s.txt" % (str(logId))
-		titleStr = "Log id %s (%d pages)\n" % (str(logId), numPages)
+    :param logId: The log ID currently being processed
+    :param name: The name of the log context
+    :param version: The version of the log
+    :param pages: List of pages to process and dump to the output file
+    :param numPages: The number of pages in the current log
+    :param test: True if this function was called by cmdTest
+    :param options: Configuration options containing options.output_dir for the
+                    output directory
+    """
+    if version >= 1:
+        strFileName = "ipc-log-%s.txt" % (str(name))
+        titleStr = "Log name: %s (%d pages)\n" % (str(name), numPages)
+    else:
+        strFileName = "ipc-log-%s.txt" % (str(logId))
+        titleStr = "Log id %s (%d pages)\n" % (str(logId), numPages)
 
-	if test:
-		strFileName = "ipc-log-%s.txt" % (str(name))
+    if test:
+        strFileName = "ipc-log-%s.txt" % (str(name))
 
-	if options.output_dir:
-		strFileName = \
-				os.path.join(options.output_dir, strFileName)
+    if options.output_dir:
+        strFileName = \
+            os.path.join(options.output_dir, strFileName)
 
-	fout = open(strFileName, 'w')
-	logging.info("Writing log file '%s'" % (strFileName))
+    fout = open(strFileName, 'w')
+    logging.info("Writing log file '%s'" % (strFileName))
 
-	fout.write('-'*70 + "\n")
-	fout.write(titleStr)
-	fout.write('-'*70 + "\n")
+    fout.write('-'*70 + "\n")
+    fout.write(titleStr)
+    fout.write('-'*70 + "\n")
 
-	# Parse logs assuming they have wrapped (are full)
-	fout.write("Parsing as a full log\n")
-	bSuccess = dumpLogHelper(fout, pages, numPages, True)
-	if not bSuccess:
-		# If that fails, try assuming that they are partially-full
-		strMsg = "Unable to parse as full log, retrying as partial log"
-		logging.info(strMsg)
-		fout.write(strMsg + '\n')
-		bSuccess = dumpLogHelper(fout, pages, numPages, False)
+    # Parse logs assuming they have wrapped (are full)
+    fout.write("Parsing as a full log\n")
+    bSuccess = dumpLogHelper(fout, pages, numPages, True)
+    if not bSuccess:
+        # If that fails, try assuming that they are partially-full
+        strMsg = "Unable to parse as full log, retrying as partial log"
+        logging.info(strMsg)
+        fout.write(strMsg + '\n')
+        bSuccess = dumpLogHelper(fout, pages, numPages, False)
 
+    if bSuccess:
+        strMsg = "Log extracted successfully"
+        logging.info(strMsg)
+        fout.write('\n' + strMsg + '\n')
+    else:
+        strMsg = "Could not extract log successfully. See %s for details." % \
+                 (strFileName)
+        if version == 0:
+            v0_expl_str = \
+                """
+                You are parsing a v0 log. If you collected logs using debugfs
+                before the system crashed, it may have adversely affected the
+                RAM dumps. Collect the logs again without using debugfs, or
+                use the newest version of IPC Logging if possible. This issue
+                has been resolved in v1 and above.
+                """
+            fout.write(v0_expl_str)
+        logging.info(strMsg)
 
-	if bSuccess:
-		strMsg = "Log extracted successfully"
-		logging.info(strMsg)
-		fout.write('\n' + strMsg + '\n')
-	else:
-		strMsg = "Could not extract log successfully. See %s for details." % \
-				(strFileName)
-		if version == 0:
-			v0_expl_str = \
-"""
-You are parsing a v0 log. If you collected logs using debugfs before the system
-crashed, it may have adversely affected the RAM dumps. Collect the logs again
-without using debugfs, or use the newest version of IPC Logging if possible.
-This issue has been resolved in v1 and above.
-"""
-			fout.write(v0_expl_str)
-		logging.info(strMsg)
+    # Add a newline to stdout output
+    logging.info("")
+    fout.close()
 
-	# Add a newline to stdout output
-	logging.info("")
-	fout.close()
 
 def get_context(start_of_page, fIn, page, dictContexts, lstFiles, fileCount):
-	'''
-	Called by :func:`cmdParse()` in order the find and read the context for
-	the log page currently being processed. The context is found by reading
-	*page.context_offset* and using it to find the position of the context in
-	the "logical file" created by :func:`get_files_info()`. Once the input file
-	and position where the context resides have been calculated, the context can
-	be read, assigned to the *page.context* field, and added to the log ID-to-
-	context dictionary *dictContexts* using the :func:`read_context()` function.
+    """
+    Called by :func:`cmdParse()` in order the find and read the context for
+    the log page currently being processed. The context is found by reading
+    *page.context_offset* and using it to find the position of the context in
+    the "logical file" created by :func:`get_files_info()`. Once the input file
+    and position where the context resides have been calculated, the context
+    can be read, assigned to the *page.context* field, and added to the log
+    ID-to-context dictionary *dictContexts* using the :func:`read_context()`
+    function.
 
-	:param start_of_page: The starting position in the current file of the \
-			page currently being processed
-	:param fIn: The input file
-	:param page: The page currently being processed
-	:param dictContexts: The dictionary that maintains the \
-			log ID-to-:class:`LogContext` mapping.
-	:param lstFiles: The "logical file" data structure, a list of dictionaries \
-			containing the name, starting position, and ending position of \
-			each input file.
-	:param fileCount: An index into *lstFiles*, which indicates the file \
-			currently being processed. For example, if *lstFiles* contains \
-			three input files and we are processing the second one, fileCount \
-			is 1.
+    :param start_of_page: The starting position in the current file of the
+            page currently being processed
+    :param fIn: The input file
+    :param page: The page currently being processed
+    :param dictContexts: The dictionary that maintains the
+            log ID-to-:class:`LogContext` mapping.
+    :param lstFiles: The "logical file" data structure, a list of dictionaries
+            containing the name, starting position, and ending position of
+            each input file.
+    :param fileCount: An index into *lstFiles*, which indicates the file
+            currently being processed. For example, if *lstFiles* contains
+            three input files and we are processing the second one, fileCount
+            is 1.
 
-	:return: A :class:`LogContext` object containing the context that was \
-			found. If no context is found, returns :const:`None`.
+    :return: A :class:`LogContext` object containing the context that was
+            found. If no context is found, returns :const:`None`.
 
-	**Side Effects**: There are some performance side effects in this \
-			function, as :meth:`file.seek()`, :meth:`file.read()`, and \
-			:meth:`file.tell()` are performed several times in order to \
-			extract the context based on *page.context_offset*. Since there \
-			may be multiple files and the context may not be in the current \
-			file, the other files may need to be opened and closed in order \
-			to find the context. \
-	'''
-	context = LogContext()
-	start_of_file = lstFiles[fileCount]['start']
-	end_of_file = lstFiles[fileCount]['end']
-	file_position = start_of_file + start_of_page + page.context_offset
-	data = None
+    **Side Effects**: There are some performance side effects in this
+            function, as :meth:`file.seek()`, :meth:`file.read()`, and
+            :meth:`file.tell()` are performed several times in order to
+            extract the context based on *page.context_offset*. Since there
+            may be multiple files and the context may not be in the current
+            file, the other files may need to be opened and closed in order
+            to find the context.
+    """
+    context = LogContext()
+    start_of_file = lstFiles[fileCount]['start']
+    end_of_file = lstFiles[fileCount]['end']
+    file_position = start_of_file + start_of_page + page.context_offset
+    data = None
 
-	logging.debug("start of file: 0x%x, end of file: 0x%x, " + \
-			"start of page: 0x%x, context offset: 0x%x, file position: 0x%x,",
-			start_of_file, end_of_file, start_of_page, page.context_offset,
-			file_position)
+    logging.debug("start of file: 0x%x, end of file: 0x%x, " +
+                  "start of page: 0x%x, context offset: 0x%x, " +
+                  "file position: 0x%x,",
+                  start_of_file, end_of_file, start_of_page,
+                  page.context_offset, file_position)
 
-	for inFile in lstFiles:
-		if inFile['start'] <= file_position <= inFile['end']:
-			# If the position is in the current file, don't open and close a
-			# temporary file - use fIn
-			if inFile['start'] == start_of_file:
-				saved_position = fIn.tell()
-				fIn.seek(file_position - start_of_file)
-				data = fIn.read(CTX_READ_SIZE)
-				fIn.seek(saved_position)
-			else:
-				tempIn = open(inFile['name'], 'rb')
-				tempIn.seek(file_position - inFile['start'])
-				data = tempIn.read(CTX_READ_SIZE)
-				tempIn.close()
-			break
+    for inFile in lstFiles:
+        if inFile['start'] <= file_position <= inFile['end']:
+            # If the position is in the current file, don't open and close a
+            # temporary file - use fIn
+            if inFile['start'] == start_of_file:
+                saved_position = fIn.tell()
+                fIn.seek(file_position - start_of_file)
+                data = fIn.read(CTX_READ_SIZE)
+                fIn.seek(saved_position)
+            else:
+                tempIn = open(inFile['name'], 'rb')
+                tempIn.seek(file_position - inFile['start'])
+                data = tempIn.read(CTX_READ_SIZE)
+                tempIn.close()
+            break
 
-	assert data is not None, "Context not found"
+    assert data is not None, "Context not found"
 
-	context = read_context(page, data, dictContexts)
-	return context
+    context = read_context(page, data, dictContexts)
+    return context
+
 
 def read_context(page, data, dictContexts):
-	'''
-	Read a context from *data* and make it the context of *page* using
-	:meth:`LogPage_v1.setContext()`. Then update the log ID-to-context
-	dictionary (*dictContexts*), and return the context. In short, find
-	a log context in *data*, perform some bookkeeping, and return the context.
-	This is a helper function to :func:`get_context()`, which is a helper to
-	:func:`cmdParse()`.
+    """
+    Read a context from *data* and make it the context of *page* using
+    :meth:`LogPage_v1.setContext()`. Then update the log ID-to-context
+    dictionary (*dictContexts*), and return the context. In short, find
+    a log context in *data*, perform some bookkeeping, and return the context.
+    This is a helper function to :func:`get_context()`, which is a helper to
+    :func:`cmdParse()`.
 
-	:param page: The page to which the found context will be assigned
-	:param data: The data to be read
-	:param dictContexts: The dictionary where the context will be placed, if \
-			a new context is read
+    :param page: The page to which the found context will be assigned
+    :param data: The data to be read
+    :param dictContexts: The dictionary where the context will be placed, if
+            a new context is read
 
-	:return: The new context if successful, None if not.
-	'''
-	context = LogContext()
+    :return: The new context if successful, None if not.
+    """
+    context = LogContext()
 
-	if data and len(data) >= CTX_READ_SIZE and context.unpack(data):
-		page.setContext(context)
+    if data and len(data) >= CTX_READ_SIZE and context.unpack(data):
+        page.setContext(context)
 
-		if not context.log_id in dictContexts:
-			logging.info("Found log context: %s" % (context.name))
-			context.log_info()
+        if context.log_id not in dictContexts:
+            logging.info("Found log context: %s" % (context.name))
+            context.log_info()
 
-			# Log a single newline to the output
-			logging.info("")
-			dictContexts[page.log_id] = context
+            # Log a single newline to the output
+            logging.info("")
+            dictContexts[page.log_id] = context
 
-		return context
-	else:
-		return None
+        return context
+    else:
+        return None
+
 
 def check_log_consistency(dictLogs, dictContexts):
-	'''
-	Creates two sets:
+    """
+    Creates two sets:
 
-	* The set of log IDs gained from reading each page
+    * The set of log IDs gained from reading each page
 
-	* The set of log IDs gained from reading each context
+    * The set of log IDs gained from reading each context
 
-	Takes the intersection and makes sure that the intersection
-	equals both sets, i.e. that all log IDs found from reading pages
-	were found reading contexts, and vice-versa.
+    Takes the intersection and makes sure that the intersection
+    equals both sets, i.e. that all log IDs found from reading pages
+    were found reading contexts, and vice-versa.
 
-	:param dictLogs: The dictionary of log IDs to :class:`LogPage` objects
-	:param dictContext: The dictionary of log IDs to :class:`LogContext` objects
+    :param dictLogs: The dictionary of log IDs to :class:`LogPage` objects
+    :param dictContext: The dictionary of log IDs to :class:`LogContext`
+                        objects
 
-	:return: The difference of the two sets, contained in a :class:`set`.
-	'''
-	diff = None
-	context_log_ids = set(dictContexts.keys())
-	page_log_ids = set(dictLogs.keys())
-	intersection = context_log_ids.intersection(page_log_ids)
-	if intersection == page_log_ids == context_log_ids:
-		logging.debug("Logs are consistent - the same log IDs are " + \
-				"found in pages and contexts.")
-	else:
-		logging.error("Logs inconsistent.")
-		logging.error("Logs from contexts: %s",
-				str([hex(n) for n in context_log_ids]))
-		logging.error("Logs from pages: %s",
-				str([hex(n) for n in page_log_ids]))
+    :return: The difference of the two sets, contained in a :class:`set`.
+    """
+    diff = None
+    context_log_ids = set(dictContexts.keys())
+    page_log_ids = set(dictLogs.keys())
+    intersection = context_log_ids.intersection(page_log_ids)
+    if intersection == page_log_ids == context_log_ids:
+        logging.debug("Logs are consistent - the same log IDs are " +
+                      "found in pages and contexts.")
+    else:
+        logging.error("Logs inconsistent.")
+        logging.error("Logs from contexts: %s",
+                      str([hex(n) for n in context_log_ids]))
+        logging.error("Logs from pages: %s",
+                      str([hex(n) for n in page_log_ids]))
 
-		if len(page_log_ids) > len(context_log_ids):
-			diff = page_log_ids - context_log_ids
-			logging.error("IDs from pages, but not contexts: %s",
-					str([hex(n) for n in diff]))
-		else:
-			diff = context_log_ids - page_log_ids
-			logging.error("IDs from contexts, but not pages: %s",
-					str([hex(n) for n in diff]))
-	return diff
+        if len(page_log_ids) > len(context_log_ids):
+            diff = page_log_ids - context_log_ids
+            logging.error("IDs from pages, but not contexts: %s",
+                          str([hex(n) for n in diff]))
+        else:
+            diff = context_log_ids - page_log_ids
+            logging.error("IDs from contexts, but not pages: %s",
+                          str([hex(n) for n in diff]))
+    return diff
+
 
 def calc_file_size(fIn):
-	"""
-	Calculates the size of an input file.
+    """
+    Calculates the size of an input file.
 
-	:param fIn: The input file
+    :param fIn: The input file
 
-	:return: The file size, which is also the ending position relative to the \
-			start of the input file.
+    :return: The file size, which is also the ending position relative to the
+             start of the input file.
 
-	**Side Effects**: This function uses :meth:`file.seek()` and \
-			:meth:`file.tell()` to calculate the file size, which can have \
-			performance considerations. The original seek position of the file \
-			is saved at the beginning of the function and is restored before \
-			returning.
-	"""
-	saved_file_position = fIn.tell()
-	fIn.seek(0, 2)
-	file_size = fIn.tell()
-	fIn.seek(saved_file_position)
-	return file_size
+    **Side Effects**: This function uses :meth:`file.seek()` and
+            :meth:`file.tell()` to calculate the file size, which can have
+            performance considerations. The original seek position of the file
+            is saved at the beginning of the function and is restored before
+            returning.
+    """
+    saved_file_position = fIn.tell()
+    fIn.seek(0, 2)
+    file_size = fIn.tell()
+    fIn.seek(saved_file_position)
+    return file_size
+
 
 def get_files_info(files):
-	"""
-	Calculates the size of each input file and uses this information to build
-	a "logical file" data structure, which is a list of dictionaries, with one
-	dictionary per input file. Each dictionary contains the name of the file,
-	the starting position of the file, the ending position of the file, and
-	the size of the file. The starting position of the second file in the list
-	is the ending position of the first file in the list, and so on. Once the
-	structure is completely built, it can be used to index any position in any
-	of the input files as if they were one big file, without reading this big
-	file into memory. This allows the retrieval of contexts located in a
-	different file than their pages.
+    """
+    Calculates the size of each input file and uses this information to build
+    a "logical file" data structure, which is a list of dictionaries, with one
+    dictionary per input file. Each dictionary contains the name of the file,
+    the starting position of the file, the ending position of the file, and
+    the size of the file. The starting position of the second file in the list
+    is the ending position of the first file in the list, and so on. Once the
+    structure is completely built, it can be used to index any position in any
+    of the input files as if they were one big file, without reading this big
+    file into memory. This allows the retrieval of contexts located in a
+    different file than their pages.
 
-	The file size calculation is done using the :func:`calc_file_size()`
-	function.
+    The file size calculation is done using the :func:`calc_file_size()`
+    function.
 
-	:param files: The list of input files
+    :param files: The list of input files
 
-	:return: The "logical file" data structure, a list of dictionaries \
-			containing information about each of the input files
-	"""
-	lstFiles = []
-	fileCount = 0
-	for strFile in files:
-		fileStart = 0
+    :return: The "logical file" data structure, a list of dictionaries
+            containing information about each of the input files
+    """
+    lstFiles = []
+    fileCount = 0
+    for strFile in files:
+        fileStart = 0
 
-		if fileCount > 0:
-			fileStart = (lstFiles[fileCount-1]['end'])
+        if fileCount > 0:
+            fileStart = (lstFiles[fileCount-1]['end'])
 
-		strFileSplit = strFile.split(':', 1)
-		fileName = strFileSplit[0]
-		if len(strFileSplit) > 1:
-			fileStart = int(strFileSplit[1], 16)
+        strFileSplit = strFile.split(':', 1)
+        fileName = strFileSplit[0]
+        if len(strFileSplit) > 1:
+            fileStart = int(strFileSplit[1], 16)
 
-		lstFiles.append(\
-				{'name': fileName, 'start': fileStart, 'end': 0, 'size': 0})
-		fIn = open(fileName, 'rb')
-		file_size = calc_file_size(fIn)
+        lstFiles.append(
+            {'name': fileName, 'start': fileStart, 'end': 0, 'size': 0})
+        fIn = open(fileName, 'rb')
+        file_size = calc_file_size(fIn)
 
-		lstFiles[fileCount]['end'] = fileStart + file_size
-		lstFiles[fileCount]['size'] = file_size
+        lstFiles[fileCount]['end'] = fileStart + file_size
+        lstFiles[fileCount]['size'] = file_size
 
-		fileCount += 1
+        fileCount += 1
 
-	return lstFiles
+    return lstFiles
+
+
+def get_LogPage_v0_instance():
+    return LogPage_v0()
+
+
+def get_LogPage_v1_instance():
+    return LogPage_v1()
+
+
+def get_LogPage_v2_instance():
+    return LogPage_v2()
+
+
+def get_page_of_version(data, versionIsOneOrGreater, version, page):
+    """
+    Retrieves the appropriate descendant of :class:`LogPage` given the version.
+    Note: It may seem unnecessary to pass the version itself and the
+    versionIsOneOrGreater boolean. This is done because of the way the version
+    is stored in the dumps. The version is stored in the log context, and
+    contexts are only present in dumps with IPC Logging version 1 or greater.
+    We can tell whether a page is version 1 or greater by looking just at the
+    page iteslf, but beyond that we must find the context. This is why both
+    variables are used.
+
+    :param data: The data that has been read in from the input file
+    :param versionIsOneOrGreater: True if IPC Logging version is one or
+                                  greater
+    :param version: The IPC Logging version
+    :param page: The log page currently being processed
+    """
+    dictVersions = {1: get_LogPage_v1_instance, 2: get_LogPage_v2_instance}
+
+    if page.isVersionOneOrGreater(data):
+        versionIsOneOrGreater = True
+        if version == 0:
+            """
+            This occurs before the context has been found; thus the version
+            has not been extracted and is not known. The version will be
+            extracted from the context later, and this function will be re-run
+            with the actual version. For now, use a LogPage_v1() object to
+            extract the context.
+            """
+            page = LogPage_v1()
+            return page, versionIsOneOrGreater
+
+        page = dictVersions[version]()
+    else:
+        versionIsOneOrGreater = False
+        page = LogPage_v0()
+
+    return page, versionIsOneOrGreater
+
+
+def process_log_context(context, page, start_of_page, fIn, dictContexts,
+                        lstFiles, fileCount, version):
+    """
+    Finds and processes the log context, and extracts the version information
+    from it. This function determines which descendant of :class:`LogPage`
+    should be used.
+
+    :param context: The LogContext object, which will either be populated or
+                    have the version information extracted from it.
+    :param page: A descendant of :class:`LogPage`, which will have a context
+                 linked to it if one is found.
+    :param start_of_page: The position in the file corresponding to the start
+                          of the log page.
+    :param fIn: A pointer to the input file.
+    :param dictContexts: A dictionary that maintains the
+                         log ID-to-:class:`LogContext` mapping.
+    :param lstFiles: A list of dictionaries containing the name, starting
+                     position, and ending position of each input file.
+    :param fileCount: An index into lstFiles, which indicates the current file
+                      being processed.
+    :param version: The LogPage version.
+
+    :return: A tuple with of four elements: A boolean indicating whether or not
+             to continue the current iteration of processing, the LogContext
+             object, the LogPage object, and the version.
+    """
+    if page.log_id not in dictContexts:
+        try:
+            context = get_context(start_of_page, fIn, page,
+                                  dictContexts, lstFiles,
+                                  fileCount)
+        except:
+            msg = "Context not found - skipping page " + \
+                  "and trying to continue with " + \
+                  "unknown log page version"
+            logging.debug(msg)
+            page = LogPageVersionUnknown()
+            return False, context, page, version
+
+        # Got the context, extract the version and start
+        # again
+        if version == 0:
+            version = context.version
+            fIn.seek(start_of_page)
+            page = LogPageVersionUnknown()
+            return False, context, page, version
+
+        return True, context, page, version
+    else:
+        context = dictContexts[page.log_id]
+        page.setContext(context)
+        return True, context, page, version
+
+
+def process_log_pages(dictLogs, page, versionIsOneOrGreater, fIn, fileName,
+                      data, context, version, options):
+    """
+    Finds and processes, and stores log pages.
+
+    :param dictLogs: The dictionary of logs to be populated by this function
+    :param page: The log page currently being processed
+    :param versionIsOneOrGreater: True if IPC Logging version is one or
+                                  greater
+    :param fIn: Pointer to the input file
+    :param data: The data that has been read in from the input file
+    :param context: The context of this log page
+    :param version: The IPC Logging version
+    """
+    if page.log_id not in dictLogs:
+        dictLogs[page.log_id] = {}
+
+    if page.page_num in dictLogs[page.log_id]:
+        logging.error("Duplicate page found log id 0x%x," +
+                      "page %d", page.log_id, page.page_num)
+
+    dictLogs[page.log_id][page.page_num] = page
+
+    if versionIsOneOrGreater:
+        logging.info(
+            "Found log page - context: %s, id: 0x%x, " +
+            "page: %d", page.context.name,
+            page.log_id, page.page_num)
+        page.log_info()
+        sys.stdout.flush()
+    else:
+        logging.info("Found log page: id 0x%x, page %d" %
+                     (page.log_id, page.page_num))
+        page.log_info()
+        sys.stdout.flush()
+
+    # for debug mode, save the extracted log pages
+    if options.debug_enabled:
+        if version >= 1:
+            page.debug_save_log_pages(fIn, fileName, data,
+                                      context.name, options)
+        else:
+            page.debug_save_log_pages(fIn, fileName, data,
+                                      options)
+
 
 def cmdParse(options):
-	"""
-	The top-level function, which is called from the main entry point to the
-	program if the ``parse`` command-line option is given. This function creates
-	two dictionaries, ``dictLogs`` and ``dictContexts``, which have log IDs as
-	keys and :class:`LogPage` and :class:`LogContext` objects as values,
-	respectively. It then populates these dictionaries by going through
-	each input file and reading data page-by-page. After all data has been read,
-	this function calls :func:`dumpLogs()` to dump the parsed logs to output
-	files.
+    """
+    The top-level function, which is called from the main entry point to the
+    program if the ``parse`` command-line option is given. This function
+    creates two dictionaries, ``dictLogs`` and ``dictContexts``, which have log
+    IDs as keys and :class:`LogPage` and :class:`LogContext` objects as values,
+    respectively. It then populates these dictionaries by going through each
+    input file and reading data page-by-page. After all data has been read,
+    this function calls :func:`dumpLogs()` to dump the parsed logs to output
+    files.
 
-	:param options: Configuration options containing options.output_dir for the
-					output directory, options.debug_enabled, a flag for
-					discerning whether the extraction script is running in debug
-					mode, and options.args, the list of input files. All
-					configuration options are passed through to helper
-					functions.
-	"""
-	dictLogs = {}
-	dictContexts = {}
-	fileCount = 0
-	version = 0
-	versionIsOneOrGreater = False
-	lstFiles = get_files_info(options.args)
+    :param options: Configuration options containing options.output_dir for the
+                    output directory, options.debug_enabled, a flag for
+                    discerning whether the extraction script is running in
+                    debug mode, and options.args, the list of input files. All
+                    configuration options are passed through to helper
+                    functions.
+    """
+    dictLogs = {}
+    dictContexts = {}
+    fileCount = 0
+    version = 0
+    versionIsOneOrGreater = False
+    lstFiles = get_files_info(options.args)
 
-	# scan files for log pages
-	for strFile in options.args:
-		fileName = strFile.split(':', 1)[0]
-		fIn = open(fileName,'rb')
+    # scan files for log pages
+    for strFile in options.args:
+        fileName = strFile.split(':', 1)[0]
+        fIn = open(fileName, 'rb')
 
-		logging.info("Parsing '%s'" % (fileName))
-		logging.info("-" * 70)
-		sys.stdout.flush()
-		page = LogPageVersionUnknown()
-		context = LogContext()
-		file_size = lstFiles[fileCount]['size']
+        logging.info("Parsing '%s'" % (fileName))
+        logging.info("-" * 70)
+        sys.stdout.flush()
+        page = LogPageVersionUnknown()
+        context = LogContext()
 
-		while True:
-			start_of_page = fIn.tell()
-			data = fIn.read(16)
+        while True:
+            start_of_page = fIn.tell()
+            data = fIn.read(16)
 
-			# PAGE_SIZE - 16 = 4080
-			if not data or len(data) + 4080 < PAGE_SIZE:
-				break
+            # PAGE_SIZE - 16 = 4080
+            if not data or len(data) + 4080 < PAGE_SIZE:
+                break
 
-			if page.unpack(data):
-				data += fIn.read(PAGE_SIZE-16)
+            if page.unpack(data):
+                data += fIn.read(PAGE_SIZE-16)
 
-				if page.isVersionOneOrGreater(data):
-					versionIsOneOrGreater = True
-					page = LogPage_v1()
-				else:
-					versionIsOneOrGreater = False
-					page = LogPage_v0()
+                page, versionIsOneOrGreater = \
+                    get_page_of_version(data, versionIsOneOrGreater,
+                                        version, page)
 
-				if page.unpack(data):
-					if versionIsOneOrGreater:
-						if not page.log_id in dictContexts:
-							try:
-								context = get_context(start_of_page, fIn, page,
-										dictContexts, lstFiles, fileCount)
-							except:
-								msg = "Context not found - skipping page " + \
-										"and trying to " + \
-										"continue with unknown log page version"
-								logging.debug(msg)
-								page = LogPageVersionUnknown()
-								continue
+                if page.unpack(data) and versionIsOneOrGreater:
+                    continue_iter, context, page, version = \
+                        process_log_context(context, page, start_of_page, fIn,
+                                            dictContexts, lstFiles, fileCount,
+                                            version)
 
-						else:
-							context = dictContexts[page.log_id]
-							page.setContext(context)
+                    if not continue_iter:
+                        continue
 
-						if context is None:
-							logging.debug("Context at 0x%x had no data, " + \
-									"skipping this page", page.context_offset)
-							if options.debug_enabled:
-								page.log_info()
-							page = LogPageVersionUnknown()
-							continue
+                    if context is None:
+                        logging.debug("Context at 0x%x had no data, " +
+                                      "skipping this page",
+                                      page.context_offset)
 
-						version = context.version
+                        if options.debug_enabled:
+                            page.log_info()
 
-					if not page.log_id in dictLogs:
-						dictLogs[page.log_id] = {}
+                        page = LogPageVersionUnknown()
+                        continue
 
-					if dictLogs[page.log_id].has_key(page.page_num):
-						logging.error("Duplicate page found log id 0x%x," + \
-								"page %d", page.log_id, page.page_num)
+                process_log_pages(dictLogs, page, versionIsOneOrGreater,
+                                  fIn, fileName, data, context, version,
+                                  options)
+                page = LogPageVersionUnknown()
 
-					dictLogs[page.log_id][page.page_num] = page
+        fIn.close()
+        fileCount += 1
 
-					if versionIsOneOrGreater:
-						logging.info(\
-								"Found log page - context: %s, id: 0x%x, " + \
-								"page: %d", page.context.name, \
-								page.log_id, page.page_num)
-						page.log_info()
-						sys.stdout.flush()
-					else:
-						logging.info("Found log page: id 0x%x, page %d" % \
-								(page.log_id, page.page_num))
-						page.log_info()
-						sys.stdout.flush()
+    # Check that log_ids received from contexts and from pages match
+    if versionIsOneOrGreater:
+        check_log_consistency(dictLogs, dictContexts)
+        dumpLogs(dictLogs, version, options)
+    else:
+        dumpLogs(dictLogs, 0, options)
 
-					# for debug mode, save the extracted log pages
-					if options.debug_enabled:
-						if version >= 1:
-							page.debug_save_log_pages(fIn, fileName, data,
-									context.name, options)
-						else:
-							page.debug_save_log_pages(fIn, fileName, data,
-									options)
+    logging.debug("lstFiles: " + str(lstFiles))
 
-					page = LogPageVersionUnknown()
-
-		fIn.close()
-		fileCount += 1
-
-	# Check that log_ids received from contexts and from pages match
-	if versionIsOneOrGreater:
-		check_log_consistency(dictLogs, dictContexts)
-		dumpLogs(dictLogs, version, options)
-	else:
-		dumpLogs(dictLogs, 0, options)
-
-	logging.debug("lstFiles: " + str(lstFiles))
 
 def dumpLogs(dictLogs, version, options):
-	"""
-	Dump logs from the dictionary of log IDs to logs built by
-	:func:`cmdParse()`. This is called at the end of :func:`cmdParse()`,
-	after all files have been processed and the dictionary has been built.
+    """
+    Dump logs from the dictionary of log IDs to logs built by
+    :func:`cmdParse()`. This is called at the end of :func:`cmdParse()`,
+    after all files have been processed and the dictionary has been built.
 
-	:param dictLogs: The dictionary built by :func:`cmdParse()`.
-	:param version: The IPC Logging version.
-	:param options: Configuration options passed through to helper functions
+    :param dictLogs: The dictionary built by :func:`cmdParse()`.
+    :param version: The IPC Logging version.
+    :param options: Configuration options passed through to helper functions
 
-	**Side Effects**: The :func:`dumpLogWithRetry()` function is called, \
-			which dumps the parsed logs to output files.
-	"""
-	# dump the logs
-	logs = dictLogs.keys()
-	logs.sort()
-	logging.debug("Logs: %s", logs)
-	for key in logs:
-		pages = dictLogs[key]
-		numPages = len(pages.keys())
+    **Side Effects**: The :func:`dumpLogWithRetry()` function is called,
+            which dumps the parsed logs to output files.
+    """
+    # dump the logs
+    logs = dictLogs.keys()
+    logs.sort()
+    logging.debug("Logs: %s", logs)
+    for key in logs:
+        pages = dictLogs[key]
+        numPages = len(pages.keys())
 
-		if version >= 1:
-			first_page_in_log = dictLogs[key].keys()[0]
-			name = dictLogs[key][first_page_in_log].context.name
-		else:
-			name = None
+        if version >= 1:
+            first_page_in_log = dictLogs[key].keys()[0]
+            name = dictLogs[key][first_page_in_log].context.name
+        else:
+            name = None
 
-		dumpLogWithRetry(key, name, version, pages, numPages, False, options)
+        dumpLogWithRetry(key, name, version, pages, numPages, False, options)
+
 
 def cmdTest(options):
-	"""
-	Parses the provided log page files in order and extracts the logs. This is
-	useful for testing and for dealing with failure cases (such as duplicate
-	logs due to left-over log pages from previous boot cycles).
+    """
+    Parses the provided log page files in order and extracts the logs. This is
+    useful for testing and for dealing with failure cases (such as duplicate
+    logs due to left-over log pages from previous boot cycles).
 
-	:param options: Configuration options containing options.output_dir for
-					the output directory, and options.args, the list of input
-					files, and options.arch_64, the flag indicating if the log
-					pages should be interpreted as 64-bit dumps or not. All
-					configuration options are passed through to helper
-					functions.
-	"""
-	dictPages = {}
-	version = 0
-	numPages = 0
+    :param options: Configuration options containing options.output_dir for
+                    the output directory, and options.args, the list of input
+                    files, and options.arch_64, the flag indicating if the log
+                    pages should be interpreted as 64-bit dumps or not. All
+                    configuration options are passed through to helper
+                    functions.
+    """
+    dictPages = {}
+    dictVersions = {0: get_LogPage_v0_instance,
+                    1: get_LogPage_v1_instance,
+                    2: get_LogPage_v2_instance}
+    version = 0
+    numPages = 0
 
-	# load existing files
-	lstFiles = options.args
+    # load existing files
+    lstFiles = options.args
 
-	try:
-		version = int(lstFiles.pop())
-	except ValueError as e:
-		strMsg = "Version must be provided! Exiting..."
-		logging.error("Exception: %s\n%s\n" % (str(e), strMsg))
-		raise
+    try:
+        version = int(lstFiles.pop())
+    except ValueError as e:
+        strMsg = "Version must be provided! Exiting..."
+        logging.error("Exception: %s\n%s\n" % (str(e), strMsg))
+        raise
 
-	for f in lstFiles:
-		data = open(f, 'rb').read()
+    for f in lstFiles:
+        data = open(f, 'rb').read()
 
-		page = LogPageVersionUnknown()
-		assert page.unpack(data) == True, "Unable to open file '%s'" % (f)
+        page = dictVersions[version]()
+        assert page.unpack(data) is True, "Could not unpack page header"
 
-		if page.isVersionOneOrGreater(data):
-			page = LogPage_v1()
-			page.unpack(data)
-		else:
-			page = LogPage_v0()
-			page.unpack(data)
+        numPages += 1
+        dictPages[page.page_num] = page
+        logging.info("Loaded '%s' log id %d, page %d" %
+                     (f, page.log_id, page.page_num))
+        page.log_info()
 
-		numPages += 1
-		dictPages[page.page_num] = page
-		logging.info("Loaded '%s' log id %d, page %d" % \
-				(f, page.log_id, page.page_num))
-		page.log_info()
+        try:
+            if options.arch_64:
+                page.page_header_size = PAGE_HDR_SIZES_64[version]
+            else:
+                page.page_header_size = PAGE_HDR_SIZES[version]
+        except IndexError as e:
+            strMsg = "Invalid version! Exiting..."
+            logging.error("Exception: %s\n%s\n" % (str(e), strMsg))
+            raise
 
-		try:
-			if options.arch_64:
-				page.page_header_size = PAGE_HDR_SIZES_64[version]
-			else:
-				page.page_header_size = PAGE_HDR_SIZES[version]
-		except IndexError as e:
-			strMsg = "Invalid version! Exiting..."
-			logging.error("Exception: %s\n%s\n" % (str(e), strMsg))
-			raise
+    # Use only the last pathname component, as the rest of the path is
+    # added in dumpLogWithRetry()
+    if options.output_dir:
+        filename = os.path.split(lstFiles[0])[1]
+    else:
+        filename = lstFiles[0]
 
-	# Use only the last pathname component, as the rest of the path is
-	# added in dumpLogWithRetry()
-	if options.output_dir:
-		filename = os.path.split(lstFiles[0])[1]
-	else:
-		filename = lstFiles[0]
+    # dump the logs (in the same order provided)
+    dumpLogWithRetry(page.log_id, 'test-log-%s' % (filename),
+                     version, dictPages, numPages, True, options)
 
-	# dump the logs (in the same order provided)
-	dumpLogWithRetry(page.log_id, 'test-log-%s' % (filename),
-			version, dictPages, numPages, True, options)
 
 class LoggingFormatter(logging.Formatter):
-	"""
-	Custom logging formatter that prints all INFO messages without formatting
-	and all other messages with the appropriate level name.
+    """
+    Custom logging formatter that prints all INFO messages without formatting
+    and all other messages with the appropriate level name.
 
-	See :mod:`logging` documentation for more info on Python logging.
-	"""
-	infoFormat = '%(message)s'
-	defaultFormat = '%(levelname)s %(module)s:%(lineno)d: %(message)s'
+    See :mod:`logging` documentation for more info on Python logging.
+    """
+    infoFormat = '%(message)s'
+    defaultFormat = '%(levelname)s %(module)s:%(lineno)d: %(message)s'
 
-	def __init__(self, fmt=defaultFormat):
-		logging.Formatter.__init__(self, fmt)
+    def __init__(self, fmt=defaultFormat):
+        logging.Formatter.__init__(self, fmt)
 
-	def format(self, record):
-		if record.levelno == logging.INFO:
-			self._fmt = self.infoFormat
-		else:
-			self._fmt = self.defaultFormat
-		return logging.Formatter.format(self, record)
+    def format(self, record):
+        if record.levelno == logging.INFO:
+            self._fmt = self.infoFormat
+        else:
+            self._fmt = self.defaultFormat
+        return logging.Formatter.format(self, record)
+
 
 def configure_logging(options, stdout):
-	"""
-	Configure the logging options.
+    """
+    Configure the logging options.
 
-	:param options: The options object, which contains options.verbosity for
-					the logging verbosity and options.debug_enabled to indicate
-					whether the extraction script is running in debug mode.
-	:param stdout:	Whether or not to create a logging handler for stdout
-	"""
+    :param options: The options object, which contains options.verbosity for
+                    the logging verbosity and options.debug_enabled to indicate
+                    whether the extraction script is running in debug mode.
+    :param stdout:  Whether or not to create a logging handler for stdout
+    """
 
-	if stdout:
-		loggingHandler = logging.StreamHandler(sys.stdout)
-		loggingHandler.setFormatter(LoggingFormatter())
-		logging.root.addHandler(loggingHandler)
+    if stdout:
+        loggingHandler = logging.StreamHandler(sys.stdout)
+        loggingHandler.setFormatter(LoggingFormatter())
+        logging.root.addHandler(loggingHandler)
 
-	# Set Log level
-	LOG_LEVELS = {	3: logging.DEBUG,
-					2: logging.INFO,
-					1: logging.WARNING,
-					0: logging.ERROR,
-				  }
-	assert LOG_LEVELS.has_key(options.verbosity), "Unknown log level %d" % \
-			(options.verbosity)
-	logging.root.setLevel(LOG_LEVELS[options.verbosity])
+    # Set Log level
+    LOG_LEVELS = {3: logging.DEBUG,
+                  2: logging.INFO,
+                  1: logging.WARNING,
+                  0: logging.ERROR}
 
-	if logging.root.getEffectiveLevel >= 2 and options.quiet:
-		logging.root.setLevel(LOG_LEVELS[1])
+    assert options.verbosity in LOG_LEVELS, "Unknown log level %d" % \
+        (options.verbosity)
+    logging.root.setLevel(LOG_LEVELS[options.verbosity])
 
-	options.debug_enabled = False
-	if options.verbosity >= 3:
-		options.debug_enabled = True
+    if logging.root.getEffectiveLevel >= 2 and options.quiet:
+        logging.root.setLevel(LOG_LEVELS[1])
+
+    options.debug_enabled = False
+    if options.verbosity >= 3:
+        options.debug_enabled = True
+
 
 def set_output_directory(options):
-	"""
-	Set up the output directory.
+    """
+    Set up the output directory.
 
-	:param options: Configuration options containing options.output_dir for the
-					output directory
+    :param options: Configuration options containing options.output_dir for the
+                    output directory
 
-	:return: The output logging handler object, or None if no output directory
-			was provided by the user.
-	"""
-	if not options.output_dir:
-		return None
+    :return: The output logging handler object, or None if no output directory
+            was provided by the user.
+    """
+    if not options.output_dir:
+        return None
 
-	options.output_dir = \
-			os.path.abspath(os.path.expanduser(options.output_dir))
+    options.output_dir = \
+        os.path.abspath(os.path.expanduser(options.output_dir))
 
-	# Create output directory if it does not exist
-	if not os.path.isdir(options.output_dir):
-		os.makedirs(options.output_dir)
+    # Create output directory if it does not exist
+    if not os.path.isdir(options.output_dir):
+        os.makedirs(options.output_dir)
 
-	# Create logging handler to take output in this directory
-	output_logging_handler = \
-			logging.FileHandler(\
-			os.path.join(options.output_dir, "ipc_extraction_report.txt"),
-			"w")
-	output_logging_handler.setFormatter(LoggingFormatter())
-	logging.root.addHandler(output_logging_handler)
+    # Create logging handler to take output in this directory
+    output_logging_handler = \
+        logging.FileHandler(
+            os.path.join(options.output_dir, "ipc_extraction_report.txt"),
+            "w")
+    output_logging_handler.setFormatter(LoggingFormatter())
+    logging.root.addHandler(output_logging_handler)
 
-	logging.info("Output path: " + options.output_dir)
-	return output_logging_handler
+    logging.info("Output path: " + options.output_dir)
+    return output_logging_handler
 
-#------------------------------------------------------------------------
+# ------------------------------------------------------------------------
 # Main Program Entry Point
-#------------------------------------------------------------------------
+# ------------------------------------------------------------------------
 if __name__ == '__main__':
-	# Parse command line
-	strUsage = """\
+    # Parse command line
+    strUsage = """\
 %prog CMD [OPTIONS]
 
 parse
@@ -1726,13 +2023,12 @@ Examples:
 \t%prog parse DDRCS0.BIN DDRCS1.BIN
 \t%prog parse DDRCS0_0.BIN DDRCS0_1.BIN DDRCS1_0.BIN DDRCS1_1.BIN
 \t%prog parse DDRCS0_0.BIN DDRCS0_1.BIN DDRCS1_0.BIN:0x80000000 DDRCS1_1.BIN
-\t%prog parse DDRCS0_0.BIN:0x00000000 DDRCS0_1.BIN:0x30000000 DDRCS1_0.BIN:0x80000000 DDRCS1_1.BIN:0xb0000000
 
 It is only necessary to provide the starting address of a memory dump file if
-the dumps are not contiguous in memory. Whether or not the dumps are contiguous,
-along with their starting addresses, can be found in the file load.cmm which
-is usually included in crash dumps. Starting addresses must be provided in
-hexadecimal.
+the dumps are not contiguous in memory. Whether or not the dumps are
+contiguous, along with their starting addresses, can be found in the file
+load.cmm which is usually included in crash dumps. Starting addresses must be
+provided in hexadecimal.
 
 test
 ----
@@ -1764,8 +2060,8 @@ Verbosity
 Debug logging can be enabled using the count -v or --verbose option.  The
 log level based upon the number of occurrences of the -v option will be one of
 the following:
-	ERROR/WARNING/INFO	Default
-	DEBUG			(-v)
+    ERROR/WARNING/INFO  Default
+    DEBUG           (-v)
 
 Quiet
 -----
@@ -1793,58 +2089,57 @@ Examples:
 \t%prog parse -o ~/test_output DDRCS0.BIN DDRCS1.BIN
 \t%prog test -v -o ~/test_output LOG_PAGE_FILE(s)
 """
-	parser = OptionParser(usage=strUsage)
-	if len(sys.argv) < 2:
-		parser.error('Command required')
+    parser = OptionParser(usage=strUsage)
+    if len(sys.argv) < 2:
+        parser.error('Command required')
 
-	strCmd = (sys.argv[1]).lower()
+    strCmd = (sys.argv[1]).lower()
 
-	parser.add_option("-v", "--verbose",
-	  action="count", dest="verbosity", default=2,
-	  help="Log program status to stdout (-v = debug)"
-	)
+    parser.add_option("-v", "--verbose",
+                      action="count", dest="verbosity", default=2,
+                      help="Log program status to stdout (-v = debug)")
 
-	parser.add_option("-q", "--quiet",
-	  action="count", dest="quiet", default=False,
-	  help="Log no program status to stdout (-q = quiet)"
-	)
+    parser.add_option("-q", "--quiet",
+                      action="count", dest="quiet", default=False,
+                      help="Log no program status to stdout (-q = quiet)")
 
-	parser.add_option("-o", "--output",
-			action="store", type="string", dest="output_dir",
-			help="If the current directory can't be written to, specify \
-					a path for an output directory. The path is \
-					OS-independent, and can be absolute or relative.")
+    parser.add_option("-o", "--output",
+                      action="store", type="string", dest="output_dir",
+                      help="If the current directory can't be written to, \
+                            specify a path for an output directory. The path \
+                            is OS-independent, and can be absolute or \
+                            relative.")
 
-	parser.add_option("", "--64-bit",
-			action="store_true", dest="arch_64",
-			help="For use with the test command. Interpret the log pages as \
-			64-bit dumps.")
+    parser.add_option("", "--64-bit",
+                      action="store_true", dest="arch_64",
+                      help="For use with the test command. Interpret the log \
+                            pages as 64-bit dumps.")
 
-	(options, args) = parser.parse_args(sys.argv[2:])
-	options.cmd = strCmd
+    (options, args) = parser.parse_args(sys.argv[2:])
+    options.cmd = strCmd
 
-	if args:
-		# extract positions args (args not associated with flags)
-		options.args = args
+    if args:
+        # extract positions args (args not associated with flags)
+        options.args = args
 
-	# Configure logging format
-	configure_logging(options, True)
+    # Configure logging format
+    configure_logging(options, True)
 
-	if not options.cmd or options.cmd == "help":
-			parser.error('No command/help specified')
-			exit(1)
+    if not options.cmd or options.cmd == "help":
+            parser.error('No command/help specified')
+            exit(1)
 
-	output_logging_handler = set_output_directory(options)
+    output_logging_handler = set_output_directory(options)
 
-	dictCmds = {'parse': cmdParse,
-				'test': cmdTest,
-				}
+    dictCmds = {'parse': cmdParse,
+                'test': cmdTest,
+                }
 
-	# run the requested command
-	if not dictCmds.has_key(options.cmd):
-			parser.error("Unknown command '%s'" % (options.cmd))
+    # run the requested command
+    if options.cmd not in dictCmds:
+            parser.error("Unknown command '%s'" % (options.cmd))
 
-	dictCmds[options.cmd](options)
+    dictCmds[options.cmd](options)
 
-	if options.output_dir:
-		output_logging_handler.close()
+    if options.output_dir:
+        output_logging_handler.close()
