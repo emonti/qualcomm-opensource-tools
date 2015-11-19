@@ -218,6 +218,15 @@ class CPR3Info(RamParser):
         if apm_thresh_volt == 0:
             return
         tmp = '%-30s = %d uV\n' % ("APM threshold", apm_thresh_volt)
+        apm_supply = self.ramdump.read_int(
+            apm_addr + self.ramdump.field_offset('struct msm_apm_ctrl_dev',
+                                                 'supply'))
+        if apm_supply is None:
+            print_out_str("could not read APM supply")
+        elif apm_supply == 0:
+            tmp += '%-30s = %s\n' % ("APM supply", "APCC")
+        elif apm_supply == 1:
+            tmp += '%-30s = %s\n' % ("APM supply", "MX")
         self.output.append(tmp)
 
     def get_aging_info(self, ctrl_addr):
