@@ -268,7 +268,7 @@ class TsvQTimer(object):
         self.fTimestamp = fTimestamp
         tsv = LogTSV()
         data = tsv.pack(TSV_TYPE_QTIMER, 8)
-        data += struct.pack('<Q', fTimestamp * 1.0E9)
+        data += struct.pack('<Q', fTimestamp)
         return data
 
     def __str__(self):
@@ -381,6 +381,7 @@ class LogMessageString(object):
         data = self.timestamp.pack(fTimestamp)
 
         if fQTimer is not None:
+            self.qtimer = TsvQTimer()
             data += self.qtimer.pack(fQTimer)
 
         data += TsvByteArray().pack(strMessage)
