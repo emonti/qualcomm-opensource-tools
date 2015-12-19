@@ -38,18 +38,17 @@ def cleanupString(unclean_str):
         return ''.join([c for c in unclean_str if c in string.printable])
 
 def register_parser(longopt, desc, shortopt=None, optional=False):
-    """Decorator to register a parser class (a class that inherits from
-    ``RamParser``) with the parsing framework. By using this decorator
-    your parser will automatically be hooked up to the command-line
-    parsing code.
+    """Decorator for registering a parser class.
+
+    The class being decorated should inherit from the ``RamParser``
+    class. By using this decorator your parser will automatically be hooked
+    up to the command-line parsing code.
 
     This makes it very easy and clean to add a new parser:
 
       1. Drop a new file in the ``parsers/`` directory that defines a
          class that inherits from ``RamParser``
-
       2. Decorate your class with ``@register_parser``
-
       3. Define a ``parse`` method for your class
 
     All of the command line argument handling and invoking the parse
@@ -64,24 +63,15 @@ def register_parser(longopt, desc, shortopt=None, optional=False):
            def parse(self):
                print self.ramdump.read_cstring('linux_banner', 256, False)
 
-    Required arguments:
-
-    ``longopt``
-       The longopt command line switch for this parser
-
-    ``desc``
-       A short description of the parser (also shown in the help-text
-       associated with the longopt)
-
-    Optional arguments:
-
-    ``shortopt``
-       The shortopt command line switch for this parser
-
-    ``optional``
-       Indicates the parser is optional and should not be run with
-       --everything
-
+    :param longopt: The longopt command line switch for this parser
+    :param desc: A short description of the parser (also shown in the
+        help-text associated with the longopt)
+    :param shortopt: The shortopt command line switch for this parser.
+        This should only be used for maintaining backwards compatibility
+        with legacy parsers.  Otherwise shortopts are reserved for core
+        parser options.
+    :param optional: Indicates the parser is optional and should not be run
+        with ``--everything``
     """
     def wrapper(cls):
         if cls in [p.cls for p in _parsers]:
