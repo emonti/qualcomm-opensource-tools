@@ -140,9 +140,10 @@ CTX_READ_SIZE = 64
 
 # Default header sizes by IPC Logging Version
 # V0 was 32-bit only, so it is used in the 64-bit list as a placeholder
-PAGE_HDR_SIZES = [V0_PAGE_HDR_SIZE, V1_PAGE_HDR_SIZE, V1_PAGE_HDR_SIZE]
+PAGE_HDR_SIZES = [V0_PAGE_HDR_SIZE, V1_PAGE_HDR_SIZE, V1_PAGE_HDR_SIZE,
+                  V1_PAGE_HDR_SIZE]
 PAGE_HDR_SIZES_64 = [V0_PAGE_HDR_SIZE, V1_PAGE_HDR_SIZE_64,
-                     V1_PAGE_HDR_SIZE_64]
+                     V1_PAGE_HDR_SIZE_64, V1_PAGE_HDR_SIZE_64]
 
 
 class LogTSV(object):
@@ -423,8 +424,10 @@ class LogContext(object):
 
     """
 
-    headerBinaryFormat = '<IIIHHQ20s'
+    headerBinaryFormat = '<IIIHHQ'
     headerBinaryFormatSize = struct.calcsize(headerBinaryFormat)
+    nameBinaryFormat = ""
+    nameBinaryFormatSize = 0
 
     def __init__(self):
         self.data = None
@@ -447,9 +450,31 @@ class LogContext(object):
         """
         self.data = data
         self.magic, self.nmagic, self.version, self.user_version, \
-            self.header_size, self.log_id, self.name = \
+            self.header_size, self.log_id = \
             struct.unpack(self.headerBinaryFormat,
                           self.data[0:self.headerBinaryFormatSize])
+
+        if self.version <= 2:
+            self.nameBinaryFormat = '<20s'
+            self.nameBinaryFormatSize = struct.calcsize(self.nameBinaryFormat)
+            hdrNamePos = \
+                self.headerBinaryFormatSize + self.nameBinaryFormatSize
+            unpack_result = \
+                struct.unpack(self.nameBinaryFormat,
+                              self.data[
+                                  self.headerBinaryFormatSize:hdrNamePos])
+            self.name = unpack_result[0]
+        else:
+            self.nameBinaryFormat = '<32s'
+            self.nameBinaryFormatSize = struct.calcsize(self.nameBinaryFormat)
+            hdrNamePos = \
+                self.headerBinaryFormatSize + self.nameBinaryFormatSize
+            unpack_result = \
+                struct.unpack(self.nameBinaryFormat,
+                              self.data[
+                                  self.headerBinaryFormatSize:hdrNamePos])
+            self.name = unpack_result[0]
+
         self.name = self.name.rstrip('\0')
 
         if self.magic == CTX_MAGIC and self.nmagic == CTX_NMAGIC:
@@ -472,7 +497,13 @@ class LogContext(object):
 
         :return: The packed binary data.
         """
-        self.data = struct.pack(self.headerBinaryFormat, CTX_MAGIC, CTX_NMAGIC,
+
+        if nVersion <= 2:
+            headerFormat = '<IIIHHQ20s'
+        else:
+            headerFormat = '<IIIHHQ32s'
+
+        self.data = struct.pack(headerFormat, CTX_MAGIC, CTX_NMAGIC,
                                 nVersion, nUserVersion, nHeaderSize, nLogId,
                                 nName)
 
@@ -1208,6 +1239,18 @@ class LogPage_v2(LogPage_v1):
                 raise
 
 
+class LogPage_v3(LogPage_v2):
+    """
+    A single page in a version 3 IPC Logging log. This class is a descendant of
+    :class:`LogPage_v2`.
+
+    This class was added because a change in the context name length required
+    a new IPC Logging version, but no change was made to the log page
+    structure, only the log context structure. As such, the class inherits
+    everything from :class:`LogPage_v2`.
+    """
+
+
 class PageIterator(object):
     """
     An iterator object for use by the :class:`LogPage` iterator method.
@@ -1597,6 +1640,10 @@ def get_LogPage_v2_instance():
     return LogPage_v2()
 
 
+def get_LogPage_v3_instance():
+    return LogPage_v3()
+
+
 def get_page_of_version(data, versionIsOneOrGreater, version, page):
     """
     Retrieves the appropriate descendant of :class:`LogPage` given the version.
@@ -1614,7 +1661,9 @@ def get_page_of_version(data, versionIsOneOrGreater, version, page):
     :param version: The IPC Logging version
     :param page: The log page currently being processed
     """
-    dictVersions = {1: get_LogPage_v1_instance, 2: get_LogPage_v2_instance}
+    dictVersions = {1: get_LogPage_v1_instance,
+                    2: get_LogPage_v2_instance,
+                    3: get_LogPage_v3_instance}
 
     if page.isVersionOneOrGreater(data):
         versionIsOneOrGreater = True
@@ -1872,7 +1921,8 @@ def cmdTest(options):
     dictPages = {}
     dictVersions = {0: get_LogPage_v0_instance,
                     1: get_LogPage_v1_instance,
-                    2: get_LogPage_v2_instance}
+                    2: get_LogPage_v2_instance,
+                    3: get_LogPage_v3_instance}
     version = 0
     numPages = 0
 
