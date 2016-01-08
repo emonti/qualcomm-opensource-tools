@@ -110,6 +110,9 @@ if __name__ == '__main__':
                       dest='stdout', help='Dump to stdout instead of the file')
     parser.add_option('', '--phys-offset', type='int',
                       dest='phys_offset', help='use custom phys offset')
+    parser.add_option('', '--kaslr-offset', type='int',
+                      dest='kaslr_offset',
+                      help='Offset for address space layout randomization')
     parser.add_option('', '--page-offset', type='int',
                       dest='page_offset', help='use custom page offset')
     parser.add_option('', '--force-hardware', type='int',

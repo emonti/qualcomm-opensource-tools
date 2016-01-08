@@ -56,9 +56,10 @@ class GdbMI(object):
                 print('GDB Version: ' + g.version())
     """
 
-    def __init__(self, gdb_path, elf):
+    def __init__(self, gdb_path, elf, kaslr_offset=0):
         self.gdb_path = gdb_path
         self.elf = elf
+        self.kaslr_offset = kaslr_offset
         self._cache = {}
         self._gdbmi = None
 
@@ -214,7 +215,7 @@ class GdbMI(object):
         '0xc0b0006a'
         """
         result = self._run_for_one('print /x &{0}'.format(symbol))
-        return int(result.split(' ')[-1], 16)
+        return int(result.split(' ')[-1], 16) + self.kaslr_offset
 
     def get_symbol_info(self, address):
         """Returns a GdbSymbol representing the nearest symbol found at

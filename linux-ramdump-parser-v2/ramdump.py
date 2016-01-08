@@ -420,6 +420,7 @@ class RamDump():
     def __init__(self, options, nm_path, gdb_path, objdump_path):
         self.ebi_files = []
         self.phys_offset = None
+        self.kaslr_offset = options.kaslr_offset
         self.tz_start = 0
         self.ebi_start = 0
         self.cpu_type = None
@@ -432,7 +433,8 @@ class RamDump():
         self.objdump_path = objdump_path
         self.outdir = options.outdir
         self.imem_fname = None
-        self.gdbmi = gdbmi.GdbMI(self.gdb_path, self.vmlinux)
+        self.gdbmi = gdbmi.GdbMI(self.gdb_path, self.vmlinux,
+                                 self.kaslr_offset or 0)
         self.gdbmi.open()
         self.arm64 = options.arm64
         self.page_offset = 0xc0000000
@@ -447,6 +449,7 @@ class RamDump():
         self.ipc_log_help = options.ipc_help
         self.use_stdout = options.stdout
         self.kernel_version = (0, 0, 0)
+
         if options.ram_addr is not None:
             # TODO sanity check to make sure the memory regions don't overlap
             for file_path, start, end in options.ram_addr:
@@ -815,8 +818,12 @@ class RamDump():
                     'PER.S.F C15:0x202 %L 0x80030000\n'.encode('ascii', 'ignore'))
             startup_script.write('mmu.on\n'.encode('ascii', 'ignore'))
             startup_script.write('mmu.scan\n'.encode('ascii', 'ignore'))
-        startup_script.write(
-            ('data.load.elf ' + os.path.abspath(self.vmlinux) + ' /nocode\n').encode('ascii', 'ignore'))
+
+        where = os.path.abspath(self.vmlinux)
+        if self.kaslr_offset is not None:
+            where += ' 0x{0:x}'.format(self.kaslr_offset)
+        dloadelf = 'data.load.elf {} /nocode\n'.format(where)
+        startup_script.write(dloadelf.encode('ascii', 'ignore'))
 
         if t32_host_system != 'Linux':
             if self.arm64:
@@ -990,10 +997,16 @@ class RamDump():
     def setup_symbol_tables(self):
         stream = os.popen(self.nm_path + ' -n ' + self.vmlinux)
         symbols = stream.readlines()
+        kaslr = 0
+
+        if self.kaslr_offset is not None:
+            kaslr = int(self.kaslr_offset)
+
         for line in symbols:
             s = line.split(' ')
             if len(s) == 3:
-                self.lookup_table.append((int(s[0], 16), s[2].rstrip()))
+                self.lookup_table.append((int(s[0], 16) + kaslr,
+                                         s[2].rstrip()))
         stream.close()
 
     def address_of(self, symbol):
