@@ -9,20 +9,22 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 import struct
-from print_out import print_out_str, print_out_exception
 
 """dictionary mapping from (hw_id, client_id, version) to class CacheDump"""
 lookuptable = {}
 
+
 def lookup_cache_type(hwid, client_id, version):
     """defaults to CacheDump() if no match found"""
     return lookuptable.get((hwid, client_id, version), CacheDump())
+
 
 def formatwidth(string, limit):
     if len(string) >= limit:
         return string[0:limit]
     formatstr = '{{0:{0}}}'.format(limit)
     return formatstr.format(string)
+
 
 class TableOutputFormat:
     """ Not sure if using PrettyTable (python lib) is a good idea, since people
@@ -57,6 +59,7 @@ class TableOutputFormat:
 
         outfile.write('\n')
 
+
 class CacheDump(object):
     """ Class to describe a method to parse a particular type of cachedump.
     Users should not make instances of this class."""
@@ -68,15 +71,15 @@ class CacheDump(object):
         raise NotImplementedError
 
 struct_CacheDumpType_v1 = [
-    ('<I', 'status0'),     #Status Registers
+    ('<I', 'status0'),     # Status Registers
     ('I', 'status1'),
     ('I', 'status2'),
     ('I', 'status3'),
-    ('I', 'TagSize'),     #Tag Size in u32 words
-    ('I', 'LineSize'),    #Line Size in u32 words
-    ('I', 'NumSets'),     #Number of sets
-    ('I', 'NumWays'),     #Number of ways
-    ('Q', 'next'),        #unused
+    ('I', 'TagSize'),     # Tag Size in u32 words
+    ('I', 'LineSize'),    # Line Size in u32 words
+    ('I', 'NumSets'),     # Number of sets
+    ('I', 'NumWays'),     # Number of ways
+    ('Q', 'next'),        # unused
     ('I', '__reserved0'),
     ('I', '__reserved1'),
     ('I', '__reserved2'),
@@ -85,8 +88,10 @@ struct_CacheDumpType_v1 = [
 CacheDumpFormatStr_v1 = ''.join(zip(*struct_CacheDumpType_v1)[0])
 CacheDumpKeys_v1 = zip(*struct_CacheDumpType_v1)[1]
 
+
 class CacheDumpType_v1(CacheDump):
-    """Uses the format struct_CacheDumpType_v1, followed by an array of raw data"""
+    """Uses the format struct_CacheDumpType_v1,
+    followed by an array of raw data"""
 
     def __init__(self):
         super(CacheDumpType_v1, self).__init__()
@@ -103,7 +108,7 @@ class CacheDumpType_v1(CacheDump):
 
     def add_table_data_columns(self):
         for i in range(0, self.LineSize):
-            str ="DATA{0}".format(i)
+            str = "DATA{0}".format(i)
             self.tableformat.addColumn(str, '{0:08x}', 8)
 
     def read_line(self, start):
@@ -123,7 +128,8 @@ class CacheDumpType_v1(CacheDump):
         if self.unsupported_header_offset >= 0:
             return self.unsupported_header_offset
 
-        items = self.ramdump.read_string(start, CacheDumpFormatStr_v1, virtual=False)
+        items = self.ramdump.read_string(start, CacheDumpFormatStr_v1,
+                                         virtual=False)
         if items is None:
             raise Exception('Unable to read header information')
 
@@ -131,7 +137,8 @@ class CacheDumpType_v1(CacheDump):
             setattr(self, CacheDumpKeys_v1[i], items[i])
 
         struct_size = struct.calcsize(CacheDumpFormatStr_v1)
-        size = 0x4 * (self.LineSize + self.TagSize) * self.NumWays * self.NumSets
+        size = 0x4 * (self.LineSize + self.TagSize) * self.NumWays
+        size = size * self.NumSets
         size = size + struct_size
 
         if (size < 0x1000 or size > end - start):
@@ -156,6 +163,7 @@ class CacheDumpType_v1(CacheDump):
                 output.extend(line[self.TagSize:])
                 self.tableformat.printline(output, outfile)
                 start = start + (self.TagSize + self.LineSize) * 0x4
+
 
 class L1_DCache_A53(CacheDumpType_v1):
     """Refer to ARM documentation:cortex_a53_trm"""
@@ -212,6 +220,34 @@ class L1_DCache_A53(CacheDumpType_v1):
         output.append(oa)
         output.append(os)
 
+
+class L1_ICache_A53(CacheDumpType_v1):
+    """Refer to ARM documentation:cortex_a53_trm"""
+    def __init__(self):
+        super(L1_ICache_A53, self).__init__()
+        self.tableformat.addColumn('VALID')
+        self.tableformat.addColumn('N')
+        self.tableformat.addColumn('PA [27:0]', '{0:016x}', 16)
+        self.unsupported_header_offset = 0
+        self.TagSize = 2
+        self.LineSize = 16
+        self.NumSets = 0x80
+        self.NumWays = 2
+
+    def parse_tag_fn(self, output, data, nset, nway):
+        if self.TagSize != 2:
+            raise Exception('cache tag size mismatch')
+
+        valid = (data[0] >> 1) & 0x1
+        n = (data[0] >> 0) & 0x1
+        addr = (data[0] >> 0) & 0xffffffff
+
+        addr = (addr << 12) | (nset << 6)
+        output.append(valid)
+        output.append(n)
+        output.append(addr)
+
+
 class L1_DCache_A57(CacheDumpType_v1):
     """Refer to ARM documentation:cortex_a57_trm"""
     def __init__(self):
@@ -252,6 +288,7 @@ class L1_DCache_A57(CacheDumpType_v1):
         output.append(n)
         output.append(addr)
 
+
 class L1_ICache_A57(CacheDumpType_v1):
     """Refer to ARM documentation:cortex_a57_trm"""
     def __init__(self):
@@ -277,6 +314,7 @@ class L1_ICache_A57(CacheDumpType_v1):
         output.append(valid)
         output.append(n)
         output.append(addr)
+
 
 class L2_Cache_A57(CacheDumpType_v1):
     """Refer to ARM documentation:cortex_a57_trm"""
@@ -318,7 +356,106 @@ class L2_Cache_A57(CacheDumpType_v1):
         output.append(n)
         output.append(addr)
 
-#8994
+
+class L1_DCache_KRYO2XX_GOLD(CacheDumpType_v1):
+    """Refer to documentation:KYRO2XX_trm"""
+    def __init__(self):
+        super(L1_DCache_KRYO2XX_GOLD, self).__init__()
+        self.tableformat.addColumn('MOESI')
+        self.tableformat.addColumn('O_Mem_E')
+        self.tableformat.addColumn('Addr [39:12]', '{0:016x}', 16)
+        self.tableformat.addColumn('OS', '{0:02b}')
+        self.tableformat.addColumn('MH', '{0:02b}')
+        self.unsupported_header_offset = 0
+        self.TagSize = 2
+        self.LineSize = 16
+        self.NumSets = 0x100
+        self.NumWays = 4
+
+    def MOESI_to_string(self, num):
+        if (num & 0x4 == 0x0):
+            return 'I'
+        if (num & 0x1 == 0x1):  # shared
+            if (num & 0x8 == 0x1):  # dirty
+                return 'O'
+            else:
+                return 'S'
+        else:  # not shared
+            if (num & 0x8 == 0x1):  # dirty
+                return 'M'
+            else:
+                return 'E'
+
+    def parse_tag_fn(self, output, data, nset, nway):
+        MOESI_d = (data[0] >> 31) & 0x1
+        mem_exclu = (data[0] >> 30) & 0x1
+        MOESI_v = (data[0] >> 29) & 0x1
+        MOESI_ns = (data[0] >> 28) & 0x1
+        addr = (data[0] >> 0) & 0xfffffff
+        out_share = (data[1] >> 3) & 0x1
+        memory_hint = (data[1] >> 1) & 0x3
+        MOESI_gs = (data[1] >> 0) & 0x1
+
+        moesi = MOESI_d << 3 | MOESI_v << 2 | MOESI_ns << 1 | MOESI_gs
+        addr = ((addr) << 11) | (nset << 6)
+        output.append(self.MOESI_to_string(moesi))
+        output.append(mem_exclu)
+        output.append(addr)
+        output.append(out_share)
+        output.append(memory_hint)
+
+
+class L1_ICache_KRYO2XX_GOLD(CacheDumpType_v1):
+    """Refer to documentation:cortex_a57_trm"""
+    def __init__(self):
+        super(L1_ICache_KRYO2XX_GOLD, self).__init__()
+        self.tableformat.addColumn('VALID')
+        self.tableformat.addColumn('N')
+        self.tableformat.addColumn('PA [27:0]', '{0:016x}', 16)
+        self.unsupported_header_offset = 0
+        self.TagSize = 2
+        self.LineSize = 16
+        self.NumSets = 0x100
+        self.NumWays = 2
+
+    def parse_tag_fn(self, output, data, nset, nway):
+        if self.TagSize != 2:
+            raise Exception('cache tag size mismatch')
+
+        valid = (data[0] >> 1) & 0x1
+        n = (data[0] >> 0) & 0x1
+        addr = (data[0] >> 0) & 0xffffffff
+
+        addr = (addr << 12) | (nset << 6)
+        output.append(valid)
+        output.append(n)
+        output.append(addr)
+
+L1_DCache_KRYO2XX_SILVER = L1_DCache_A53
+L1_ICache_KYRO2XX_SILVER = L1_DCache_A53
+
+# "msmcobalt"
+lookuptable[("cobalt", 0x80, 0)] = L1_DCache_KRYO2XX_SILVER()
+lookuptable[("cobalt", 0x81, 0)] = L1_DCache_KRYO2XX_SILVER()
+lookuptable[("cobalt", 0x82, 0)] = L1_DCache_KRYO2XX_SILVER()
+lookuptable[("cobalt", 0x84, 0)] = L1_DCache_KRYO2XX_SILVER()
+lookuptable[("cobalt", 0x84, 0)] = L1_DCache_KRYO2XX_GOLD()
+lookuptable[("cobalt", 0x85, 0)] = L1_DCache_KRYO2XX_GOLD()
+lookuptable[("cobalt", 0x86, 0)] = L1_DCache_KRYO2XX_GOLD()
+lookuptable[("cobalt", 0x87, 0)] = L1_DCache_KRYO2XX_GOLD()
+
+
+lookuptable[("cobalt", 0x60, 0)] = L1_ICache_KYRO2XX_SILVER()
+lookuptable[("cobalt", 0x61, 0)] = L1_ICache_KYRO2XX_SILVER()
+lookuptable[("cobalt", 0x62, 0)] = L1_ICache_KYRO2XX_SILVER()
+lookuptable[("cobalt", 0x63, 0)] = L1_ICache_KYRO2XX_SILVER()
+lookuptable[("cobalt", 0x64, 0)] = L1_ICache_KRYO2XX_GOLD()
+lookuptable[("cobalt", 0x65, 0)] = L1_ICache_KRYO2XX_GOLD()
+lookuptable[("cobalt", 0x66, 0)] = L1_ICache_KRYO2XX_GOLD()
+lookuptable[("cobalt", 0x67, 0)] = L1_ICache_KRYO2XX_GOLD()
+
+
+# 8994
 
 lookuptable[(8994, 0x80, 0)] = L1_DCache_A53()
 lookuptable[(8994, 0x81, 0)] = L1_DCache_A53()
@@ -353,7 +490,7 @@ lookuptable[(8994, 0x67, 0x100)] = L1_ICache_A57()
 lookuptable[(8994, 0xC1, 0x100)] = L2_Cache_A57(numsets=0x800)
 
 
-#8992
+# 8992
 lookuptable[(8992, 0x80, 0x100)] = L1_DCache_A53()
 lookuptable[(8992, 0x81, 0x100)] = L1_DCache_A53()
 lookuptable[(8992, 0x82, 0x100)] = L1_DCache_A53()
