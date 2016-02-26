@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+# Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -531,6 +531,7 @@ boards.append(Board8937(socid=294))
 boards.append(Board8937(socid=295))
 
 boards.append(Board8953(socid=293))
+boards.append(Board8953(socid=304))
 
 def get_supported_boards():
     """ Called by other part of the code to get a list of boards """
