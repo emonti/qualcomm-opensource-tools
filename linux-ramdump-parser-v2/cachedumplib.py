@@ -1,4 +1,4 @@
-# Copyright (c) 2015, The Linux Foundation. All rights reserved.
+# Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -502,3 +502,29 @@ lookuptable[(8992, 0x64, 0x100)] = L1_ICache_A57()
 lookuptable[(8992, 0x65, 0x100)] = L1_ICache_A57()
 
 lookuptable[(8992, 0xC1, 0x100)] = L2_Cache_A57(numsets=0x400)
+
+# 8917
+lookuptable[(8917, 0x84, 0x14)] = L1_DCache_A53()
+lookuptable[(8917, 0x85, 0x14)] = L1_DCache_A53()
+lookuptable[(8917, 0x86, 0x14)] = L1_DCache_A53()
+lookuptable[(8917, 0x87, 0x14)] = L1_DCache_A53()
+
+# 8937
+lookuptable[(8937, 0x80, 0x14)] = L1_DCache_A53()
+lookuptable[(8937, 0x81, 0x14)] = L1_DCache_A53()
+lookuptable[(8937, 0x82, 0x14)] = L1_DCache_A53()
+lookuptable[(8937, 0x83, 0x14)] = L1_DCache_A53()
+lookuptable[(8937, 0x84, 0x14)] = L1_DCache_A53()
+lookuptable[(8937, 0x85, 0x14)] = L1_DCache_A53()
+lookuptable[(8937, 0x86, 0x14)] = L1_DCache_A53()
+lookuptable[(8937, 0x87, 0x14)] = L1_DCache_A53()
+
+# 8953
+lookuptable[(8953, 0x80, 0x14)] = L1_DCache_A53()
+lookuptable[(8953, 0x81, 0x14)] = L1_DCache_A53()
+lookuptable[(8953, 0x82, 0x14)] = L1_DCache_A53()
+lookuptable[(8953, 0x83, 0x14)] = L1_DCache_A53()
+lookuptable[(8953, 0x84, 0x14)] = L1_DCache_A53()
+lookuptable[(8953, 0x85, 0x14)] = L1_DCache_A53()
+lookuptable[(8953, 0x86, 0x14)] = L1_DCache_A53()
+lookuptable[(8953, 0x87, 0x14)] = L1_DCache_A53()
