@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -604,7 +604,9 @@ class RamDump():
         for l in t:
             self.config.append(l.rstrip().decode('ascii', 'ignore'))
             if not l.startswith('#') and l.strip() != '':
-                cfg, val = l.split('=')
+                eql = l.find('=')
+                cfg = l[:eql]
+                val = l[eql+1:]
                 self.config_dict[cfg] = val.strip()
         return True
 
