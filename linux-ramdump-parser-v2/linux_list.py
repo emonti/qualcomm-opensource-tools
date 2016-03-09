@@ -1,4 +1,4 @@
-# Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2014, 2016, The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 and
@@ -31,11 +31,35 @@ class ListWalker(object):
         self.list_elem_offset = list_elem_offset
         self.last_node = node_addr
         self.seen_nodes = []
+        self.curr_node = node_addr
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        next_node_addr = self.curr_node + \
+            self.ram_dump.field_offset('struct list_head', 'next')
+        next_node = self.ram_dump.read_word(next_node_addr)
+
+        self.curr_node = next_node
+        if next_node == self.last_node:
+            raise StopIteration()
+        elif next_node in self.seen_nodes:
+            print_out_str(
+               '[!] WARNING: Cycle found in attach list. List is corrupted!')
+            raise StopIteration()
+        else:
+            self.seen_nodes.append(next_node)
+
+            return next_node - self.list_elem_offset
 
     def is_empty(self):
         """Return True if the list is empty, False otherwise.
 
         """
+        if self.last_node is None:
+            return True
+
         next_node_addr = self.last_node + self.ram_dump.field_offset('struct list_head', 'next')
         next_node = self.ram_dump.read_word(next_node_addr)
 
