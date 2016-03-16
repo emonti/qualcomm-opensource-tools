@@ -208,10 +208,14 @@ def do_dump_task_timestamps(ramdump):
             break
     for i in range(0, no_of_cpus):
         t[i] = sorted(t[i],key=lambda l:l[2], reverse=True)
-        str = '{0:<17s}{1:>8s}{2:>17s}{3:>17s}{4:>17s}{5:>17s}\n'.format('Task name','PID','Exec_Started_at','Last_Queued_at','Total_wait_time','No_of_times_exec')
+        str = '{0:<17s}{1:>8s}{2:>18s}{3:>18s}{4:>18s}{5:>17s}\n'.format(
+            'Task name', 'PID', 'Exec_Started_at', 'Last_Queued_at',
+            'Total_wait_time', 'No_of_times_exec')
         task_out[i].write(str)
         for item in t[i]:
-            str = '{0:<17s}{1:8d}{2:17d}{3:17d}{4:17d}{5:17d}\n'.format(item[0],item[1],item[2],item[3],item[4],item[5])
+            str = '{0:<17s}{1:8d}{2:18.9f}{3:18.9f}{4:18.9f}{5:17d}\n'.format(
+                item[0], item[1], item[2]/1000000000.0,
+                item[3]/1000000000.0, item[4]/1000000000.0, item[5])
             task_out[i].write(str)
         task_out[i].close()
         print_out_str('---wrote tasks to tasks_sched_stats{0}.txt'.format(i))
@@ -270,7 +274,6 @@ def dump_thread_group_timestamps(ramdump, thread_group, t):
         if thread_group == orig_thread_group:
             break
     return True
-
 
 @register_parser('--print-tasks', 'Print all the task information', shortopt='-t')
 class DumpTasks(RamParser):
