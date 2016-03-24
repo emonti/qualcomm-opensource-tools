@@ -1347,3 +1347,165 @@ class RamDump():
             return self.thread_saved_field_common_64(task, self.field_offset('struct cpu_context', 'fp'))
         else:
             return self.thread_saved_field_common_32(task, self.field_offset('struct cpu_context_save', 'fp'))
+
+
+class Struct(object):
+    """
+    Helper class to abstract C structs retrieval by providing a map of fields
+    to functions on how to retrieve these
+
+    Given C struct::
+
+        struct my_struct {
+            char label[MAX_STR_SIZE];
+            u32 number;
+            void *address;
+        }
+
+    You can abstract as:
+
+    >>> var = Struct(ramdump, var_name, struct_name="struct my_struct",
+                                        fields={'label': Struct.get_cstring,
+                                                'number': Struct.get_u32,
+                                                'address': Struct.get_pointer})
+    >>> var.label
+    'label string'
+    >>> var.number
+    1234
+    """
+    _struct_name = None
+    _fields = None
+
+    def __init__(self, ramdump, base, struct_name=None, fields=None):
+        """
+        :param ram_dump:    Reference to the ram dump
+        :param base:        The virtual address or variable name of struct
+        :param struct_name: Name of the structure, should start with 'struct'.
+                            Ex: 'struct my_struct'
+        :param fields:  Dictionary with key being the element name and value
+                        being a function pointer to method used to retrieve it.
+        """
+        self.ramdump = ramdump
+        self._base = self.ramdump.resolve_virt(base)
+        self._data = {}
+        if struct_name:
+            self._struct_name = struct_name
+        if fields:
+            self._fields = fields
+
+    def is_empty(self):
+        """
+        :return: true if struct is empty
+        """
+        return self._base == 0 or self._base is None or self._fields is None
+
+    def get_address(self, key):
+        """
+        :param key: struct field name
+        :return: returns address of the named field within the struct
+        """
+        return self._base + self.ramdump.field_offset(self._struct_name, key)
+
+    def get_pointer(self, key):
+        """
+        :param key: struct field name
+        :return: returns the addressed pointed by field within the struct
+
+        example struct::
+
+            struct {
+                void *key;
+            };
+        """
+        address = self.get_address(key)
+        return self.ramdump.read_pointer(address)
+
+    def get_struct_sizeof(self, key):
+        """
+        :param key: struct field name
+        :return: returns the size of a field within struct
+
+        Given C struct::
+
+            struct my_struct {
+                char key1[10];
+                u32 key2;
+            };
+
+        You could do:
+
+        >>> struct = Struct(ramdump, 0, struct="struct my_struct",
+                                        fields={"key1": Struct.get_cstring,
+                                                "key2": Struct.get_u32})
+        >>> struct.get_struct_sizeof(key1)
+        10
+        >>> struct.get_struct_sizeof(key2)
+        4
+        """
+        return self.ramdump.sizeof('((%s *) 0)->%s' % (self._struct_name, key))
+
+    def get_cstring(self, key):
+        """
+        :param key: struct field name
+        :return: returns a string that is contained within struct memory
+
+        Example C struct::
+
+            struct {
+                char key[10];
+            };
+        """
+        address = self.get_address(key)
+        length = self.get_struct_sizeof(key)
+        return self.ramdump.read_cstring(address, length)
+
+    def get_u32(self, key):
+        """
+        :param key: struct field name
+        :return: returns a u32 integer within the struct
+
+        Example C struct::
+
+            struct {
+                u32 key;
+            };
+        """
+        address = self.get_address(key)
+        return self.ramdump.read_u32(address)
+
+    def get_array_ptrs(self, key):
+        """
+        :param key: struct field name
+        :return: returns an array of pointers
+
+        Example C struct::
+
+            struct {
+                void *key[4];
+            };
+        """
+        ptr_size = self.ramdump.sizeof('void *')
+        length = self.get_struct_sizeof(key) / ptr_size
+        address = self.get_address(key)
+        arr = []
+        for i in range(0, length - 1):
+            ptr = self.ramdump.read_pointer(address + (ptr_size * i))
+            arr.append(ptr)
+        return arr
+
+    def __setattr__(self, key, value):
+        if self._fields and key in self._fields:
+            raise ValueError(key + "is read-only")
+        else:
+            super(Struct, self).__setattr__(key, value)
+
+    def __getattr__(self, key):
+        if not self.is_empty():
+            if key in self._data:
+                return self._data[key]
+            elif key in self._fields:
+                fn = self._fields[key]
+                value = fn(self, key)
+                self._data[key] = value
+                return value
+        return None
