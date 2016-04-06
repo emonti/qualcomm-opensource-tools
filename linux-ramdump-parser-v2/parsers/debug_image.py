@@ -190,7 +190,10 @@ class DebugImage(RamParser):
                                           client_end, client_name)
             print_out_str('--------')
 
-        self.qdss.dump_all(self.ramdump)
+        self.qdss.dump_standard(self.ramdump)
+        if not self.ramdump.skip_qdss_bin:
+            self.qdss.save_etf_bin(self.ramdump)
+            self.qdss.save_etr_bin(self.ramdump)
 
     def parse(self):
         # use the mem_dump_data variable to detect if debug image feature was compiled in,

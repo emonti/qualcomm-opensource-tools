@@ -134,6 +134,10 @@ if __name__ == '__main__':
                       help='Use QTF tool to parse and save QDSS trace data')
     parser.add_option('', '--qtf-path', dest='qtf_path',
                       help='QTF tool executable')
+    parser.add_option('', '--skip-qdss-bin', action='store_true',
+                      dest='skip_qdss_bin', help='Skip QDSS ETF and ETR '
+                      'binary data parsing from debug image (may save time '
+                      'if large ETM and ETR buffers are present)')
     parser.add_option('', '--ipc-help', dest='ipc_help',
                       help='Help for IPC Logging', action='store_true',
                       default=False)

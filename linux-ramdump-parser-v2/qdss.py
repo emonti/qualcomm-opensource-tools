@@ -455,10 +455,8 @@ class QDSSDump():
                 ram_dump.read_u32(self.dbgui_start + data_offset + (4 * i), False)))
         dbgui_out.close()
 
-    def dump_all(self, ram_dump):
+    def dump_standard(self, ram_dump):
         self.print_tmc_etf(ram_dump)
         self.print_tmc_etr(ram_dump)
         self.print_dbgui_registers(ram_dump)
         self.print_all_etm_register(ram_dump)
-        self.save_etf_bin(ram_dump)
-        self.save_etr_bin(ram_dump)

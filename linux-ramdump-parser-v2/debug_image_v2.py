@@ -525,7 +525,10 @@ class DebugImage_v2():
                     getattr(DebugImage_v2, func)(self, dump_data_version, dump_data_addr, dump_data_addr + dump_data_len,
                                                  client_id, ram_dump)
 
-            self.qdss.dump_all(ram_dump)
+            self.qdss.dump_standard(ram_dump)
+            if not ram_dump.skip_qdss_bin:
+                self.qdss.save_etf_bin(ram_dump)
+                self.qdss.save_etr_bin(ram_dump)
             if ram_dump.qtf:
                 self.parse_qtf(ram_dump)
             if ram_dump.dcc:
