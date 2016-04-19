@@ -113,6 +113,13 @@ def get_rss(ramdump, task_struct):
     anon_rss = ramdump.read_word(mm_struct + offset_rss_stat + offset_anon_rss)
     rss = ramdump.read_word(mm_struct + offset_rss_stat + offset_rss)
     file_rss = ramdump.read_word(mm_struct + offset_rss_stat + offset_file_rss)
+    # Ignore negative RSS values
+    if anon_rss > 0x80000000:
+        anon_rss = 0
+    if rss > 0x80000000:
+        rss = 0
+    if file_rss > 0x80000000:
+        file_rss = 0
     total_rss = rss + anon_rss + file_rss
     return total_rss
 
