@@ -100,8 +100,8 @@ if __name__ == '__main__':
     parser.add_option('-s', '--t32launcher', action='store_true',
                       dest='t32launcher', help='Create T32 simulator launcher', default=False)
     parser.add_option('', '--t32-host-system', dest='t32_host_system',
-                      metavar='HOST', choices=('Linux', 'Windows'),
-                      help='T32 host system (for launcher script generation). Supported choices: "Linux", "Windows". Defaults to the system ramparse.py is running on.')
+                      metavar='HOST', choices=('Linux', 'Windows', 'Darwin'),
+                      help='T32 host system (for launcher script generation). Supported choices: "Linux", "Windows", "Darwin". Defaults to the system ramparse.py is running on.')
     parser.add_option('-x', '--everything', action='store_true',
                       dest='everything', help='Output everything (may be slow')
     parser.add_option('-f', '--output-file', dest='outfile',

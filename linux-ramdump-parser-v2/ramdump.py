@@ -439,7 +439,7 @@ class RamDump():
         self.qtf_path = options.qtf_path
         self.qtf = options.qtf
         self.dcc = False
-        self.t32_host_system = options.t32_host_system or None
+        self.t32_host_system = options.t32_host_system or platform.system()
         self.ipc_log_test = options.ipc_test
         self.ipc_log_skip = options.ipc_skip
         self.ipc_log_debug = options.ipc_debug
@@ -727,7 +727,7 @@ class RamDump():
         launch_config = open(out_path + '/t32_config.t32', 'wb')
         launch_config.write('OS=\n')
         launch_config.write('ID=T32_1000002\n')
-        if t32_host_system != 'Linux':
+        if t32_host_system == 'Windows':
             launch_config.write('TMP=C:\\TEMP\n')
             launch_config.write('SYS=C:\\T32\n')
             launch_config.write('HELP=C:\\T32\\pdf\n')
@@ -742,8 +742,9 @@ class RamDump():
         launch_config.write('FONT=SMALL\n')
         launch_config.write('HEADER=Trace32-ScorpionSimulator\n')
         launch_config.write('\n')
-        launch_config.write('PRINTER=WINDOWS\n')
-        launch_config.write('\n')
+        if t32_host_system == 'Windows':
+            launch_config.write('PRINTER=WINDOWS\n')
+            launch_config.write('\n')
         launch_config.write('RCL=NETASSIST\n')
         launch_config.write('PACKLEN=1024\n')
         launch_config.write('PORT=%d\n' % random.randint(20000, 30000))
@@ -803,7 +804,7 @@ class RamDump():
         startup_script.write(
             ('data.load.elf ' + os.path.abspath(self.vmlinux) + ' /nocode\n').encode('ascii', 'ignore'))
 
-        if t32_host_system != 'Linux':
+        if t32_host_system == 'Windows':
             if self.arm64:
                 startup_script.write(
                      'task.config C:\\T32\\demo\\arm64\\kernel\\linux\\linux-3.x\\linux3.t32\n'.encode('ascii', 'ignore'))
@@ -837,7 +838,7 @@ class RamDump():
                 'do {0}\n'.format(out_path + '/core0_regs.cmm').encode('ascii', 'ignore'))
         startup_script.close()
 
-        if t32_host_system != 'Linux':
+        if t32_host_system == 'Windows':
             t32_bat = open(out_path + '/launch_t32.bat', 'wb')
             if self.arm64:
                 t32_binary = 'C:\\T32\\bin\\windows64\\t32MARM64.exe'
@@ -849,15 +850,21 @@ class RamDump():
                           out_path + '/t32_startup_script.cmm').encode('ascii', 'ignore'))
         else:
             t32_bat = open(out_path + '/launch_t32.sh', 'wb')
-            if self.arm64:
-                t32_binary = '/opt/t32/bin/pc_linux64/t32marm64-qt'
-            elif is_cortex_a53:
-                t32_binary = '/opt/t32/bin/pc_linux64/t32marm-qt'
+            if t32_host_system == 'Darwin':
+                t32_bin_path = 'macosx64'
             else:
-                t32_binary = '/opt/t32/bin/pc_linux64/t32marm-qt'
+                t32_bin_path = 'pc_linux64'
+
+            if self.arm64:
+                t32_binary = 't32marm64-qt'
+            elif is_cortex_a53:
+                t32_binary = 't32marm-qt'
+            else:
+                t32_binary = 't32marm-qt'
+
             t32_bat.write('#!/bin/sh\n\n')
             t32_bat.write('cd $(dirname $0)\n')
-            t32_bat.write('{} -c t32_config.t32, t32_startup_script.cmm &\n'.format(t32_binary))
+            t32_bat.write('/opt/t32/bin/%s/%s -c t32_config.t32, t32_startup_script.cmm &\n' % (t32_bin_path, t32_binary))
             os.chmod(out_path + '/launch_t32.sh', stat.S_IRWXU)
 
         t32_bat.close()
